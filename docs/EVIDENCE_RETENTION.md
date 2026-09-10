@@ -1,6 +1,6 @@
 # Immutable draft claim evidence
 
-Status: 1.21 prerequisite implemented with passing local integration/build gates; final browser/source/cloud evidence is tracked in [Releases](RELEASES.md). The approved source-to-campaign experience requires historical claims to remain traceable when source files change. The broader starter is specified separately in [Campaign preparation](CAMPAIGN_PREPARATION_PLAN.md).
+Status: 1.21 prerequisite implemented, locally/browser-verified and published on main after passing Linux CI. Exact source, test and artifact evidence is tracked in [Releases](RELEASES.md). The approved source-to-campaign experience requires historical claims to remain traceable when source files change. The broader starter is specified separately in [Campaign preparation](CAMPAIGN_PREPARATION_PLAN.md).
 
 ## Reproduced defect
 

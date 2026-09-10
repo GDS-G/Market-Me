@@ -6,7 +6,7 @@ Market Me is still being built against the [approved conceptual specification](h
 
 The preview preserves historical draft claim evidence through source refresh and rejects missing or contradictory proof in ordinary and AI revisions. It builds on bounded scheduling, real workspace views and governed publication infrastructure. Customers still need manual configuration and campaign construction to connect several implemented subsystems. The required simple folder-to-approved-draft-to-campaign experience is not yet fully delivered; [Campaign preparation](CAMPAIGN_PREPARATION_PLAN.md) defines that next slice.
 
-Package/native metadata is 1.21.0. This checkpoint has 693 passing local TypeScript tests and three local Rust tests. Publication and exact cloud evidence belong in [Releases](RELEASES.md) and [CI](CI.md); the prior 1.20 source is already published and cloud-verified. No installer release, hosted production deployment or native cross-platform acceptance is implied by the version number.
+Package/native metadata is 1.21.0. The final source `2640b75ee6635f0c020259bf864d81eaccf8bdde` is published on main and passed clean Linux CI with 695 TypeScript tests across 83 files without skips. Local acceptance includes the original 693-case integrated suite, two additional deterministic early-pause cases in the 43-case workflow rerun, three Rust tests and browser/build/native checks. Exact evidence belongs in [Releases](RELEASES.md) and [CI](CI.md). No installer release, hosted production deployment or native cross-platform acceptance is implied by the version number.
 
 ## Supported behavior and remaining work
 

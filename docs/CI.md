@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+The **1.21 source** `2640b75ee6635f0c020259bf864d81eaccf8bdde` passed [Linux cloud CI](https://github.com/GDS-G/Market-Me/actions/runs/34433881287) in 3 minutes 19 seconds. All **695 tests across 83 files passed without skips**, including 110-migration PostgreSQL integration, immutable draft evidence refresh/revision checks and three actual Temporal history replays. Clean locked installation, native dependency smoke, generated types, workspace typecheck, lint, web/companion frontend builds and both zero-vulnerability audits passed. Exact tested source was fast-forwarded to main; no production deployment or native installer distribution occurred.
+
+The initial 1.21 run failed a legacy pause test. Deterministic startup coverage established that frozen 1.19 can overwrite an early pause's display status with `active` while its pause flag still prevents dispatch. The test-only correction synchronizes steady-state assertions and adds early-signal cases proving both legacy blocking and correct current-workflow reporting. Frozen production workflow code/hashes were preserved; this is not a claim that the historical display limitation was removed.
+
+## Historical 1.20 checkpoint
+
 The **1.20 source** `d38ae585aecb02cf8ea7fbf1916648c41e1a5995` passed [Linux cloud CI](https://github.com/GDS-G/Market-Me/actions/runs/34432169675) in 3 minutes 7 seconds. All **682 tests across 81 files passed without skips**, including 109-migration PostgreSQL integration and three actual Temporal history replays. Clean locked installation, native dependency smoke, generated types, workspace typecheck, lint, web/companion frontend builds and both zero-vulnerability audits passed. This run tested the source branch before its fast-forward to main; no production deployment or native installer distribution occurred.
 
 ## Historical initial baseline
