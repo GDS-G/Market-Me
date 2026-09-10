@@ -41,9 +41,11 @@ export function CampaignFinalizationActions({ workspaceId, campaignId, versionId
   return <section className="form-section"><div><h2>{state === "draft" ? "Publish this campaign version" : "Start one workflow run"}</h2>
     <p>{state === "draft" ? "Publishing makes the protected definition current. It does not activate a run or send content."
       : "Activation queues a real workflow run using this exact version. Its publication step still requires approval; review requests in Approvals."}</p></div>
-    {state === "published" && <label className="checkbox-row"><input type="checkbox" checked={confirmed} disabled={pending || activationSent} onChange={(event) => setConfirmed(event.target.checked)} />I want to activate this exact version and queue one workflow run.</label>}
-    <button type="button" className="button-primary" disabled={pending || (state === "published" && (!confirmed || activationSent))} onClick={() => void run()}>{pending ? "Submitting…" : state === "draft" ? "Publish this version" : "Activate this version"}</button>
-    {pending && <p role="status">Submitting this exact version only.</p>}{error && <p role="alert" className="form-error">{error}</p>}
-    {activationSent && <p role="status">An activation was attempted. <Link href="/campaigns">Check existing runs</Link> before considering another action.</p>}
+    <div>
+      {state === "published" && <label className="checkbox-row"><input type="checkbox" checked={confirmed} disabled={pending || activationSent} onChange={(event) => setConfirmed(event.target.checked)} />I want to activate this exact version and queue one workflow run.</label>}
+      <div className="form-actions" style={{ marginTop: 16 }}><button type="button" className="button-primary" disabled={pending || (state === "published" && (!confirmed || activationSent))} onClick={() => void run()}>{pending ? "Submitting…" : state === "draft" ? "Publish this version" : "Activate this version"}</button></div>
+      {pending && <p role="status">Submitting this exact version only.</p>}{error && <p role="alert" className="form-error">{error}</p>}
+      {activationSent && <p role="status">An activation was attempted. <Link href="/campaigns">Check existing runs</Link> before considering another action.</p>}
+    </div>
   </section>;
 }
