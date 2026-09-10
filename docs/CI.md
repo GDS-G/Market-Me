@@ -1,6 +1,6 @@
 # Cloud continuous integration
 
-`.github/workflows/ci.yml` is the initial GitHub Actions workflow. It has been locally parsed and reviewed, but has **not yet run on GitHub**. A successful local Windows build does not establish Linux CI success; inspect the first cloud run after pushing the reviewed source.
+`.github/workflows/ci.yml` passed its [first cloud run](https://github.com/GDS-G/Market-Me/actions/runs/34429425049) on source commit `8e7c3dfd69b788204caf3478c0966dc41f876052` in 2 minutes 44 seconds. The clean Ubuntu/Node 22/PostgreSQL 18 job passed installation, native dependency loading, migrations, type generation, typecheck, lint, all **400 tests across 72 files without skips**, the web/companion frontend builds, and both audits with zero vulnerabilities. No cloud-only fixes were required. This is Linux build/test evidence, not native desktop or production deployment acceptance.
 
 ## Scope and isolation
 

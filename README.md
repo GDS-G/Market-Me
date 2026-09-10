@@ -4,7 +4,7 @@ Market Me is a universal content-to-campaign operating system. It monitors custo
 
 ## Current build (1.19.0 local preview)
 
-The integrated **1.19.0 local preview** adds real workspace overview/calendar, authorized workspace switching and account settings, preserved UTC campaign editing, execution/approval guards, single-owner publication retries, and durable Mastodon collector incidents. See [Implementation status and remaining requirements](docs/IMPLEMENTATION_STATUS.md), [release evidence](docs/RELEASES.md), [cloud CI](docs/CI.md), and the [next scheduling plan](docs/SCHEDULING_PLAN.md). Source publication to GitHub is authorized; the initial cloud run is tracked separately from local verification. The application is not yet complete or production-ready. The historical inventory below does not replace the current gap list.
+The integrated **1.19.0 local preview** adds real workspace overview/calendar, authorized workspace switching and account settings, preserved UTC campaign editing, execution/approval guards, single-owner publication retries, and durable Mastodon collector incidents. The reviewed source is published and [Linux cloud CI passed](https://github.com/GDS-G/Market-Me/actions/runs/34429425049), including all 400 tests. See [Implementation status and remaining requirements](docs/IMPLEMENTATION_STATUS.md), [release evidence](docs/RELEASES.md), [cloud CI](docs/CI.md), and the [next scheduling plan](docs/SCHEDULING_PLAN.md). The application is not yet complete or production-ready. The historical inventory below does not replace the current gap list.
 
 The persistent workspace and Smart Source slice includes:
 
