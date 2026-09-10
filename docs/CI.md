@@ -1,5 +1,9 @@
 # Cloud continuous integration
 
+The **1.20 source** `d38ae585aecb02cf8ea7fbf1916648c41e1a5995` passed [Linux cloud CI](https://github.com/GDS-G/Market-Me/actions/runs/34432169675) in 3 minutes 7 seconds. All **682 tests across 81 files passed without skips**, including 109-migration PostgreSQL integration and three actual Temporal history replays. Clean locked installation, native dependency smoke, generated types, workspace typecheck, lint, web/companion frontend builds and both zero-vulnerability audits passed. This run tested the source branch before its fast-forward to main; no production deployment or native installer distribution occurred.
+
+## Historical initial baseline
+
 `.github/workflows/ci.yml` passed its [first cloud run](https://github.com/GDS-G/Market-Me/actions/runs/34429425049) on source commit `8e7c3dfd69b788204caf3478c0966dc41f876052` in 2 minutes 44 seconds. The clean Ubuntu/Node 22/PostgreSQL 18 job passed installation, native dependency loading, migrations, type generation, typecheck, lint, all **400 tests across 72 files without skips**, the web/companion frontend builds, and both audits with zero vulnerabilities. No cloud-only fixes were required. This is Linux build/test evidence, not native desktop or production deployment acceptance.
 
 ## Scope and isolation
