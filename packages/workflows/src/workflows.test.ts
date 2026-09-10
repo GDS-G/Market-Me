@@ -243,6 +243,10 @@ describe("frozen 1.19 campaignWorkflow compatibility", () => {
           },
         ],
       });
+      // This steady-state legacy test starts after the initial active write.
+      // A buffered startup pause has a known frozen 1.19 reporting limitation;
+      // signal acceptance alone does not establish this precondition.
+      await expect.poll(() => events.includes("instance:active"), { timeout: 10_000 }).toBe(true);
       await handle.signal(campaignSuccessReached, {
         criteria: [
           {
@@ -258,6 +262,7 @@ describe("frozen 1.19 campaignWorkflow compatibility", () => {
         measuredAt: "2026-08-06T00:00:00.000Z",
         triggerEventKey: "measurement:pause",
       });
+      await expect.poll(() => events.includes("instance:paused"), { timeout: 10_000 }).toBe(true);
       expect((await handle.query(campaignState)).status).toBe("paused");
       expect(
         (await handle.query(campaignState)).context["measurement.success"],

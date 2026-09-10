@@ -8,7 +8,7 @@ import { evaluateStepSchedule, type CampaignStep, type CampaignStepStatus, type 
 import type { StoredStepScheduleState } from "@market-me/database";
 import type { CampaignActivities, CampaignSchedulingActivities, CampaignStepExecution, CampaignWorkflowInput } from "./types";
 import {
-  campaignState, campaignWorkflow, cancelCampaign, completeManualStep, decideCampaignApproval, pauseCampaign, resumeCampaign,
+  campaignState, campaignSuccessReached, campaignWorkflow, cancelCampaign, completeManualStep, decideCampaignApproval, pauseCampaign, resumeCampaign,
 } from "./workflows";
 
 const workflowsPath = fileURLToPath(new URL("./workflows.ts", import.meta.url));
@@ -86,6 +86,42 @@ describe("bounded-scheduling-v1 durable orchestration", () => {
     return step(id, { scheduleType: "preferred_window", preferredWindowStart: new Date(now - 60_000).toISOString(),
       preferredWindowEnd: new Date(now + 60_000).toISOString(), ...overrides });
   }
+
+  it.each(["legacy", "current"] as const)("preserves %s early-pause execution blocking", async (mode) => {
+    const input = definition([step("publish")]);
+    const f = fixture(input);
+    let legacyExecutions = 0;
+    f.activities.executeStep = async () => { legacyExecutions++; return { status: "manual_required", reason: "Legacy test handoff." }; };
+    const worker = await Worker.create({ connection: environment.nativeConnection,
+      taskQueue: `early-pause-${randomUUID()}`, workflowsPath: mode === "legacy" ? legacyPath : workflowsPath,
+      activities: f.activities });
+    // Queue the signal before the worker starts: exercise the buffered startup
+    // ordering deterministically, not a race between two client requests.
+    const handle = await environment.client.workflow.signalWithStart(campaignWorkflow, {
+      taskQueue: worker.options.taskQueue, workflowId: randomUUID(), args: [input],
+      signal: campaignSuccessReached, signalArgs: [{ criteria: [], action: "pause",
+        measuredAt: "2026-08-06T00:00:00.000Z", triggerEventKey: "measurement:startup-pause" }],
+    });
+    await worker.runUntil(async () => {
+      await expect.poll(() => f.events.includes(mode === "legacy" ? "instance:active" : "publish:waiting"), { timeout: 10_000 }).toBe(true);
+      const state = await handle.query(campaignState);
+      expect(state.paused).toBe(true);
+      // Frozen 1.19 overwrites only the startup status label, not its pause gate.
+      // Preserve replay compatibility while proving the current path reports it correctly.
+      expect(state.status).toBe(mode === "legacy" ? "active" : "paused");
+      expect(state.context["measurement.success"]).toEqual(expect.objectContaining({ action: "pause", triggerEventKey: "measurement:startup-pause" }));
+      expect(state.stepStates.publish).toBe(mode === "legacy" ? "planned" : "waiting");
+      await environment.sleep(1_000);
+      expect((await handle.query(campaignState)).paused).toBe(true);
+      expect(legacyExecutions).toBe(0);
+      expect(f.executionTimes).toEqual([]);
+      if (mode === "current") expect(f.events).not.toContain("instance:active");
+      await handle.signal(cancelCampaign);
+      expect((await handle.result()).status).toBe("canceled");
+      expect(legacyExecutions).toBe(0);
+      expect(f.executionTimes).toEqual([]);
+    });
+  }, 120_000);
 
   it("keeps exact-time not-before behavior and records/replays the new patch marker", async () => {
     const due = await environment.currentTimeMs() + 60_000;
