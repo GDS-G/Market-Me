@@ -1,0 +1,24 @@
+{
+  "name": "@market-me/ingestion",
+  "version": "1.19.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@market-me/connectors": "1.19.0",
+    "@market-me/database": "1.19.0",
+    "@market-me/domain": "1.19.0",
+    "@market-me/media": "1.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

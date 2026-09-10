@@ -1,0 +1,58 @@
+{
+  "name": "market-me",
+  "version": "1.19.0",
+  "private": true,
+  "description": "Universal content-to-campaign operating system",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@market-me/web",
+    "worker": "npm run start --workspace=@market-me/worker",
+    "workflow-worker": "npm run start --workspace=@market-me/workflow-worker",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "workflow:up": "docker compose up -d temporal-postgres temporal",
+    "workflow:stop": "docker compose stop temporal temporal-postgres",
+    "malware:up": "docker compose --profile malware up -d clamav",
+    "malware:stop": "docker compose --profile malware stop clamav",
+    "db:migrate": "npm run migrate --workspace=@market-me/database",
+    "build": "npm run build --workspace=@market-me/web && npm run build --workspace=@market-me/companion",
+    "companion:dev": "npm run tauri --workspace=@market-me/companion -- dev",
+    "companion:native:check": "npm run native:check --workspace=@market-me/companion",
+    "companion:native:test": "npm run native:test --workspace=@market-me/companion",
+    "companion:bundle": "npm run bundle --workspace=@market-me/companion",
+    "qa:local-ingestion": "tsx scripts/qa-local-ingestion.ts",
+    "qa:governed-drafts": "tsx scripts/qa-governed-drafts.ts",
+    "qa:malware-scanner": "tsx scripts/qa-malware-scanner.ts",
+    "qa:oidc-provider": "node scripts/qa-oidc-provider.mjs",
+    "qa:s3-server": "node scripts/qa-s3-server.mjs",
+    "qa:s3-object-store": "tsx scripts/qa-s3-object-store.ts",
+    "qa:database-recovery": "node scripts/qa-database-recovery.mjs",
+    "qa:worker-readiness": "tsx scripts/qa-worker-readiness.ts",
+    "qa:mailchimp-email": "tsx scripts/qa-mailchimp-email.ts",
+    "qa:mailchimp-report": "tsx scripts/qa-mailchimp-report.ts",
+    "qa:mailchimp-report-collector": "tsx scripts/qa-mailchimp-report-collector.ts",
+    "qa:mailchimp-webhook": "tsx scripts/qa-mailchimp-webhook.ts",
+    "qa:mailchimp-webhook-lifecycle": "tsx scripts/qa-mailchimp-webhook-lifecycle.ts",
+    "qa:mailchimp-webhook-health-monitor": "tsx scripts/qa-mailchimp-webhook-health-monitor.ts",
+    "qa:slack-webhook": "tsx scripts/qa-slack-webhook.ts",
+    "qa:mastodon-account": "tsx scripts/qa-mastodon-account.ts",
+    "qa:mastodon-reviewed-images": "tsx scripts/qa-mastodon-reviewed-images.ts",
+    "qa:mastodon-status-report": "tsx scripts/qa-mastodon-status-report.ts",
+    "qa:mastodon-status-report-collector": "tsx scripts/qa-mastodon-status-report-collector.ts",
+    "lint": "npm run lint --workspace=@market-me/web",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check": "npm run lint && npm run test && npm run typecheck && npm run build && npm run companion:native:check && npm run companion:native:test"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.6"
+  }
+}

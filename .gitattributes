@@ -1,0 +1,12 @@
+# Stable source bytes across Windows and Linux, including migration checksums.
+* text=auto eol=lf
+
+# Markdown's two-space line break is intentional, not trailing-space damage.
+*.md whitespace=-blank-at-eol
+
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.webp -text
+*.ico -text
+*.icns -text

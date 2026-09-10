@@ -1,0 +1,7 @@
+import { apiError } from "@/server/api-response";
+import { requireWorkspaceAccess } from "@/server/auth";
+import { getProfileRepository } from "@/server/database";
+import { brandProfileDraftSchema, profileValidationError } from "@/server/profile-schema";
+
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) { try { const { id } = await context.params; const { workspace } = await requireWorkspaceAccess(new URL(request.url).searchParams.get("workspaceId") ?? undefined); const data = await getProfileRepository().getBrandProfile(workspace.workspaceId, id); return data ? Response.json({ data }) : Response.json({ error: { code: "not_found", message: "Brand Profile not found." } }, { status: 404 }); } catch (error) { return apiError(error); } }
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) { try { const { id } = await context.params; const parsed = brandProfileDraftSchema.safeParse(await request.json()); if (!parsed.success) return profileValidationError(parsed.error); const { user } = await requireWorkspaceAccess(parsed.data.workspaceId, "write"); const data = await getProfileRepository().saveBrandProfileDraft(id, parsed.data, user.id); return data ? Response.json({ data }) : Response.json({ error: { code: "not_found", message: "Brand Profile not found." } }, { status: 404 }); } catch (error) { return apiError(error); } }

@@ -1,0 +1,7 @@
+import { apiError } from "@/server/api-response";
+import { requireWorkspaceAccess } from "@/server/auth";
+import { getProfileRepository } from "@/server/database";
+import { audienceProfileDraftSchema, profileValidationError } from "@/server/profile-schema";
+
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) { try { const { id } = await context.params; const { workspace } = await requireWorkspaceAccess(new URL(request.url).searchParams.get("workspaceId") ?? undefined); const data = await getProfileRepository().getAudienceProfile(workspace.workspaceId, id); return data ? Response.json({ data }) : Response.json({ error: { code: "not_found", message: "Audience Profile not found." } }, { status: 404 }); } catch (error) { return apiError(error); } }
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) { try { const { id } = await context.params; const parsed = audienceProfileDraftSchema.safeParse(await request.json()); if (!parsed.success) return profileValidationError(parsed.error); const { user } = await requireWorkspaceAccess(parsed.data.workspaceId, "write"); const data = await getProfileRepository().saveAudienceProfileDraft(id, parsed.data, user.id); return data ? Response.json({ data }) : Response.json({ error: { code: "not_found", message: "Audience Profile not found." } }, { status: 404 }); } catch (error) { return apiError(error); } }

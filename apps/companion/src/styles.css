@@ -1,0 +1,22 @@
+:root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #29252f; background: #f7f5f9; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: radial-gradient(circle at 15% 0%, #eee8ff 0, transparent 28%), #f7f5f9; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+.shell { width: min(1000px, 100%); min-height: 100vh; margin: auto; padding: 30px; display: flex; flex-direction: column; gap: 18px; }
+header { display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 13px; }
+.brand-mark { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 13px; color: white; background: linear-gradient(140deg, #7454d6, #9d87e2); font-weight: 900; box-shadow: 0 10px 24px #7654d730; }
+header p { margin: 0 0 2px; color: #7a5bd5; font-size: 11px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; }
+header h1 { margin: 0; font-size: 23px; letter-spacing: -.7px; }
+.state { padding: 7px 10px; border-radius: 99px; font-size: 10px; font-weight: 800; }.state.healthy { color: #267957; background: #e5f6ee; }.state.offline { color: #8c6370; background: #f3e9ed; }
+.notice { padding: 11px 14px; border: 1px solid #e5deef; border-radius: 9px; color: #655d6c; background: #ffffffc9; font-size: 11px; }.notice.warning { color: #a54650; border-color: #f0d4d7; background: #fff7f7; }
+.card { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(320px, 1.2fr); gap: 35px; padding: 26px; border: 1px solid #e2dee7; border-radius: 15px; background: #fff; box-shadow: 0 8px 30px #3627460c; }
+.card-copy > span, .summary-grid span { color: #817a87; font-size: 9px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase; }
+.card-copy h2 { margin: 7px 0 8px; font-size: 18px; }.card-copy p { margin: 0; color: #817b86; font-size: 11px; line-height: 1.6; }
+form { display: grid; gap: 12px; } label { display: grid; gap: 6px; } label span { color: #5f5965; font-size: 10px; font-weight: 750; } input { height: 40px; padding: 0 12px; border: 1px solid #ddd7e3; border-radius: 8px; outline: none; } input:focus { border-color: #9a83dd; box-shadow: 0 0 0 3px #7654d714; }
+button { min-height: 39px; padding: 0 15px; border: 1px solid #dcd5e4; border-radius: 8px; color: #5d4d79; background: white; font-size: 10px; font-weight: 800; } button:hover { background: #f7f3ff; } button:disabled { cursor: wait; opacity: .55; } form button, .job-detail button { color: white; border-color: #7654d7; background: #7654d7; }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }.summary-grid article { min-width: 0; padding: 17px; border: 1px solid #e3dfe7; border-radius: 12px; background: white; }.summary-grid strong { display: block; margin: 8px 0 5px; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }.summary-grid small { display: block; overflow: hidden; color: #948d98; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }.actions .danger { color: #ad4049; border-color: #edc8cc; }.actions .resume { color: #267957; border-color: #bee3d2; background: #edf9f3; }
+.job-detail { display: flex; flex-direction: column; gap: 13px; }.job-detail dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }.job-detail dl div { padding: 10px; border-radius: 8px; background: #f7f5f9; }.job-detail dt { color: #958e99; font-size: 8px; text-transform: uppercase; }.job-detail dd { margin: 5px 0 0; font-size: 10px; font-weight: 700; text-transform: capitalize; }.job-detail p { margin: 0; font-size: 11px; line-height: 1.55; }.job-detail code { padding: 10px; overflow: auto; border-radius: 7px; color: #5e4b79; background: #f5f0ff; font-size: 9px; white-space: nowrap; }.empty-job { min-height: 150px; display: grid; place-items: center; border: 1px dashed #dcd5e4; border-radius: 10px; color: #99919e; font-size: 11px; }
+footer { margin-top: auto; padding-top: 10px; color: #918a96; font-size: 9px; text-align: center; }
+@media (max-width: 720px) { .shell { padding: 20px; }.card { grid-template-columns: 1fr; gap: 22px; }.summary-grid { grid-template-columns: 1fr; }.job-detail dl { grid-template-columns: 1fr; } }

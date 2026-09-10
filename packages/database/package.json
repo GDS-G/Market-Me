@@ -1,0 +1,27 @@
+{
+  "name": "@market-me/database",
+  "version": "1.19.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./migrations": "./src/migrations.ts"
+  },
+  "scripts": {
+    "migrate": "tsx src/cli/migrate.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@market-me/companion-protocol": "1.19.0",
+    "@market-me/connectors": "1.19.0",
+    "@market-me/domain": "1.19.0",
+    "@market-me/generation": "1.19.0",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

@@ -1,0 +1,59 @@
+name: market-me
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18-trixie
+    environment:
+      POSTGRES_DB: market_me
+      POSTGRES_USER: market_me
+      POSTGRES_PASSWORD: market_me_local
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - market_me_postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U market_me -d market_me"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  temporal-postgres:
+    image: postgres:16.10-alpine
+    environment:
+      POSTGRES_DB: temporal
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal_local
+    volumes:
+      - market_me_temporal_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal -d temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  temporal:
+    image: temporalio/auto-setup:1.29.6
+    depends_on:
+      temporal-postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal_local
+      POSTGRES_SEEDS: temporal-postgres
+    ports:
+      - "127.0.0.1:7233:7233"
+
+  clamav:
+    image: clamav/clamav:1.5.3
+    profiles: ["malware"]
+    ports:
+      - "127.0.0.1:3310:3310"
+    volumes:
+      - market_me_clamav:/var/lib/clamav
+
+volumes:
+  market_me_postgres:
+  market_me_temporal_postgres:
+  market_me_clamav:

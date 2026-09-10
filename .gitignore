@@ -1,0 +1,27 @@
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+target/
+coverage/
+*.tsbuildinfo
+apps/companion/vite.config.js
+apps/companion/vite.config.d.ts
+
+# Environment files (the example contract is tracked)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local runtime data
+.market-me/
+null/
+apps/companion/src-tauri/gen/
+*.log

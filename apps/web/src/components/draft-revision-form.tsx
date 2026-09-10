@@ -1,0 +1,15 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import type { StoredContentDraft } from "@market-me/database";
+
+export function DraftRevisionForm({ workspaceId, draft }: { workspaceId: string; draft: StoredContentDraft }) {
+  const router = useRouter(); const version = draft.currentVersion;
+  const [leadIn, setLeadIn] = useState(String(version.presentationChoices.leadIn ?? ""));
+  const [callToAction, setCallToAction] = useState(version.callToAction ?? "");
+  const [hashtags, setHashtags] = useState(version.hashtags.join(" "));
+  const [altText, setAltText] = useState(version.altText ?? ""); const [changeNote, setChangeNote] = useState("");
+  const [pending, setPending] = useState(false); const [error, setError] = useState("");
+  async function save(event: React.FormEvent) { event.preventDefault(); setPending(true); setError(""); const response = await fetch(`/api/v1/drafts/${draft.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceId, leadIn, callToAction: callToAction || undefined, hashtags: hashtags.split(/\s+/).filter(Boolean), altText: altText || undefined, changeNote }) }); const payload = await response.json().catch(() => ({})); setPending(false); if (!response.ok) setError(payload?.error?.message ?? "Could not create the revised version."); else { setChangeNote(""); router.refresh(); } }
+  return <form className="resource-form draft-revision" onSubmit={save}><section className="form-section"><div><h2>Revise presentation</h2><p>Creates an immutable successor. Evidence-backed factual sentences remain fixed; only the lead-in, call to action, hashtags, and accessibility text can change.</p></div><div className="field-grid"><label className="field field-wide"><span>Presentation lead-in</span><input value={leadIn} onChange={(event) => setLeadIn(event.target.value)} placeholder="For local partners" /><small>No sentence punctuation or factual assertion.</small></label><label className="field field-wide"><span>Call to action</span><input value={callToAction} onChange={(event) => setCallToAction(event.target.value)} /></label><label className="field field-wide"><span>Hashtags</span><input value={hashtags} onChange={(event) => setHashtags(event.target.value)} placeholder="#MarketMe #Launch" /></label><label className="field field-wide"><span>Alternative text</span><textarea value={altText} onChange={(event) => setAltText(event.target.value)} /></label><label className="field field-wide"><span>Required change note</span><textarea required minLength={3} value={changeNote} onChange={(event) => setChangeNote(event.target.value)} placeholder="Explain why this successor version is needed" /></label></div></section><div className="form-actions"><button className="button-primary" disabled={pending || changeNote.trim().length < 3} type="submit">{pending ? "Saving…" : "Create successor version"}</button></div>{error && <p className="form-message form-error">{error}</p>}</form>;
+}

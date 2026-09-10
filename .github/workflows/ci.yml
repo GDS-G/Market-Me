@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+# Untrusted pull requests receive no deployment, publishing, or secret access.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Linux / Node 22 / PostgreSQL 18
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      TZ: UTC
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Disposable, job-local test credentials; never use an application database.
+      DATABASE_URL: postgres://market_me_ci:market_me_ci_only@127.0.0.1:5432/market_me_ci
+    services:
+      postgres:
+        # pgvector 0.8.6, PostgreSQL 18, Debian trixie; immutable multi-arch manifest.
+        image: pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff
+        env:
+          POSTGRES_DB: market_me_ci
+          POSTGRES_USER: market_me_ci
+          POSTGRES_PASSWORD: market_me_ci_only
+        ports:
+          - "127.0.0.1:5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U market_me_ci -d market_me_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-fund
+
+      - name: Check native dependencies and workspace resolution
+        run: |
+          node <<'NODE'
+          const { createRequire } = require('node:module');
+          const { resolve } = require('node:path');
+          const checks = [
+            ['@temporalio/core-bridge', 'packages/workflows/package.json'],
+            ['sharp', 'packages/media/package.json'],
+            ['@napi-rs/canvas', 'packages/media/package.json'],
+            ['@tailwindcss/oxide', 'apps/web/package.json'],
+            ['lightningcss', 'apps/web/package.json'],
+          ];
+          for (const [name, workspace] of checks) {
+            createRequire(resolve(workspace))(name);
+            console.log(`Loaded ${name} from ${workspace}`);
+          }
+          const toolingRequire = createRequire(require.resolve('tsx/package.json'));
+          toolingRequire('esbuild').transformSync('const ciReady = true;', { loader: 'js' });
+          console.log('esbuild native transform succeeded');
+          NODE
+
+      - name: Apply migrations to the isolated CI database
+        run: npm run db:migrate
+
+      - name: Generate Next.js types for a clean checkout
+        run: npm exec --workspace=@market-me/web -- next typegen
+
+      - name: Type-check every workspace
+        run: npm run typecheck
+
+      - name: Lint web application
+        run: npm run lint
+
+      - name: Test all workspaces including live database integration
+        # Temporal tests download and start their own time-skipping test server.
+        run: npm test
+
+      - name: Build web application and companion frontend
+        # Does not build, sign, or package the native desktop application.
+        run: npm run build
+
+      - name: Audit production dependencies
+        if: ${{ !cancelled() }}
+        run: npm audit --omit=dev
+
+      - name: Audit all dependencies including development tools
+        if: ${{ !cancelled() }}
+        run: npm audit

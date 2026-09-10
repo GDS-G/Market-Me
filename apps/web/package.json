@@ -1,0 +1,39 @@
+{
+  "name": "@market-me/web",
+  "version": "1.19.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@market-me/connectors": "1.19.0",
+    "@market-me/companion-protocol": "1.19.0",
+    "@market-me/database": "1.19.0",
+    "@market-me/domain": "1.19.0",
+    "@market-me/generation": "1.19.0",
+    "@market-me/media": "1.19.0",
+    "@market-me/ingestion": "1.19.0",
+    "lucide-react": "^1.28.0",
+    "next": "16.3.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.4",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
+  }
+}

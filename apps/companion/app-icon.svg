@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Market Me">
+  <defs>
+    <linearGradient id="market-me-gradient" x1="160" y1="120" x2="864" y2="904" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9d87e2"/>
+      <stop offset="1" stop-color="#6945ca"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="236" fill="url(#market-me-gradient)"/>
+  <path fill="#fff" d="M196 690V334h94l109 180 109-180h94v356h-94V486l-109 174-109-174v204h-94Zm430 0V334h94l108 180V334h94v356h-94L720 510v180h-94Z"/>
+</svg>
