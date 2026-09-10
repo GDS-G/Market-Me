@@ -1,6 +1,14 @@
 # Security and Integration Controls
 
-## Current checkpoint: 1.20 bounded execution boundaries
+## Current checkpoint: 1.21 immutable evidence boundaries
+
+Historical evidence is not a current approval or publishing grant. Removing the live-evidence foreign key prevents source refresh from cascading away recorded claim links, but new links must satisfy exact generation-snapshot/workspace/version proof. The validator rejects ambiguous IDs, incomplete factual order, invalid metadata and mismatched captured claims. The backfill restores only provable missing identity; unavailable history remains explicitly unavailable.
+
+Ordinary and AI revisions retain every fact and fail closed for missing/invalid proof rather than silently dropping facts through inner joins. Paid AI revision context checks the proof before preparing an invocation, not merely at eventual proposal application. A shared package lock makes generation's approval/version/evidence read consistent with replacement. Old approval stays with the old version; refreshed packages require review.
+
+Snapshot JSON, `factOrder` and claim records are server-created immutable application data; a database owner who directly rewrites them is outside this authority model. The trigger is not a general tamper-proof ledger or complete historical repair. UI trace describes captured references, marks gaps/conflicts, and never labels an ungrounded factual claim as a presentation-only call to action. No new provider permission, credential, network operation or automatic activation is added. See [Evidence retention](EVIDENCE_RETENTION.md) for rollout and limitations.
+
+## 1.20 bounded execution boundaries
 
 Bounded scheduling is implemented with independent time, identity, approval and publication-ownership checks. This is not whole-product acceptance, production certification, permission for automated cold outreach, or proof of atomicity across every existing media/rights mutation. [Scheduling contracts](SCHEDULING_CONTRACTS.md), [Development](DEVELOPMENT.md) and [Implementation status](IMPLEMENTATION_STATUS.md) define the intended deployment and remaining limits.
 

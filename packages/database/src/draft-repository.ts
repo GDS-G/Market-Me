@@ -89,6 +89,7 @@ export class DraftRepository {
         { id: string; title: string; version: number; status: string }[]
       >`
         SELECT id, title, version, status FROM content_package WHERE id = ${input.contentPackageId} AND workspace_id = ${input.workspaceId}
+        FOR SHARE
       `;
       if (packages[0]?.status !== "approved")
         throw new DraftValidationError([
@@ -355,18 +356,21 @@ export class DraftRepository {
       `;
       if (!rows[0]) return false;
       const factClaims = await transaction<
-        { kind: "fact"; text: string; evidenceItemIds: string[] }[]
+        { kind: "fact"; text: string; evidenceItemIds: string[]; evidenceValid: boolean }[]
       >`
-        SELECT claim.kind, claim.claim_text AS text, array_agg(binding.evidence_item_id ORDER BY binding.evidence_item_id) AS evidence_item_ids
-        FROM content_draft_claim claim JOIN content_draft_claim_evidence binding ON binding.content_draft_claim_id = claim.id
+        SELECT claim.kind, claim.claim_text AS text,
+          COALESCE(array_agg(binding.evidence_item_id ORDER BY binding.evidence_item_id)
+            FILTER (WHERE binding.evidence_item_id IS NOT NULL), '{}') AS evidence_item_ids,
+          bool_and(draft_claim_snapshot_reference_valid(claim.id, binding.evidence_item_id)) AS evidence_valid
+        FROM content_draft_claim claim LEFT JOIN content_draft_claim_evidence binding ON binding.content_draft_claim_id = claim.id
         WHERE claim.content_draft_version_id = ${rows[0].versionId} AND claim.kind = 'fact' GROUP BY claim.id ORDER BY min(claim.sort_order)
       `;
-      if (!factClaims.length)
+      if (!factClaims.length || factClaims.some((claim) => !claim.evidenceItemIds.length || !claim.evidenceValid))
         throw new DraftValidationError([
           {
             code: "facts_required",
             message:
-              "A revised Draft must preserve at least one evidence-backed factual claim.",
+              "A revised Draft must preserve the immutable evidence references for every factual claim. Historical evidence is unavailable; regenerate from a reviewed package.",
           },
         ]);
       const facts = factClaims
@@ -1088,9 +1092,12 @@ export class DraftRepository {
       evidenceItemIds: readonly string[];
     }[],
   ) {
-    for (const [sortOrder, claim] of claims.entries()) {
-      const claimId = randomUUID();
+    const prepared = claims.map((claim, sortOrder) => ({ claimId: randomUUID(), sortOrder, claim }));
+    // The snapshot constraint validates the complete version before admitting any link.
+    for (const { claimId, sortOrder, claim } of prepared) {
       await transaction`INSERT INTO content_draft_claim (id, content_draft_version_id, kind, claim_text, sort_order) VALUES (${claimId}, ${versionId}, ${claim.kind}, ${claim.text}, ${sortOrder})`;
+    }
+    for (const { claimId, claim } of prepared) {
       for (const evidenceId of claim.evidenceItemIds)
         await transaction`INSERT INTO content_draft_claim_evidence (content_draft_claim_id, evidence_item_id) VALUES (${claimId}, ${evidenceId})`;
     }

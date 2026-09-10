@@ -25,10 +25,10 @@ describe("web readiness", () => {
   });
 
   it.each([
-    { migrationCount: 108, latestMigration: "0108_mastodon_collection_alerts.sql" },
-    { migrationCount: 108, latestMigration: "0109_campaign_schedule_bounds.sql" },
-    { migrationCount: 109, latestMigration: "0108_mastodon_collection_alerts.sql" },
-    { migrationCount: 110, latestMigration: "0110_future_schema.sql" },
+    { migrationCount: 109, latestMigration: "0109_campaign_schedule_bounds.sql" },
+    { migrationCount: 109, latestMigration: "0110_immutable_draft_claim_evidence.sql" },
+    { migrationCount: 110, latestMigration: "0109_campaign_schedule_bounds.sql" },
+    { migrationCount: 111, latestMigration: "0111_future_schema.sql" },
   ])("fails closed for a missing, mismatched, or newer schema: %j", async (schema) => {
     const readiness = await checkWebReadiness({
       version: "1.20.0", environment: productionEnvironment,

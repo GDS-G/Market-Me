@@ -659,6 +659,9 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
           'informational', 'draft_only', ${owner.user.id})
       `;
       await sql`UPDATE campaign SET current_version_id = ${proposalCampaignVersionId} WHERE id = ${proposalCampaignId}`;
+      const proposalEvidenceSnapshot = [{
+        id: proposalEvidenceId, claim: "Existing evidence-backed copy", provenance: "observed", sourceReferences: ["proposal.txt"], confidence: 1,
+      }];
       await sql`
         INSERT INTO draft_generation (
           id, workspace_id, campaign_version_id, content_package_id,
@@ -667,7 +670,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
           generator_version, prompt_version, draft_format, created_by
         ) VALUES (${proposalGenerationId}, ${owner.workspace.workspaceId},
           ${proposalCampaignVersionId}, ${proposalPackageId}, 1, 'minimal',
-          'informational', '[]'::jsonb, 'fixture', 'fixture', 'fixture-v1',
+          'informational', ${sql.json(proposalEvidenceSnapshot)}, 'fixture', 'fixture', 'fixture-v1',
           'fixture-v1', 'channel_neutral', ${owner.user.id})
       `;
       await sql`
@@ -683,7 +686,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
           rationale, presentation_choices, created_by
         ) VALUES (${proposalDraftVersionId}, ${proposalDraftId}, 1, 'working',
           'Governed proposal target', 'Existing evidence-backed copy.',
-          'Fixture rationale.', '{}'::jsonb, ${owner.user.id})
+          'Fixture rationale.', ${sql.json({ factOrder: [proposalEvidenceId] })}, ${owner.user.id})
       `;
       await sql`UPDATE content_draft SET current_version_id = ${proposalDraftVersionId} WHERE id = ${proposalDraftId}`;
       await sql`
@@ -714,6 +717,24 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         quoteId: draftRevisionQuote.id,
         idempotencyKey: randomUUID(),
       }, owner.user.id);
+      // A surviving link is not enough: duplicate snapshot identities cannot authorize an AI prompt.
+      await sql`UPDATE draft_generation SET evidence_snapshot = ${sql.json([
+        ...proposalEvidenceSnapshot, { ...proposalEvidenceSnapshot[0]!, claim: "Contradictory historical identity" },
+      ])} WHERE id = ${proposalGenerationId}`;
+      try {
+        await expect(ai.prepareWorkspaceDraftRevisionIntent({
+          workspaceId: owner.workspace.workspaceId, contentDraftId: proposalDraftId,
+          invocationBindingId: invocation.id, reservationId: draftRevisionReservation.id,
+          idempotencyKey: randomUUID(), goal: "clarity", maxOutputTokens: 512,
+        }, owner.user.id)).rejects.toMatchObject({
+          name: "AiPolicyValidationError",
+          issues: [{ message: expect.stringContaining("immutable evidence references for every factual") }],
+        });
+        expect(await sql`SELECT id FROM workspace_ai_text_invocation_intent WHERE source_content_draft_id = ${proposalDraftId}`)
+          .toHaveLength(0);
+      } finally {
+        await sql`UPDATE draft_generation SET evidence_snapshot = ${sql.json(proposalEvidenceSnapshot)} WHERE id = ${proposalGenerationId}`;
+      }
       const draftRevision = await ai.prepareWorkspaceDraftRevisionIntent({
         workspaceId: owner.workspace.workspaceId,
         contentDraftId: proposalDraftId,
@@ -801,6 +822,20 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         contentDraftId: proposalDraftId,
         encryptedOutput: 'v1.fixture-iv.fixture-tag.fixture-encrypted-output',
       });
+      await sql`UPDATE content_draft_version SET presentation_choices = '{}'::jsonb WHERE id = ${proposalDraftVersionId}`;
+      try {
+        await expect(ai.applyWorkspaceTextDraftProposal({
+          workspaceId: owner.workspace.workspaceId, proposalId: proposal.id,
+          leadIn: "For proposal reviewers", hashtags: [], changeNote: "Unproven history must not be revised",
+        }, owner.user.id)).rejects.toMatchObject({
+          name: "AiPolicyValidationError",
+          issues: [{ message: expect.stringContaining("immutable evidence references for every factual") }],
+        });
+        expect((await sql<{ id: string }[]>`SELECT current_version_id AS id FROM content_draft WHERE id = ${proposalDraftId}`)[0]!.id)
+          .toBe(proposalDraftVersionId);
+      } finally {
+        await sql`UPDATE content_draft_version SET presentation_choices = ${sql.json({ factOrder: [proposalEvidenceId] })} WHERE id = ${proposalDraftVersionId}`;
+      }
       const appliedProposal = await ai.applyWorkspaceTextDraftProposal({
         workspaceId: owner.workspace.workspaceId,
         proposalId: proposal.id,

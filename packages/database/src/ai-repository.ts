@@ -2907,21 +2907,24 @@ export class AiRepository {
         kind: "fact";
         text: string;
         evidenceItemIds: string[];
+        evidenceValid: boolean;
       }[]>`
         SELECT claim.kind, claim.claim_text AS text,
-          array_agg(binding.evidence_item_id ORDER BY binding.evidence_item_id) AS evidence_item_ids
+          COALESCE(array_agg(binding.evidence_item_id ORDER BY binding.evidence_item_id)
+            FILTER (WHERE binding.evidence_item_id IS NOT NULL), '{}') AS evidence_item_ids,
+          bool_and(draft_claim_snapshot_reference_valid(claim.id, binding.evidence_item_id)) AS evidence_valid
         FROM content_draft_claim claim
-        JOIN content_draft_claim_evidence binding
+        LEFT JOIN content_draft_claim_evidence binding
           ON binding.content_draft_claim_id = claim.id
         WHERE claim.content_draft_version_id = ${current.sourceDraftVersionId}
           AND claim.kind = 'fact'
         GROUP BY claim.id
         ORDER BY min(claim.sort_order)
       `;
-      if (!factClaims.length)
+      if (!factClaims.length || factClaims.some((claim) => !claim.evidenceItemIds.length || !claim.evidenceValid))
         throw new AiPolicyValidationError([{
           field: "proposalId",
-          message: "The source Draft must contain at least one evidence-backed factual claim.",
+          message: "The source Draft must retain immutable evidence references for every factual claim. Historical evidence is unavailable; regenerate from a reviewed package.",
         }]);
 
       const sourceLeadIn = String(current.presentationChoices.leadIn ?? "");
@@ -2971,15 +2974,16 @@ export class AiRepository {
           ${current.sourceDraftVersionId}, ${input.changeNote}, ${actorUserId}
         )
       `;
-      for (const [sortOrder, claim] of [
+      const preparedClaims = [
         ...factClaims,
         ...(input.callToAction ? [{
           kind: "call_to_action" as const,
           text: input.callToAction,
           evidenceItemIds: [] as string[],
         }] : []),
-      ].entries()) {
-        const claimId = randomUUID();
+      ].map((claim, sortOrder) => ({ claimId: randomUUID(), sortOrder, claim }));
+      // Snapshot validation needs the complete factual claim order before links.
+      for (const { claimId, sortOrder, claim } of preparedClaims) {
         await transaction`
           INSERT INTO content_draft_claim (
             id, content_draft_version_id, kind, claim_text, sort_order
@@ -2987,6 +2991,8 @@ export class AiRepository {
             ${claimId}, ${appliedVersionId}, ${claim.kind}, ${claim.text}, ${sortOrder}
           )
         `;
+      }
+      for (const { claimId, claim } of preparedClaims) {
         for (const evidenceItemId of claim.evidenceItemIds)
           await transaction`
             INSERT INTO content_draft_claim_evidence (
@@ -7550,20 +7556,23 @@ async function selectDraftRevisionPrompt(
     text: string;
     evidenceItemIds: string[];
     sortOrder: number;
+    evidenceValid: boolean;
   }[]>`
     SELECT claim.kind, claim.claim_text AS text, claim.sort_order,
       COALESCE(array_agg(binding.evidence_item_id ORDER BY binding.evidence_item_id)
-        FILTER (WHERE binding.evidence_item_id IS NOT NULL), '{}') AS evidence_item_ids
+        FILTER (WHERE binding.evidence_item_id IS NOT NULL), '{}') AS evidence_item_ids,
+      bool_and(draft_claim_snapshot_reference_valid(claim.id, binding.evidence_item_id)) AS evidence_valid
     FROM content_draft_claim claim
     LEFT JOIN content_draft_claim_evidence binding
       ON binding.content_draft_claim_id = claim.id
     WHERE claim.content_draft_version_id = ${source.contentDraftVersionId}
     GROUP BY claim.id ORDER BY claim.sort_order, claim.id
   `;
-  if (!claims.some((claim) => claim.kind === "fact" && claim.evidenceItemIds.length))
+  if (!claims.some((claim) => claim.kind === "fact") ||
+    claims.some((claim) => claim.kind === "fact" && (!claim.evidenceItemIds.length || !claim.evidenceValid)))
     throw new AiPolicyValidationError([{
       field: "contentDraftId",
-      message: "AI revision requires at least one evidence-backed factual Draft claim.",
+      message: "AI revision requires immutable evidence references for every factual Draft claim. Historical evidence is unavailable; regenerate from a reviewed package.",
     }]);
   const evidence = [...source.evidenceSnapshot]
     .sort((left, right) => left.id.localeCompare(right.id))

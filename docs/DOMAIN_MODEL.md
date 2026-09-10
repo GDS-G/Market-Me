@@ -1,6 +1,14 @@
 # Domain Model and Important Variables
 
-## Current checkpoint: 1.20 scheduling contracts
+## Current checkpoint: 1.21 historical evidence contracts
+
+`content_draft_claim_evidence.evidence_item_id` retains a historical UUID from the owning draft generation's `evidence_snapshot`; migration 0110 removes its live-evidence foreign key, not the claim-owned lifecycle. A current live row may no longer exist or may describe a newer revision. Historical reads must use the captured snapshot.
+
+`draft_claim_snapshot_reference_valid(claim_id uuid, evidence_id uuid) -> boolean` validates exact lineage, nonnegative contiguous whole-version factual order, unique snapshot IDs, matching captured claim text/provenance and server-created `presentation_choices.factOrder`. `enforce_draft_claim_snapshot_reference()` guards new/revised link rows and forbids identity replacement. Backfill is limited to entirely unlinked, provable claims; inconsistent surviving data is not rewritten or augmented with guesses.
+
+Writer-local `{claimId, sortOrder, claim}` arrays permit complete claim insertion before link validation within one transaction. Revision `evidenceValid` query fields are derived proof results, not persisted mutable approval state. `describeDraftClaimTrace` returns a display-only `linked | unavailable | presentation` status and text; it grants no authority. There is no new environment variable, secret or mutable global. [Evidence retention](EVIDENCE_RETENTION.md) documents collection lifetimes, gaps and acceptance.
+
+## 1.20 scheduling contracts
 
 The following additions govern implemented bounded scheduling. They do not make every value in the schedule/action enums executable. See [Scheduling contracts](SCHEDULING_CONTRACTS.md) for the detailed authority and clock contract; 1.19 and earlier records below remain historical context.
 

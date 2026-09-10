@@ -1,6 +1,14 @@
 # Architecture
 
-## Current checkpoint: 1.20 bounded scheduling
+## Current checkpoint: 1.21 immutable draft evidence
+
+Source refresh replaces current package evidence but must not erase the trace of an older approved draft. Claim links now identify captured generation-snapshot UUIDs independently of live `evidence_item` rows. A database proof function and insertion/update trigger validate exact workspace/version/generation lineage and the complete captured factual order. Historical backfill restores only provable missing links, never a text-based guess. See [Evidence retention](EVIDENCE_RETENTION.md) for the contract and rollout limits.
+
+Generation holds a shared package-row lock while reading approval, revision and evidence. Ordinary and AI revisions preserve all facts, reject missing/invalid proof, and insert the complete claim set before its links. AI context construction checks proof before a paid invocation can be prepared. Historical UI trace distinguishes captured references from unavailable evidence and nonfactual calls to action. This does not transfer an old approval to refreshed content or add automatic publishing.
+
+The review-first campaign starter remains planned, not implemented: [Campaign preparation](CAMPAIGN_PREPARATION_PLAN.md) describes its atomic/idempotent next slice. The existing scheduling architecture below remains applicable.
+
+## 1.20 bounded scheduling
 
 The current implementation adds absolute preferred request-start windows and delays after durable predecessor completion. It remains a modular monolith plus workers, not a full-product or production-readiness declaration. [Scheduling contracts](SCHEDULING_CONTRACTS.md) and [Implementation status](IMPLEMENTATION_STATUS.md) describe the boundary; the versioned sections below retain earlier design history.
 

@@ -1,12 +1,12 @@
 # Market Me implementation status
 
-## Current checkpoint: 1.20.0 local preview, 2026-09-09
+## Current checkpoint: 1.21.0 local preview, 2026-09-09
 
 Market Me is still being built against the [approved conceptual specification](https://docs.google.com/document/d/1Iidc682xecSknAS8WeaNc1HH4V0ZvcKL_izEiU9Ng_k/edit), including its 23 child specification sections. The local review used the current `market-me-spec-current.md` extract in the task workspace. This document is a current capability/gap map, not a completion certificate. The specification's global acceptance requirements remain the target; implemented subsets do not replace them.
 
-The preview adds bounded request-start windows and durable dependency delays to the real overview/calendar, workspace Settings, campaign editor, approval and publication infrastructure. Expired undispatched work is blocked; accepted or uncertain provider outcomes are preserved for recovery. Customers still need manual configuration and campaign construction to connect several implemented subsystems. The required simple folder-to-approved-draft-to-campaign experience is not yet fully delivered.
+The preview preserves historical draft claim evidence through source refresh and rejects missing or contradictory proof in ordinary and AI revisions. It builds on bounded scheduling, real workspace views and governed publication infrastructure. Customers still need manual configuration and campaign construction to connect several implemented subsystems. The required simple folder-to-approved-draft-to-campaign experience is not yet fully delivered; [Campaign preparation](CAMPAIGN_PREPARATION_PLAN.md) defines that next slice.
 
-Package/native metadata is 1.20.0. This checkpoint has 682 passing local and Linux cloud TypeScript tests and three local Rust tests. Reviewed source `d38ae585aecb02cf8ea7fbf1916648c41e1a5995` is published on main after successful [cloud CI](https://github.com/GDS-G/Market-Me/actions/runs/34432169675). Exact evidence belongs in [Releases](RELEASES.md) and [CI](CI.md). No installer release, hosted production deployment or native cross-platform acceptance is implied by the version number.
+Package/native metadata is 1.21.0. This checkpoint has 693 passing local TypeScript tests and three local Rust tests. Publication and exact cloud evidence belong in [Releases](RELEASES.md) and [CI](CI.md); the prior 1.20 source is already published and cloud-verified. No installer release, hosted production deployment or native cross-platform acceptance is implied by the version number.
 
 ## Supported behavior and remaining work
 
@@ -28,6 +28,15 @@ The implementation pointers below locate relevant code; they do not by themselve
 | Reliability, OS/deployment and extensibility (20–22) | Durable workflow/command/idempotency state, reconciliation/retry primitives, worker heartbeats/readiness, logical database recovery drill, container composition, Windows companion preview and selected authenticated APIs. | Complete end-to-end restore/load/failure acceptance; independent collector outage monitoring; signed distribution/updates; macOS, Ubuntu and CentOS Stream/RHEL-compatible companion/server validation; Podman validation; all named browser coverage; supported public API/webhook/export/extension SDK contracts. |
 
 Primary implementation locations are `apps/web/src/app`, `packages/database/src`, `packages/domain/src/policies.ts`, `packages/workflows/src`, `apps/workflow-worker/src`, `packages/connectors/src`, `packages/ingestion/src`, `packages/media/src`, `packages/generation/src`, and `apps/companion`. Detailed current contracts are in [Domain Model](DOMAIN_MODEL.md); build/operations instructions are in [Developer Guide](DEVELOPMENT.md).
+
+## What the 1.21 preview changes
+
+- Historical claim UUIDs now resolve against their exact immutable generation snapshot even after current package evidence is replaced. Safe backfill repairs only provable missing mappings; ambiguous history remains explicitly unavailable.
+- A complete factual order, unique snapshot IDs, exact captured text/provenance and tenant/version lineage govern new links. Ordinary and AI revisions preserve every fact and fail closed for missing/contradictory proof; paid AI context checks happen before intent creation.
+- Shared package locking keeps generation approval/revision/evidence consistent with refresh. Old approvals remain version-bound, and new content requires its own review.
+- Draft trace labels historical gaps, duplicate IDs and factual text conflicts honestly; only a nonfactual call to action receives the presentation-only label. Readiness now expects migration 0110/count 110. Coordinated writer downtime is required for schema/code rollout; mixed-version operation is not supported.
+
+See [Evidence retention](EVIDENCE_RETENTION.md) for functions, columns, collections, lifetimes, repair limits and migration acceptance.
 
 ## What the 1.20 preview changes
 
@@ -61,8 +70,8 @@ Provider accounts, deployment origins/credentials and operating-system hosts may
 
 ## Evidence and release gates
 
-At this checkpoint, **682 distinct TypeScript cases** and three Rust tests have passed. The non-overlapping package totals are web 178, workflow-worker 60, companion protocol 4, connectors 166, database 108, domain 61, generation 29, ingestion 11, media 24 and workflows 41. Fresh replay applied all 109 migrations into 129 public base tables; rerun skipped all 109 with matching checksums. Full workspace typecheck, lint, the 91-page production web build, companion frontend and native Windows preview packaging passed. Workflow tests include three actual history replays; live database/factory/router tests assert provider request counts using synthetic adapters. Final browser evidence is recorded in Releases. These tests are implementation evidence, not proof of every specification acceptance criterion.
+At this checkpoint, **693 distinct TypeScript cases across 83 files** and three Rust tests have passed. The non-overlapping package totals are web 188, workflow-worker 60, companion protocol 4, connectors 166, database 109, domain 61, generation 29, ingestion 11, media 24 and workflows 41. Fresh replay applied all 110 migrations into 129 public base tables; rerun skipped all 110 with matching checksums. Full workspace typecheck, lint, the 91-page production web build, companion frontend and native Windows preview packaging passed. The historical 109-to-110 rehearsal covered eight real legacy cases. Workflow tests retain three actual history replays. Final browser/source/cloud evidence is recorded in Releases. These checks do not prove every specification acceptance criterion.
 
-Both full and production dependency audits reported zero vulnerabilities locally and in cloud CI; future audits may change. The 1.20 Windows installer fingerprint is in Releases and is unsigned/local-only. `scripts/qa-workspace-navigation.ts` refuses non-`market_me_qa_*` databases and intentionally changes synthetic fixture records; see the Developer Guide before using it. Isolated QA databases are separate from the preserved application database and PostgreSQL volume. All six Google development tabs now record 1.20, with native hierarchy/content/links verified and conceptual tabs unchanged.
+Both full and production dependency audits reported zero vulnerabilities locally; future audits may change. The 1.21 Windows installer fingerprint is in Releases and is unsigned/local-only. QA helpers intentionally modify synthetic fixture records and must run only in isolated databases; see the Developer Guide. Application database and PostgreSQL volume are preserved. Google and cloud release evidence is recorded after each corresponding verification, separately from local gates.
 
 The approved global criteria still require universality, nontechnical usability, simple AI choices/currency costs, end-to-end traceability, consistent interruptible autonomy, restart/retry reliability, all-platform acceptance, security, capability-flexible execution, cost control, and representative quality gates. None is considered complete solely because its schema, enum, documentation, or unit tests exist. Progress continues through the broader roadmap above; the [bounded scheduling plan](SCHEDULING_PLAN.md) records the completed initial scope and its limits.

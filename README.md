@@ -2,9 +2,9 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Current build (1.20.0 local preview)
+## Current build (1.21.0 local preview)
 
-The integrated **1.20.0 local preview** adds bounded request-start windows for text-only Discord, Slack and Mastodon API publication, persisted predecessor-completion delays, independent workflow branches, and guarded expiry/recovery. Local acceptance passes 682 TypeScript tests and three Rust tests, with clean builds and audits. Publication and exact cloud evidence are tracked in [release evidence](docs/RELEASES.md) and [cloud CI](docs/CI.md). See [Implementation status and remaining requirements](docs/IMPLEMENTATION_STATUS.md), [scheduling contracts](docs/SCHEDULING_CONTRACTS.md), and the [implemented scheduling plan](docs/SCHEDULING_PLAN.md). The application is not yet complete or production-ready. The historical inventory below does not replace the current gap list.
+The **1.21.0 local preview** preserves historical draft claim evidence when source packages refresh, safely restores provable older links, and rejects missing/contradictory evidence in ordinary and AI revisions. It builds on 1.20 bounded scheduling. Publication and exact acceptance evidence are tracked in [Releases](docs/RELEASES.md) and [cloud CI](docs/CI.md). See [Implementation status](docs/IMPLEMENTATION_STATUS.md), [evidence retention contracts](docs/EVIDENCE_RETENTION.md), [scheduling contracts](docs/SCHEDULING_CONTRACTS.md), and the planned [review-first campaign preparation](docs/CAMPAIGN_PREPARATION_PLAN.md). The application is not yet complete or production-ready. The historical inventory below does not replace the current gap list.
 
 The persistent workspace and Smart Source slice includes:
 
@@ -41,7 +41,7 @@ The persistent workspace and Smart Source slice includes:
 - immutable content-addressed source-byte storage, strict MIME/size validation, deterministic Sharp image metadata and derivative recipes, five-minute signed media previews, and approval-blocking image accessibility review;
 - one configuration-driven immutable object-store factory shared by the web app, companion upload path, ingestion worker, and workflow worker, with local filesystem development storage and production-required S3-compatible storage using conditional creates, SHA-256 checksums, bounded verified reads, and default workload credentials;
 - an executable PostgreSQL logical recovery drill that requires quiesced writers, restores into a random isolated database, compares every public table and migration checksum, rejects unvalidated constraints, and cleans up its artifacts, plus a full cross-plane production recovery runbook;
-- separate non-cacheable liveness and readiness endpoints, package-sourced version reporting, safe production configuration checks, bounded database connectivity, and exact 109-migration readiness without exposing values or raw dependency errors;
+- separate non-cacheable liveness and readiness endpoints, package-sourced version reporting, safe production configuration checks, bounded database connectivity, and exact 110-migration readiness without exposing values or raw dependency errors;
 - evidence-backed publication-rights reviews for original images, inherited derivative clearance, revisioned preview snapshots, and fail-closed revalidation before package approval, preview creation, Campaign activation, and provider execution;
 - exact publishing-account rights scopes backed by Channel Connection foreign keys, with provider-and-account validation, immutable preview account snapshots, and live membership revalidation at every outbound boundary;
 - exact Campaign asset-rights grants backed by normalized Campaign foreign keys, with post-package-approval assignment, immutable preview Campaign snapshots, and live same-Campaign revalidation before media access or provider execution;

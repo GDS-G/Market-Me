@@ -1,8 +1,8 @@
 import { createDatabaseClient, OperationsRepository } from "@market-me/database";
 import { objectStoreConfigurationFromEnvironment } from "@market-me/media";
 
-export const EXPECTED_DATABASE_MIGRATION = "0109_campaign_schedule_bounds.sql";
-export const EXPECTED_DATABASE_MIGRATION_COUNT = 109;
+export const EXPECTED_DATABASE_MIGRATION = "0110_immutable_draft_claim_evidence.sql";
+export const EXPECTED_DATABASE_MIGRATION_COUNT = 110;
 
 export const READINESS_CHECK_NAMES = [
   "database_configuration",

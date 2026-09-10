@@ -1,6 +1,14 @@
 # Developer Guide
 
-## Current checkpoint: 1.20 bounded scheduler implementation
+## Current checkpoint: 1.21 evidence retention implementation
+
+Apply `0110_immutable_draft_claim_evidence.sql` only with compatible draft/AI writers. Its SHA-256 is `249e7ab29f1158e9092548530b731c8648c9e9e6c3581d8968a02c6bc536cdff`; readiness requires exactly 110 migrations and that latest filename. No new environment variable or dependency upgrade is required. The snapshot reference function is now called by ordinary/AI revisions and AI context construction, so code and schema must be deployed together.
+
+Stop/drain generation and revision writers before migrating, then start compatible binaries. Old interleaved claim/link insertion can fail the new whole-version trigger on multi-fact drafts. Retain historical links/snapshots on rollback; restoring the live-evidence deletion cascade would reintroduce data loss. Existing V2 Temporal compatibility and worker-first scheduling rollout rules still apply independently.
+
+The new live `draft-evidence-refresh.integration.test.ts` refuses non-QA/non-CI database URLs and exercises real package replacement, historical revision, invalid proof, tenant separation and lock-wait behavior. AI integration tests also reject invalid proof before context/intent creation and apply. The 109-to-110 historical migration rehearsal uses synthetic legacy data and verifies backfill/rerun checksums; final counts and native artifacts belong in [Releases](RELEASES.md). See [Evidence retention](EVIDENCE_RETENTION.md) for all engineering invariants and [Campaign preparation](CAMPAIGN_PREPARATION_PLAN.md) for work not yet implemented.
+
+## 1.20 bounded scheduler implementation
 
 Preferred request-start windows and positive dependency delays are implemented for the bounded routes below. This section is an implementation/runbook update, not a package-version, installer, production-readiness or whole-product acceptance attestation. Use [Implementation status](IMPLEMENTATION_STATUS.md), [Scheduling contracts](SCHEDULING_CONTRACTS.md) and [cloud CI](CI.md) with the current source; historical evidence below remains labeled by its release.
 
