@@ -1,4 +1,5 @@
 import type { CampaignStep, CampaignStepType, ExecutionMethod, ScheduleType } from "@market-me/domain";
+import { normalizeDependencyDelaySeconds } from "@market-me/domain";
 
 /** Editable projection. Hidden advanced fields must survive a normal form save. */
 export interface StepDraft {
@@ -7,6 +8,7 @@ export interface StepDraft {
   operationType: CampaignStepType;
   capability: string;
   dependsOn: string;
+  dependencyDelaySeconds: number;
   approvalRequired: boolean;
   scheduleType: ScheduleType;
   scheduledAt: string;
@@ -41,6 +43,7 @@ export function toStepDraft(step: CampaignStep): StepDraft {
   return {
     id: step.id, name: step.name, operationType: step.operationType ?? "manual_handoff",
     capability: step.desiredCapability, dependsOn: step.dependsOn.join(", "),
+    dependencyDelaySeconds: step.dependencyDelaySeconds ?? 0,
     approvalRequired: step.approvalRequired, scheduleType: step.scheduleType ?? "immediate",
     scheduledAt: toUtcDateTimeInput(step.scheduledAt),
     preferredWindowStart: toUtcDateTimeInput(step.preferredWindowStart),
@@ -60,10 +63,12 @@ function objectJson(value: string, field: string): Record<string, unknown> {
 }
 
 export function serializeStepDraft(step: StepDraft): CampaignStep {
+  const dependsOn = step.dependsOn.split(",").map((value) => value.trim()).filter(Boolean);
   return {
     id: step.id, name: step.name, operationType: step.operationType,
     desiredCapability: step.capability,
-    dependsOn: step.dependsOn.split(",").map((value) => value.trim()).filter(Boolean),
+    dependsOn,
+    dependencyDelaySeconds: normalizeDependencyDelaySeconds(step.dependencyDelaySeconds, dependsOn),
     inputs: objectJson(step.inputs, "Step inputs"), outputs: objectJson(step.outputs, "Step outputs"),
     executionMethods: [...step.executionMethods], approvalRequired: step.approvalRequired,
     scheduleType: step.scheduleType, scheduledAt: fromUtcDateTimeInput(step.scheduledAt),

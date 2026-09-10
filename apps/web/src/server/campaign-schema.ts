@@ -11,6 +11,7 @@ import {
   PROMOTIONAL_STRENGTHS,
   SCHEDULE_TYPES,
   MEASUREMENT_EVENT_TYPES,
+  MAX_DEPENDENCY_DELAY_SECONDS,
 } from "@market-me/domain";
 
 const boundedStringArray = z.array(z.string().trim().min(1).max(200)).max(50);
@@ -55,6 +56,7 @@ const campaignStepSchema = z.object({
   operationType: z.enum(CAMPAIGN_STEP_TYPES),
   desiredCapability: z.string().trim().min(1).max(150),
   dependsOn: z.array(z.string().trim().min(1).max(100)).max(50).default([]),
+  dependencyDelaySeconds: z.number().int().min(0).max(MAX_DEPENDENCY_DELAY_SECONDS).default(0),
   inputs: jsonRecord.default({}),
   outputs: jsonRecord.default({}),
   executionMethods: z.array(z.enum(EXECUTION_METHODS)).min(1).max(4),
@@ -67,6 +69,14 @@ const campaignStepSchema = z.object({
   maxAttempts: z.number().int().min(1).max(10).default(3),
   timeoutSeconds: z.number().int().min(1).max(86400).default(300),
   optional: z.boolean().default(false),
+}).superRefine((step, context) => {
+  if (step.dependencyDelaySeconds > 0 && !step.dependsOn.length) {
+    context.addIssue({ code: "custom", path: ["dependencyDelaySeconds"], message: "A positive delay requires at least one dependency." });
+  }
+  if (step.scheduleType === "preferred_window" && (!step.preferredWindowStart || !step.preferredWindowEnd
+    || Date.parse(step.preferredWindowStart) >= Date.parse(step.preferredWindowEnd))) {
+    context.addIssue({ code: "custom", path: ["preferredWindowEnd"], message: "A preferred window requires a start before its end." });
+  }
 });
 
 const successCriterionIdentity = {

@@ -12,6 +12,7 @@ import type {
   CompanionRepository,
   PublishingRepository,
   StoredPublicationAction,
+  StoredStepScheduleState,
 } from "@market-me/database";
 import { CampaignExecutionRouter } from "./execution";
 
@@ -22,6 +23,161 @@ const webhook =
 afterEach(() => vi.unstubAllGlobals());
 
 describe("CampaignExecutionRouter", () => {
+  it("does not publish when a late preflight health result loses its connection guard", async () => {
+    const selected = target();
+    const request = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ id: "webhook-1", channel_id: "channel-1" })));
+    vi.stubGlobal("fetch", request);
+    const record = vi.fn(async () => false), begin = vi.fn();
+    const repository = { getCampaignExecutionTarget: vi.fn(async () => selected), recordConnectionTest: record, beginPublicationAction: begin } as unknown as PublishingRepository;
+    const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} });
+    expect(result).toMatchObject({ status: "manual_required", reason: expect.stringContaining("revoked or changed") });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ method: "GET" }));
+    expect(record).toHaveBeenCalledWith(selected.workspaceId, selected.connection!.id, expect.objectContaining({ ok: true }), selected.connection);
+    expect(begin).not.toHaveBeenCalled();
+  });
+
+  it("rejects preferred-window fallback and unsupported providers before any side effect", async () => {
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    for (const selected of [emailTarget(), assistedTarget(), { ...slackTarget(), executionMethods: ["official_api", "manual_handoff"] }, {
+      ...slackTarget(), draftPreviewAssets: [{} as NonNullable<CampaignExecutionTarget["draftPreviewAssets"]>[number]],
+    }]) {
+      const repository = { getCampaignExecutionTarget: vi.fn(async () => ({ ...selected, scheduleType: "preferred_window" })) } as unknown as PublishingRepository;
+      const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} });
+      expect(result).toMatchObject({ status: "manual_required", reason: expect.stringContaining("single-write") });
+    }
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it.each(["entry", "after preflight", "after claim", "connector cutoff"])("suppresses provider writes when a window expires at %s", async (phase) => {
+    const end = Date.now() + 60_000;
+    const selected = { ...slackTarget(), campaignVersionId: "version-1", scheduleType: "preferred_window" };
+    let checks = 0;
+    const getSchedule = vi.fn(async () => {
+      checks += 1;
+      const threshold = phase === "entry" ? 1 : phase === "after preflight" ? 2 : phase === "after claim" ? 3 : 4;
+      return scheduleState(checks >= threshold ? "expired" : "ready", phase === "connector cutoff" ? Date.now() - 1 : end);
+    });
+    const begin = vi.fn(async () => ({ created: true, action: action("dispatching") }));
+    const finish = vi.fn();
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    const repository = {
+      getCampaignExecutionTarget: vi.fn(async () => selected), getPublicationScheduleState: getSchedule,
+      getCampaignPublicationForRecovery: vi.fn(async () => undefined), beginPublicationAction: begin,
+      finishPublicationAction: finish,
+    } as unknown as PublishingRepository;
+    const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: { dispatchDeadlineAt: end + 3_600_000 } });
+    expect(result).toMatchObject({ status: "schedule_blocked" });
+    expect(request).not.toHaveBeenCalled();
+    if (phase === "entry" || phase === "after preflight") {
+      expect(begin).not.toHaveBeenCalled(); expect(finish).not.toHaveBeenCalled();
+    } else {
+      expect(begin).toHaveBeenCalledTimes(1);
+      expect(finish).toHaveBeenCalledWith("action-1", expect.objectContaining({ status: "failed" }));
+    }
+  });
+
+  it("preserves a valid acknowledgement received after the request-start deadline", async () => {
+    const deadline = Date.now() + 10_000;
+    const selected = { ...slackTarget(), campaignVersionId: "version-1", scheduleType: "preferred_window" };
+    const request = vi.fn(async () => {
+      // The request started legally; a clock jump must not invalidate its acknowledgement.
+      vi.spyOn(Date, "now").mockReturnValue(deadline + 1);
+      return new Response("ok");
+    });
+    vi.stubGlobal("fetch", request);
+    const finish = vi.fn();
+    const repository = {
+      getCampaignExecutionTarget: vi.fn(async () => selected), getPublicationScheduleState: vi.fn(async () => scheduleState("ready", deadline)),
+      beginPublicationAction: vi.fn(async () => ({ created: true, action: action("dispatching") })), finishPublicationAction: finish,
+    } as unknown as PublishingRepository;
+    try {
+      const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: { dispatchDeadlineAt: 1 } });
+      expect(result.status).toBe("succeeded");
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(finish).toHaveBeenCalledWith("action-1", expect.objectContaining({ status: "succeeded" }));
+    } finally { vi.restoreAllMocks(); }
+  });
+
+  it.each(["succeeded", "dispatching", "ambiguous"] as const)("does not overwrite a prior %s publication with schedule expiry", async (status) => {
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    const finish = vi.fn();
+    const repository = {
+      getCampaignExecutionTarget: vi.fn(async () => ({ ...slackTarget(), campaignVersionId: "version-1", scheduleType: "preferred_window" })),
+      getPublicationScheduleState: vi.fn(async () => scheduleState("expired", Date.now() - 1)),
+      getCampaignPublicationForRecovery: vi.fn(async () => action(status)), finishPublicationAction: finish,
+    } as unknown as PublishingRepository;
+    const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} });
+    expect(result.status).toBe(status === "succeeded" ? "succeeded" : "manual_required");
+    expect(request).not.toHaveBeenCalled(); expect(finish).not.toHaveBeenCalled();
+  });
+
+  it("requires review, not a fabricated DB expiry, when the worker clock cutoff disagrees", async () => {
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    const finish = vi.fn();
+    const repository = {
+      getCampaignExecutionTarget: vi.fn(async () => ({ ...slackTarget(), campaignVersionId: "version-1", scheduleType: "preferred_window" })),
+      getPublicationScheduleState: vi.fn(async () => scheduleState("ready", Date.now() - 1)),
+      beginPublicationAction: vi.fn(async () => ({ created: true, action: action("dispatching") })), finishPublicationAction: finish,
+    } as unknown as PublishingRepository;
+    const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} });
+    expect(result).toMatchObject({ status: "manual_required", reason: expect.stringContaining("clock synchronization") });
+    expect(request).not.toHaveBeenCalled();
+    expect(finish).toHaveBeenCalledWith("action-1", expect.objectContaining({ status: "failed" }));
+  });
+
+  it("preserves an uncertain claimed-action cleanup for reconciliation without attempting dispatch", async () => {
+    let checks = 0;
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    const finish = vi.fn().mockRejectedValue(new Error("commit result unavailable"));
+    const repository = {
+      getCampaignExecutionTarget: vi.fn(async () => ({ ...slackTarget(), campaignVersionId: "version-1", scheduleType: "preferred_window" })),
+      getPublicationScheduleState: vi.fn(async () => scheduleState(++checks < 3 ? "ready" : "expired", Date.now() + 10_000)),
+      beginPublicationAction: vi.fn(async () => ({ created: true, action: action("dispatching") })), finishPublicationAction: finish,
+    } as unknown as PublishingRepository;
+    const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} });
+    expect(result).toMatchObject({ status: "manual_required", reason: expect.stringContaining("cleanup could not be confirmed") });
+    expect(request).not.toHaveBeenCalled(); expect(finish).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not turn accepted success with an uncertain database commit into retryable failure", async () => {
+    const request = vi.fn(async () => new Response("ok"));
+    vi.stubGlobal("fetch", request);
+    const finish = vi.fn().mockRejectedValue(new Error("connection lost during commit"));
+    const repository = {
+      getCampaignExecutionTarget: vi.fn(async () => slackTarget()),
+      beginPublicationAction: vi.fn(async () => ({ created: true, action: action("dispatching") })),
+      finishPublicationAction: finish,
+    } as unknown as PublishingRepository;
+    const result = await new CampaignExecutionRouter(repository, key, undefined)
+      .execute({ instanceId: "instance-1", stepKey: "publish", context: {} });
+    expect(result).toMatchObject({ status: "manual_required", reason: expect.stringContaining("provider accepted") });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(finish).toHaveBeenCalledTimes(1);
+    expect(finish).toHaveBeenCalledWith("action-1", expect.objectContaining({ status: "succeeded" }));
+  });
+
+  it.each(["succeeded", "dispatching", "ambiguous", "failed"] as const)("recovers a prior %s outcome with exact identity and no new side effects", async (status) => {
+    const stored = { ...action(status), responseMetadata: { trackedLinkId: "original-link" } };
+    const recover = vi.fn(async () => stored);
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    // No other repository operation is supplied: recovery must be read-only.
+    const repository = { getCampaignPublicationForRecovery: recover } as unknown as PublishingRepository;
+    const input = { workspaceId: "workspace-1", campaignId: "campaign-1", campaignVersionId: "version-1", campaignStepRunId: "step-run-1", instanceId: "instance-1", stepKey: "publish", context: { dispatchDeadlineAt: 1 } };
+    const result = await new CampaignExecutionRouter(repository, undefined, undefined).recoverScheduledExecution(input);
+    expect(recover).toHaveBeenCalledWith(input);
+    if (status === "failed") expect(result).toBeUndefined();
+    else if (status === "succeeded") expect(result).toMatchObject({ status, output: { trackedLinkId: "original-link" } });
+    else expect(result).toMatchObject({ status: "manual_required" });
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it("publishes through a configured capability and records provider identity", async () => {
     vi.stubGlobal(
       "fetch",
@@ -726,6 +882,7 @@ describe("CampaignExecutionRouter", () => {
       "workspace-1",
       "connection-1",
       expect.objectContaining({ ok: false }),
+      expect.objectContaining({ encryptedCredentials: expect.any(String), configuration: expect.any(Object) }),
     );
   });
 
@@ -774,6 +931,7 @@ describe("CampaignExecutionRouter", () => {
       "workspace-1",
       "connection-1",
       expect.objectContaining({ ok: false }),
+      expect.objectContaining({ encryptedCredentials: expect.any(String), configuration: expect.any(Object) }),
     );
   });
 
@@ -895,6 +1053,15 @@ function target(): CampaignExecutionTarget {
       updatedAt: new Date(0).toISOString(),
     },
   };
+}
+
+function scheduleState(state: "ready" | "expired", deadline: number): StoredStepScheduleState {
+  return {
+    state, ...(state === "expired" ? { reason: "deadline_reached" as const } : {}),
+    deadline: new Date(deadline).toISOString(), evaluatedAt: new Date().toISOString(),
+    workspaceId: "workspace-1", campaignId: "campaign-1", campaignInstanceId: "instance-1",
+    campaignVersionId: "version-1", campaignStepRunId: "run-1", stepKey: "publish", predecessors: [],
+  } as StoredStepScheduleState;
 }
 
 function assistedTarget(): CampaignExecutionTarget {

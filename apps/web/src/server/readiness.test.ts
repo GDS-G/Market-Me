@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { readdirSync } from "node:fs";
 import { checkWebReadiness, configurationChecks, EXPECTED_DATABASE_MIGRATION, EXPECTED_DATABASE_MIGRATION_COUNT } from "./readiness";
 
 const key = Buffer.alloc(32, 7).toString("base64");
@@ -16,6 +17,28 @@ const productionEnvironment = {
 } as const;
 
 describe("web readiness", () => {
+  it("keeps the runtime schema expectation aligned with the shipped migration files", () => {
+    const migrations = readdirSync(new URL("../../../../packages/database/migrations/", import.meta.url))
+      .filter((file) => file.endsWith(".sql")).sort();
+    expect(EXPECTED_DATABASE_MIGRATION_COUNT).toBe(migrations.length);
+    expect(EXPECTED_DATABASE_MIGRATION).toBe(migrations.at(-1));
+  });
+
+  it.each([
+    { migrationCount: 108, latestMigration: "0108_mastodon_collection_alerts.sql" },
+    { migrationCount: 108, latestMigration: "0109_campaign_schedule_bounds.sql" },
+    { migrationCount: 109, latestMigration: "0108_mastodon_collection_alerts.sql" },
+    { migrationCount: 110, latestMigration: "0110_future_schema.sql" },
+  ])("fails closed for a missing, mismatched, or newer schema: %j", async (schema) => {
+    const readiness = await checkWebReadiness({
+      version: "1.20.0", environment: productionEnvironment,
+      probeDatabase: vi.fn().mockResolvedValue({ ...schema, ingestionWorkerFresh: true, workflowWorkerFresh: true }),
+    });
+    expect(readiness.status).toBe("not_ready");
+    expect(readiness.checks.database_connection).toBe("ready");
+    expect(readiness.checks.database_migrations).toBe("not_ready");
+  });
+
   it("accepts a complete production configuration without exposing its values", async () => {
     expect(configurationChecks(productionEnvironment)).toMatchObject({
       database_configuration: "ready",

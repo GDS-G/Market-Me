@@ -1,4 +1,4 @@
-import type { CampaignWorkflowDefinition } from "@market-me/database";
+import type { CampaignWorkflowDefinition, StoredStepScheduleState } from "@market-me/database";
 import type {
   CampaignSuccessAction,
   CampaignSuccessEvaluation,
@@ -29,6 +29,8 @@ export interface CampaignWorkflowState {
       | "partially_succeeded"
       | "failed"
       | "canceled"
+      | "manual_resolution"
+      | "schedule_blocked"
     >
   >;
   context: Readonly<Record<string, unknown>>;
@@ -49,7 +51,8 @@ export interface CampaignActivities {
       | "partially_succeeded"
       | "permanently_failed"
       | "canceled"
-      | "manual_resolution";
+      | "manual_resolution"
+      | "schedule_blocked";
     output?: Record<string, unknown>;
     error?: string;
   }): Promise<void>;
@@ -69,6 +72,26 @@ export interface CampaignStepExecutionInput {
   context: Readonly<Record<string, unknown>>;
 }
 
+/** Immutable stored identities only. A caller must never supply a scheduling deadline. */
+export interface CampaignScheduledStepExecutionInput extends CampaignStepExecutionInput {
+  workspaceId: string;
+  campaignId: string;
+  campaignVersionId: string;
+  campaignStepRunId: string;
+}
+
+export interface CampaignSchedulingActivities extends CampaignActivities {
+  getStepScheduleState(input: { instanceId: string; stepKey: string }): Promise<StoredStepScheduleState>;
+  executeScheduledStep(input: CampaignScheduledStepExecutionInput): Promise<CampaignStepExecution>;
+}
+
+export type CampaignStepScheduleBlocked = {
+  status: "schedule_blocked";
+  reason: string;
+  schedule: Extract<StoredStepScheduleState, { state: "expired" }>;
+};
+
 export type CampaignStepExecution =
   | { status: "succeeded"; output: Record<string, unknown> }
-  | { status: "manual_required"; reason: string };
+  | { status: "manual_required"; reason: string }
+  | CampaignStepScheduleBlocked;

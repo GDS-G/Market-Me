@@ -1,8 +1,8 @@
 import { createDatabaseClient, OperationsRepository } from "@market-me/database";
 import { objectStoreConfigurationFromEnvironment } from "@market-me/media";
 
-export const EXPECTED_DATABASE_MIGRATION = "0108_mastodon_collection_alerts.sql";
-export const EXPECTED_DATABASE_MIGRATION_COUNT = 108;
+export const EXPECTED_DATABASE_MIGRATION = "0109_campaign_schedule_bounds.sql";
+export const EXPECTED_DATABASE_MIGRATION_COUNT = 109;
 
 export const READINESS_CHECK_NAMES = [
   "database_configuration",

@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import type { JSONValue } from "postgres";
+import type { JSONValue, TransactionSql } from "postgres";
 import {
   evaluateCampaignSuccess,
   MEASUREMENT_EVENT_TYPES,
@@ -9,8 +9,9 @@ import {
   type MeasurementEventType,
 } from "@market-me/domain";
 import type { DatabaseClient } from "./client";
-import type { StoredDraftPreviewAsset } from "./models";
-import { CampaignRepository, CampaignValidationError } from "./campaign-repository";
+import type { StoredDraftPreviewAsset, StoredStepScheduleState } from "./models";
+import { CampaignRepository, CampaignScheduleNotReadyError, CampaignValidationError } from "./campaign-repository";
+import { preferredWindowRouteIssue } from "./campaign-route-policy";
 
 export type ChannelProvider = "discord_webhook" | "mailchimp_email" | "slack_webhook" | "mastodon_account";
 export type { MeasurementEventType } from "@market-me/domain";
@@ -212,6 +213,11 @@ export interface CampaignExecutionTarget {
   campaignId: string;
   campaignInstanceId: string;
   campaignStepRunId: string;
+  campaignVersionId?: string;
+  scheduleType?: string;
+  preferredWindowStart?: string;
+  preferredWindowEnd?: string;
+  dependencyDelaySeconds?: number;
   brandProfileId?: string;
   requestedBy: string;
   stepKey: string;
@@ -292,7 +298,138 @@ export interface MeasurementKeyPrincipal {
 }
 
 export class PublishingRepository {
-  constructor(private readonly sql: DatabaseClient) {}
+  constructor(private readonly sql: DatabaseClient, private readonly options: { appBaseUrl?: string } = {}) {}
+
+  async getPublicationScheduleState(instanceId: string, stepKey: string): Promise<StoredStepScheduleState | undefined> {
+    return new CampaignRepository(this.sql).getStepScheduleState(instanceId, stepKey);
+  }
+
+  private async admitPublication(
+    transaction: TransactionSql,
+    target: CampaignExecutionTarget,
+    snapshot: Record<string, unknown>,
+  ): Promise<{ current: CampaignExecutionTarget; connection: StoredChannelConnection; campaigns: CampaignRepository }> {
+    // TransactionSql supports all SQL/json operations used by these read-only
+    // repository methods. Never call a nested .begin() on these scoped readers.
+    const readerSql = transaction as unknown as DatabaseClient;
+    const reader = new PublishingRepository(readerSql, this.options);
+    const campaigns = new CampaignRepository(readerSql);
+    const instances = await transaction<{ campaignVersionId: string }[]>`
+      SELECT campaign_version_id FROM campaign_instance
+      WHERE id = ${target.campaignInstanceId} AND workspace_id = ${target.workspaceId} AND campaign_id = ${target.campaignId}
+      FOR NO KEY UPDATE
+    `;
+    if (!instances[0] || (target.campaignVersionId && target.campaignVersionId !== instances[0].campaignVersionId)) throw publicationTargetMismatch();
+    const versionId = instances[0].campaignVersionId;
+    await transaction`SELECT id FROM campaign_version WHERE id = ${versionId} FOR SHARE`;
+    await transaction`SELECT id FROM campaign_step WHERE campaign_version_id = ${versionId} ORDER BY id FOR SHARE`;
+    await transaction`SELECT id FROM campaign_step_run WHERE campaign_instance_id = ${target.campaignInstanceId} ORDER BY id FOR NO KEY UPDATE`;
+    await transaction`SELECT id FROM campaign_approval WHERE campaign_instance_id = ${target.campaignInstanceId} ORDER BY id FOR SHARE`;
+
+    const discovered = await reader.getCampaignExecutionTarget(target.campaignInstanceId, target.stepKey);
+    if (!discovered) throw new CampaignValidationError([{ code: "execution_target_missing", message: "The pinned publication step is unavailable." }]);
+    if (!discovered.connection) throw publicationTargetMismatch();
+    // SHARE permits FK key-share checks while excluding connection retargeting.
+    await transaction`SELECT id FROM channel_connection WHERE id = ${discovered.connection.id} FOR SHARE`;
+    const previewId = discovered.input.draftChannelPreviewId;
+    if (typeof previewId === "string") {
+      const previews = await transaction<{ contentDraftId: string; contentDraftVersionId: string }[]>`
+        SELECT content_draft_id, content_draft_version_id FROM draft_channel_preview
+        WHERE id::text = ${previewId} AND workspace_id = ${target.workspaceId}
+      `;
+      if (!previews[0]) throw publicationTargetMismatch();
+      // Approval decisions lock approval -> draft -> version; keep that order.
+      await transaction`SELECT id FROM content_draft_approval WHERE content_draft_version_id = ${previews[0].contentDraftVersionId} ORDER BY id FOR SHARE`;
+      await transaction`SELECT id FROM content_draft WHERE id = ${previews[0].contentDraftId} FOR SHARE`;
+      await transaction`SELECT id FROM content_draft_version WHERE id = ${previews[0].contentDraftVersionId} FOR SHARE`;
+      await transaction`SELECT id FROM draft_channel_preview WHERE id::text = ${previewId} FOR UPDATE`;
+      // Asset and source rights/scan mutations update their owning asset row.
+      // Lock both before the eligibility re-read; window routes still forbid media.
+      await transaction`
+        SELECT id FROM content_asset WHERE id IN (
+          SELECT content_asset_id FROM draft_channel_preview_asset WHERE draft_channel_preview_id::text = ${previewId}
+          UNION SELECT asset.source_asset_id FROM draft_channel_preview_asset snapshot
+            JOIN content_asset asset ON asset.id = snapshot.content_asset_id WHERE snapshot.draft_channel_preview_id::text = ${previewId}
+        ) ORDER BY id FOR SHARE
+      `;
+    }
+    if (discovered.destinationId) await transaction`SELECT id FROM destination WHERE id = ${discovered.destinationId} FOR SHARE`;
+    const trackedLinkId = typeof snapshot.trackedLinkId === "string" ? snapshot.trackedLinkId : discovered.draftPreviewTrackedLinkId;
+    if (trackedLinkId) await transaction`SELECT id FROM tracked_link WHERE id::text = ${trackedLinkId} FOR SHARE`;
+
+    const current = await reader.getCampaignExecutionTarget(target.campaignInstanceId, target.stepKey);
+    const connection = current?.connection;
+    if (!current || !connection || !target.connection || current.campaignStepRunId !== target.campaignStepRunId
+      || current.channelConnectionId !== target.connection.id || current.operationType !== "publish_content"
+      || connection.workspaceId !== target.workspaceId || target.connection.workspaceId !== target.workspaceId
+      || connection.status !== "active" || connection.provider !== target.connection.provider
+      || connection.encryptedCredentials !== target.connection.encryptedCredentials
+      || !samePublicationJson(connection.capabilities, target.connection.capabilities)
+      || !samePublicationJson(current.input, target.input)
+      || current.destinationId !== target.destinationId || current.destinationUrl !== target.destinationUrl
+      || (target.channelConnectionId && target.channelConnectionId !== connection.id)) throw publicationTargetMismatch();
+    const configKeys = publicationIdentityKeys(connection.provider);
+    if (connection.provider === "mailchimp_email") configKeys.push("fromName", "replyTo");
+    if (configKeys.some((key) => target.connection!.configuration[key] !== undefined
+      && target.connection!.configuration[key] !== connection.configuration[key])) throw publicationTargetMismatch();
+    // The validator checks the whole pinned graph: an immediate predecessor may
+    // belong to a bounded plan. Admission below independently checks this route.
+    await campaigns.assertStepExecutionAuthorized(current.campaignInstanceId, current.stepKey, { allowBoundedScheduling: true });
+    if (current.scheduleType === "preferred_window") {
+      const issue = preferredWindowRouteIssue({ operationType: current.operationType, executionMethods: current.executionMethods,
+        provider: connection.provider, attachmentCount: current.draftPreviewAssets?.length ?? 0 });
+      const actions = connection.capabilities.supportedActions as Record<string, unknown> | undefined;
+      const methods = connection.capabilities.executionMethods;
+      if (issue || (actions?.publish_content ?? actions?.publishContent) !== true || !Array.isArray(methods) || !methods.includes("official_api")) {
+        throw new CampaignValidationError([{ code: "unsupported_window_route", message: issue ?? "The current connection does not support official-API publishing." }]);
+      }
+    }
+    if (["mailchimp_email", "slack_webhook", "mastodon_account"].includes(connection.provider) && !current.humanApprovalGranted) {
+      throw new CampaignValidationError([{ code: "publication_approval_required", message: "This provider requires the actual campaign or exact-action human approval." }]);
+    }
+    assertPublicationIdentity(snapshot, connection);
+    if (snapshot.provider !== undefined && snapshot.provider !== connection.provider) throw publicationTargetMismatch();
+    let expectedContent: string | undefined;
+    let expectedSubject: string | undefined;
+    if (typeof previewId === "string") {
+      if (!current.draftPreviewEligible || current.draftPreviewVersionId !== target.draftPreviewVersionId
+        || snapshot.draftChannelPreviewId !== previewId || snapshot.draftVersionId !== current.draftPreviewVersionId
+        || current.draftPreviewContent !== target.draftPreviewContent || current.draftPreviewSubject !== target.draftPreviewSubject
+        || !samePublicationJson(current.draftPreviewAssets ?? [], target.draftPreviewAssets ?? [])) throw publicationTargetMismatch();
+      expectedContent = current.draftPreviewContent;
+      expectedSubject = current.draftPreviewSubject ?? undefined;
+    } else {
+      if (connection.provider !== "discord_webhook" || snapshot.draftChannelPreviewId !== undefined || typeof current.input.content !== "string") throw publicationTargetMismatch();
+      let destinationUrl = current.destinationUrl;
+      if (current.input.useTrackedLink === true) {
+        if (!trackedLinkId || !this.options.appBaseUrl) throw publicationTargetMismatch();
+        const links = await transaction<{ slug: string }[]>`
+          SELECT slug FROM tracked_link WHERE id::text = ${trackedLinkId} AND workspace_id = ${target.workspaceId}
+            AND campaign_instance_id = ${target.campaignInstanceId} AND campaign_step_run_id = ${target.campaignStepRunId}
+            AND destination_id = ${current.destinationId ?? null}::uuid AND status = 'active'
+            AND (expires_at IS NULL OR expires_at > clock_timestamp())
+        `;
+        if (!links[0]) throw publicationTargetMismatch();
+        destinationUrl = `${this.options.appBaseUrl.replace(/\/$/, "")}/r/${links[0].slug}`;
+      }
+      if (snapshot.renderedDestinationUrl !== undefined && snapshot.renderedDestinationUrl !== destinationUrl) throw publicationTargetMismatch();
+      const replaced = destinationUrl ? current.input.content.replaceAll("{{destinationUrl}}", destinationUrl) : current.input.content;
+      expectedContent = destinationUrl && current.input.appendDestination === true && !replaced.includes(destinationUrl)
+        ? `${replaced.trim()}\n\n${destinationUrl}` : replaced;
+      expectedSubject = typeof current.input.subject === "string" ? current.input.subject : undefined;
+    }
+    if (!expectedContent || snapshot.content !== expectedContent || (snapshot.subject ?? undefined) !== expectedSubject) throw publicationTargetMismatch();
+    return { current, connection, campaigns };
+  }
+
+  private async finalPublicationSchedule(campaigns: CampaignRepository, target: CampaignExecutionTarget): Promise<StoredStepScheduleState> {
+    // This clock is intentionally sampled after every explicit or implicit lock
+    // wait, including a unique-index conflict during insert/claim.
+    const schedule = await campaigns.getStepScheduleState(target.campaignInstanceId, target.stepKey);
+    if (!schedule) throw publicationTargetMismatch();
+    if (schedule.state !== "ready") throw new CampaignScheduleNotReadyError(schedule);
+    return schedule;
+  }
 
   async listChannelConnections(
     workspaceId: string,
@@ -349,13 +486,23 @@ export class PublishingRepository {
       configuration?: Record<string, unknown>;
       error?: string;
     },
-  ): Promise<void> {
-    await this.sql`
-      UPDATE channel_connection SET status = ${result.ok ? "active" : "error"},
-        configuration = configuration || ${this.sql.json((result.configuration ?? {}) as JSONValue)},
-        last_tested_at = now(), last_error = ${result.error ?? null}, updated_at = now()
-      WHERE workspace_id = ${workspaceId} AND id = ${id}
-    `;
+    expected?: { encryptedCredentials: string; configuration: Record<string, unknown> },
+  ): Promise<boolean> {
+    return this.sql.begin(async (transaction) => {
+      const current = (await transaction<Pick<StoredChannelConnection, "encryptedCredentials" | "configuration">[]>`
+        SELECT encrypted_credentials, configuration FROM channel_connection
+        WHERE workspace_id = ${workspaceId} AND id = ${id} AND status <> 'revoked' FOR NO KEY UPDATE
+      `)[0];
+      if (!current || (expected && (current.encryptedCredentials !== expected.encryptedCredentials
+        || !samePublicationJson(current.configuration, expected.configuration)))) return false;
+      await transaction`
+        UPDATE channel_connection SET status = ${result.ok ? "active" : "error"},
+          configuration = configuration || ${transaction.json((result.configuration ?? {}) as JSONValue)},
+          last_tested_at = clock_timestamp(), last_error = ${result.error ?? null}, updated_at = clock_timestamp()
+        WHERE workspace_id = ${workspaceId} AND id = ${id}
+      `;
+      return true;
+    });
   }
 
   async configureMailchimpWebhook(workspaceId: string, connectionId: string, encryptedCredentials: string, actorUserId: string): Promise<boolean> {
@@ -475,7 +622,8 @@ export class PublishingRepository {
     const rows = await this.sql<
       (CampaignExecutionTarget & { channelConnectionId?: string })[]
     >`
-      SELECT i.workspace_id, i.campaign_id, i.id AS campaign_instance_id, r.id AS campaign_step_run_id,
+      SELECT i.workspace_id, i.campaign_id, i.campaign_version_id, i.id AS campaign_instance_id, r.id AS campaign_step_run_id,
+        s.schedule_type, s.preferred_window_start, s.preferred_window_end, s.dependency_delay_seconds,
         i.requested_by, brand_version.brand_profile_id,
         s.step_key, s.operation_type, s.desired_capability, s.approval_required, s.execution_methods, s.inputs AS input,
         (EXISTS (SELECT 1 FROM campaign_approval approval WHERE approval.campaign_instance_id = i.id
@@ -488,7 +636,10 @@ export class PublishingRepository {
         preview.rendered_content AS draft_preview_content, preview.rendered_subject AS draft_preview_subject,
         preview.content_draft_version_id AS draft_preview_version_id,
         preview_link.id AS draft_preview_tracked_link_id,
-        (preview.status = 'ready' AND preview_version.status = 'approved' AND draft.current_version_id = preview.content_draft_version_id
+        (preview.status = 'ready' AND preview_version.status = 'approved' AND draft.status = 'approved' AND draft.current_version_id = preview.content_draft_version_id
+          AND preview.channel_connection_id::text = COALESCE(s.inputs->>'channelConnectionId', s.inputs->>'channel_connection_id', preview.channel_connection_id::text)
+          AND preview.provider = preview_connection.provider
+          AND EXISTS (SELECT 1 FROM content_draft_approval approved_draft WHERE approved_draft.content_draft_version_id = preview.content_draft_version_id AND approved_draft.status = 'approved')
           AND preview_connection.status = 'active' AND preview_connection.capabilities_observed_at = preview.capability_observed_at
           AND NOT EXISTS (
             SELECT 1
@@ -513,9 +664,9 @@ export class PublishingRepository {
                   THEN current_asset.rights_status ELSE rights_source.rights_status END <> 'cleared'
                 OR COALESCE(rights_source.rights_reviewed_at, current_asset.rights_reviewed_at) IS NULL
                 OR (COALESCE(rights_source.rights_valid_from, current_asset.rights_valid_from) IS NOT NULL
-                  AND COALESCE(rights_source.rights_valid_from, current_asset.rights_valid_from) > now())
+                  AND COALESCE(rights_source.rights_valid_from, current_asset.rights_valid_from) > clock_timestamp())
                 OR (COALESCE(rights_source.rights_expires_at, current_asset.rights_expires_at) IS NOT NULL
-                  AND COALESCE(rights_source.rights_expires_at, current_asset.rights_expires_at) <= now())
+                  AND COALESCE(rights_source.rights_expires_at, current_asset.rights_expires_at) <= clock_timestamp())
                 OR NOT (preview.provider = ANY(CASE WHEN rights_source.id IS NULL
                   THEN current_asset.rights_permitted_channels ELSE rights_source.rights_permitted_channels END))
                 OR NOT EXISTS (
@@ -539,6 +690,7 @@ export class PublishingRepository {
               )
           )
           AND (preview.link_mode = 'canonical' OR (preview_link.id IS NOT NULL AND preview_link.status = 'active'
+            AND (preview_link.expires_at IS NULL OR preview_link.expires_at > clock_timestamp())
             AND preview_link.workspace_id = preview.workspace_id AND preview_link.destination_id = preview.destination_id))) AS draft_preview_eligible,
         cv.destination_id, d.canonical_url AS destination_url
       FROM campaign_instance i
@@ -577,6 +729,8 @@ export class PublishingRepository {
       : [];
     return {
       ...target,
+      preferredWindowStart: target.preferredWindowStart ? new Date(target.preferredWindowStart).toISOString() : undefined,
+      preferredWindowEnd: target.preferredWindowEnd ? new Date(target.preferredWindowEnd).toISOString() : undefined,
       connection,
       draftPreviewAssets: assets.map((asset) => ({
         ...asset,
@@ -599,41 +753,25 @@ export class PublishingRepository {
     idempotencyKey: string;
     requestSnapshot: Record<string, unknown>;
   }): Promise<{ action: StoredPublicationAction; created: boolean }> {
-    if (!input.target.connection)
-      throw new Error("Channel connection is required");
-    await new CampaignRepository(this.sql).assertStepExecutionAuthorized(input.target.campaignInstanceId, input.target.stepKey);
-    const currentTarget = await this.getCampaignExecutionTarget(input.target.campaignInstanceId, input.target.stepKey);
-    const connection = await this.getChannelConnection(input.target.workspaceId, input.target.connection.id);
-    if (!currentTarget || currentTarget.workspaceId !== input.target.workspaceId
-      || currentTarget.campaignId !== input.target.campaignId
-      || currentTarget.campaignStepRunId !== input.target.campaignStepRunId
-      || currentTarget.channelConnectionId !== input.target.connection.id
-      || currentTarget.operationType !== "publish_content"
-      || !connection || connection.status !== "active" || connection.provider !== input.target.connection.provider
-      || input.target.connection.workspaceId !== input.target.workspaceId
-      || (input.target.channelConnectionId && input.target.channelConnectionId !== connection.id)) {
-      throw new CampaignValidationError([{ code: "publication_target_mismatch", message: "Publication target does not match the active campaign, step, and workspace connection." }]);
-    }
-    if (["mailchimp_email", "slack_webhook", "mastodon_account"].includes(connection.provider) && !currentTarget.humanApprovalGranted) {
-      throw new CampaignValidationError([{ code: "publication_approval_required", message: "This provider requires a recorded human approval for the campaign or exact action." }]);
-    }
-    const id = randomUUID();
-    const inserted = await this.sql<{ id: string }[]>`
-      INSERT INTO publication_action (id, workspace_id, campaign_instance_id, campaign_step_run_id, channel_connection_id, action_type, status, idempotency_key, request_snapshot)
-      VALUES (${id}, ${input.target.workspaceId}, ${input.target.campaignInstanceId}, ${input.target.campaignStepRunId}, ${input.target.connection.id},
-        'publish_content', 'dispatching', ${input.idempotencyKey}, ${this.sql.json(input.requestSnapshot as JSONValue)})
-      ON CONFLICT (idempotency_key) DO NOTHING RETURNING id
-    `;
-    const action = await this.getPublicationActionByIdempotencyKey(
-      input.idempotencyKey,
-    );
-    if (!action)
-      throw new Error("Publication action insert did not produce an action");
-    if (action.workspaceId !== input.target.workspaceId || action.campaignInstanceId !== input.target.campaignInstanceId
-      || action.campaignStepRunId !== input.target.campaignStepRunId || action.channelConnectionId !== connection.id) {
-      throw new CampaignValidationError([{ code: "publication_target_mismatch", message: "Publication idempotency key belongs to a different execution target." }]);
-    }
-    return { action, created: Boolean(inserted[0]) };
+    return this.sql.begin(async (transaction) => {
+      const admission = await this.admitPublication(transaction, input.target, input.requestSnapshot);
+      const inserted = await transaction<{ id: string }[]>`
+        INSERT INTO publication_action (id, workspace_id, campaign_instance_id, campaign_step_run_id, channel_connection_id, action_type, status, idempotency_key, request_snapshot)
+        VALUES (${randomUUID()}, ${input.target.workspaceId}, ${input.target.campaignInstanceId}, ${input.target.campaignStepRunId}, ${admission.connection.id},
+          'publish_content', 'dispatching', ${input.idempotencyKey}, ${transaction.json(input.requestSnapshot as JSONValue)})
+        ON CONFLICT (idempotency_key) DO NOTHING RETURNING id
+      `;
+      const reader = new PublishingRepository(transaction as unknown as DatabaseClient, this.options);
+      const action = await reader.getPublicationActionByIdempotencyKey(input.idempotencyKey);
+      if (!action || !publicationMatchesTarget(action, input.target)) throw publicationTargetMismatch();
+      if (inserted[0]) {
+        const schedule = await this.finalPublicationSchedule(admission.campaigns, admission.current);
+        const snapshot = { ...input.requestSnapshot, dispatchSchedule: schedule };
+        await transaction`UPDATE publication_action SET request_snapshot = ${transaction.json(snapshot as unknown as JSONValue)} WHERE id = ${action.id}`;
+        return { action: { ...action, requestSnapshot: snapshot }, created: true };
+      }
+      return { action, created: false };
+    });
   }
 
   async getPublicationActionByIdempotencyKey(
@@ -649,6 +787,29 @@ export class PublishingRepository {
       WHERE idempotency_key = ${idempotencyKey}
     `
     )[0];
+  }
+
+  /** Read-only recovery. Current connection health, approvals and window expiry cannot erase a recorded outcome. */
+  async getCampaignPublicationForRecovery(input: {
+    workspaceId: string; campaignId: string; instanceId: string;
+    campaignVersionId: string; campaignStepRunId: string; stepKey: string;
+  }): Promise<StoredPublicationAction | undefined> {
+    return (await this.sql<StoredPublicationAction[]>`
+      SELECT action.id, action.workspace_id, action.campaign_instance_id, action.campaign_step_run_id,
+        action.channel_connection_id, connection.provider, action.action_type, action.status,
+        action.idempotency_key, action.request_snapshot, action.provider_external_id,
+        action.provider_url, action.response_metadata, action.last_error
+      FROM publication_action action
+      JOIN campaign_instance instance ON instance.id = action.campaign_instance_id AND instance.workspace_id = action.workspace_id
+      JOIN campaign_step_run run ON run.id = action.campaign_step_run_id AND run.campaign_instance_id = instance.id
+      JOIN campaign_step step ON step.id = run.campaign_step_id AND step.campaign_version_id = instance.campaign_version_id
+      JOIN channel_connection connection ON connection.id = action.channel_connection_id AND connection.workspace_id = instance.workspace_id
+      WHERE instance.id = ${input.instanceId} AND instance.workspace_id = ${input.workspaceId}
+        AND instance.campaign_id = ${input.campaignId} AND instance.campaign_version_id = ${input.campaignVersionId}
+        AND run.id = ${input.campaignStepRunId} AND step.step_key = ${input.stepKey}
+        AND action.action_type = 'publish_content'
+        AND action.idempotency_key = ${`campaign:${input.instanceId}:step:${input.stepKey}:publish`}
+    `)[0];
   }
 
   async finishPublicationAction(
@@ -1580,129 +1741,33 @@ export class PublishingRepository {
   async retryPublicationAction(
     id: string,
     target: CampaignExecutionTarget,
-    request: { content: string; subject?: string },
+    request: { content: string; subject?: string; renderedDestinationUrl?: string },
   ): Promise<boolean> {
-    // Only a failed action bound to this exact execution may be claimed. A stale
-    // contender must not change a dispatch already owned (or completed) elsewhere.
-    const action = (await this.sql<StoredPublicationAction[]>`
-      SELECT id, workspace_id, campaign_instance_id, campaign_step_run_id, channel_connection_id,
-        status, request_snapshot
-      FROM publication_action WHERE id = ${id}
-    `)[0];
-    if (!action || !target.connection || action.workspaceId !== target.workspaceId
-      || action.campaignInstanceId !== target.campaignInstanceId
-      || action.campaignStepRunId !== target.campaignStepRunId
-      || action.channelConnectionId !== target.connection.id) {
-      throw new CampaignValidationError([{ code: "publication_target_mismatch", message: "Publication retry does not match its original workspace, campaign, step, and connection." }]);
-    }
-    if (action.status !== "failed") return false;
-    if (action.requestSnapshot.content !== request.content
-      || (action.requestSnapshot.subject ?? undefined) !== request.subject) {
-      throw new CampaignValidationError([{ code: "publication_target_mismatch", message: "Publication retry content differs from its original rendered request." }]);
-    }
-
-    await new CampaignRepository(this.sql).assertStepExecutionAuthorized(target.campaignInstanceId, target.stepKey);
-    const currentTarget = await this.getCampaignExecutionTarget(target.campaignInstanceId, target.stepKey);
-    const connection = currentTarget?.connection;
-    if (!currentTarget || currentTarget.workspaceId !== target.workspaceId
-      || currentTarget.campaignId !== target.campaignId
-      || currentTarget.campaignStepRunId !== target.campaignStepRunId
-      || currentTarget.channelConnectionId !== target.connection.id
-      || currentTarget.operationType !== "publish_content"
-      || !connection || connection.status !== "active" || connection.provider !== target.connection.provider
-      || connection.encryptedCredentials !== target.connection.encryptedCredentials
-      || target.connection.workspaceId !== target.workspaceId
-      || (target.channelConnectionId && target.channelConnectionId !== connection.id)) {
-      throw new CampaignValidationError([{ code: "publication_target_mismatch", message: "Publication retry target no longer matches the active campaign version, step, and workspace connection." }]);
-    }
-    if (["mailchimp_email", "slack_webhook", "mastodon_account"].includes(connection.provider) && !currentTarget.humanApprovalGranted) {
-      throw new CampaignValidationError([{ code: "publication_approval_required", message: "This provider requires a recorded human approval for the campaign or exact action." }]);
-    }
-    const previewId = currentTarget.input.draftChannelPreviewId;
-    if ((typeof previewId === "string" || action.requestSnapshot.draftChannelPreviewId !== undefined) && (!currentTarget.draftPreviewEligible
-      || previewId !== action.requestSnapshot.draftChannelPreviewId
-      || currentTarget.draftPreviewVersionId !== action.requestSnapshot.draftVersionId
-      || currentTarget.draftPreviewVersionId !== target.draftPreviewVersionId)) {
-      throw new CampaignValidationError([{ code: "publication_target_mismatch", message: "Publication retry requires its original exact approved Draft preview." }]);
-    }
-    const preflight = action.requestSnapshot.providerPreflight;
-    const identity = preflight && typeof preflight === "object" && !Array.isArray(preflight)
-      ? (preflight as Record<string, unknown>).targetIdentity : undefined;
-    const identityKeys = connection.provider === "discord_webhook" ? ["webhookId", "guildId", "channelId"]
-      : connection.provider === "slack_webhook" ? ["teamId", "serviceId", "host"]
-        : connection.provider === "mastodon_account" ? ["accountId", "instanceOrigin", "host"]
-          : ["audienceId", "dataCenter"];
-    const requiredIdentityKeys = connection.provider === "discord_webhook" ? ["webhookId", "channelId"] : identityKeys;
-    // Legacy failures without a recorded provider identity cannot safely be
-    // re-sent to an account which might have changed behind the same connection.
-    if (!identity || typeof identity !== "object" || Array.isArray(identity)
-      || requiredIdentityKeys.some((key) => typeof (identity as Record<string, unknown>)[key] !== "string"
-        || !(identity as Record<string, unknown>)[key])
-      || identityKeys.some((key) => {
-        const original = (identity as Record<string, unknown>)[key];
-        return original !== undefined && original !== connection.configuration[key];
-      })) {
-      throw new CampaignValidationError([{ code: "publication_target_mismatch", message: "Publication retry provider identity is missing or differs from the original account." }]);
-    }
-    const claimed = await this.sql<{ id: string }[]>`
-      UPDATE publication_action SET status = 'dispatching', last_error = null, completed_at = null, updated_at = now()
-      WHERE id = ${id} AND status = 'failed'
-        AND workspace_id = ${target.workspaceId} AND campaign_instance_id = ${target.campaignInstanceId}
-        AND campaign_step_run_id = ${target.campaignStepRunId} AND channel_connection_id = ${connection.id}
-        AND EXISTS (
-          SELECT 1 FROM campaign_instance instance
-          JOIN campaign_version version ON version.id = instance.campaign_version_id
-          JOIN campaign_step_run run ON run.campaign_instance_id = instance.id
-          JOIN campaign_step step ON step.id = run.campaign_step_id AND step.campaign_version_id = instance.campaign_version_id
-          JOIN channel_connection current_connection ON current_connection.id = ${connection.id}
-            AND current_connection.workspace_id = instance.workspace_id
-          WHERE instance.id = ${target.campaignInstanceId} AND instance.workspace_id = ${target.workspaceId}
-            AND instance.campaign_id = ${target.campaignId} AND instance.status = 'active'
-            AND run.id = ${target.campaignStepRunId} AND run.status = 'running' AND step.step_key = ${target.stepKey}
-            AND current_connection.status = 'active' AND current_connection.provider = ${connection.provider}
-            AND current_connection.encrypted_credentials = ${connection.encryptedCredentials}
-            AND current_connection.configuration = ${this.sql.json(connection.configuration as JSONValue)}
-            AND current_connection.capabilities = ${this.sql.json(target.connection.capabilities as JSONValue)}
-            AND version.autonomy_mode IN ('approval_required', 'approve_uncertain', 'approve_first_occurrence', 'campaign_approval', 'confidence_based', 'fully_autonomous', 'custom')
-            AND (version.autonomy_mode <> 'campaign_approval' OR EXISTS (
-              SELECT 1 FROM campaign_approval approval WHERE approval.campaign_instance_id = instance.id
-                AND approval.workspace_id = instance.workspace_id AND approval.campaign_step_run_id IS NULL
-                AND approval.status = 'approved' AND approval.request_snapshot->>'campaignVersionId' = instance.campaign_version_id::text
-            ))
-            AND ((version.autonomy_mode IN ('fully_autonomous', 'custom', 'campaign_approval') AND NOT step.approval_required) OR EXISTS (
-              SELECT 1 FROM campaign_approval approval WHERE approval.campaign_instance_id = instance.id
-                AND approval.workspace_id = instance.workspace_id AND approval.campaign_step_run_id = run.id AND approval.status = 'approved'
-            ))
-            AND (current_connection.provider = 'discord_webhook' OR EXISTS (
-              SELECT 1 FROM campaign_approval approval WHERE approval.campaign_instance_id = instance.id
-                AND approval.workspace_id = instance.workspace_id AND approval.status = 'approved'
-                AND (approval.campaign_step_run_id = run.id OR (version.autonomy_mode = 'campaign_approval'
-                  AND approval.campaign_step_run_id IS NULL AND approval.request_snapshot->>'campaignVersionId' = instance.campaign_version_id::text))
-            ))
-            AND step.schedule_type IN ('immediate', 'exact_time', 'dependency')
-            AND (step.schedule_type <> 'exact_time' OR step.scheduled_at <= now())
-            AND step.condition = '{}'::jsonb
-            AND NOT EXISTS (
-              SELECT 1 FROM unnest(step.depends_on) dependency(step_key) WHERE NOT EXISTS (
-                SELECT 1 FROM campaign_step predecessor JOIN campaign_step_run completed ON completed.campaign_step_id = predecessor.id
-                WHERE predecessor.campaign_version_id = instance.campaign_version_id AND predecessor.step_key = dependency.step_key
-                  AND completed.campaign_instance_id = instance.id AND completed.status IN ('succeeded', 'partially_succeeded')
-              )
-            )
-            AND (${typeof previewId !== "string"} OR EXISTS (
-              SELECT 1 FROM draft_channel_preview preview
-              JOIN content_draft_version preview_version ON preview_version.id = preview.content_draft_version_id
-              JOIN content_draft draft ON draft.id = preview.content_draft_id AND draft.current_version_id = preview_version.id
-              WHERE preview.id::text = ${typeof previewId === "string" ? previewId : null}
-                AND preview.workspace_id = instance.workspace_id AND preview.channel_connection_id = current_connection.id
-                AND preview.status = 'ready' AND preview_version.status = 'approved'
-                AND preview.content_draft_version_id::text = ${currentTarget.draftPreviewVersionId ?? null}
-                AND preview.capability_observed_at = current_connection.capabilities_observed_at
-            ))
-        )
-      RETURNING id
-    `;
-    return Boolean(claimed[0]);
+    return this.sql.begin(async (transaction) => {
+      // Lock the instance before its action, matching common admission/control order.
+      const instances = await transaction<{ id: string }[]>`
+        SELECT id FROM campaign_instance WHERE id = ${target.campaignInstanceId}
+          AND workspace_id = ${target.workspaceId} AND campaign_id = ${target.campaignId} FOR NO KEY UPDATE
+      `;
+      if (!instances[0]) throw publicationTargetMismatch();
+      const action = (await transaction<StoredPublicationAction[]>`
+        SELECT id, workspace_id, campaign_instance_id, campaign_step_run_id, channel_connection_id, status, request_snapshot
+        FROM publication_action WHERE id = ${id} FOR NO KEY UPDATE
+      `)[0];
+      if (!action || !publicationMatchesTarget(action, target)) throw publicationTargetMismatch();
+      if (action.status !== 'failed') return false;
+      if (action.requestSnapshot.content !== request.content || (action.requestSnapshot.subject ?? undefined) !== request.subject) throw publicationTargetMismatch();
+      const snapshot = { ...action.requestSnapshot, ...request };
+      const admission = await this.admitPublication(transaction, target, snapshot);
+      const claimed = await transaction<{ id: string }[]>`
+        UPDATE publication_action SET status = 'dispatching', last_error = null, completed_at = null, updated_at = clock_timestamp()
+        WHERE id = ${id} AND status = 'failed' RETURNING id
+      `;
+      if (!claimed[0]) return false;
+      // Expiry rolls the claim back, retaining the failed action and its evidence.
+      await this.finalPublicationSchedule(admission.campaigns, admission.current);
+      return true;
+    });
   }
 
   async createTrackedLink(input: {
@@ -2171,4 +2236,42 @@ export class PublishingRepository {
 
 function hash(value: string): string {
   return createHash("sha256").update(value).digest("base64url");
+}
+
+function publicationTargetMismatch(): CampaignValidationError {
+  return new CampaignValidationError([{ code: "publication_target_mismatch", message: "The publication no longer matches the exact reviewed execution target." }]);
+}
+
+function publicationMatchesTarget(action: StoredPublicationAction, target: CampaignExecutionTarget): boolean {
+  return action.workspaceId === target.workspaceId && action.campaignInstanceId === target.campaignInstanceId
+    && action.campaignStepRunId === target.campaignStepRunId && action.channelConnectionId === target.connection?.id;
+}
+
+function samePublicationJson(left: unknown, right: unknown): boolean {
+  const canonical = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)]));
+    return value;
+  };
+  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
+}
+
+function publicationIdentityKeys(provider: ChannelProvider): string[] {
+  switch (provider) {
+    case "discord_webhook": return ["webhookId", "channelId", "guildId"];
+    case "slack_webhook": return ["teamId", "serviceId", "host"];
+    case "mastodon_account": return ["accountId", "instanceOrigin", "host"];
+    case "mailchimp_email": return ["audienceId", "dataCenter"];
+  }
+}
+
+function assertPublicationIdentity(snapshot: Record<string, unknown>, connection: StoredChannelConnection): void {
+  const preflight = snapshot.providerPreflight as { checked?: unknown; targetIdentity?: Record<string, unknown> } | undefined;
+  const identity = preflight?.targetIdentity;
+  if (preflight?.checked !== true || !identity || typeof identity !== "object" || Array.isArray(identity)) throw publicationTargetMismatch();
+  for (const key of publicationIdentityKeys(connection.provider)) {
+    // Discord DMs may have no guild; the webhook/channel tuple is always required.
+    if (connection.provider === "discord_webhook" && key === "guildId" && identity[key] === undefined && connection.configuration[key] === undefined) continue;
+    if (typeof identity[key] !== "string" || !(identity[key] as string).trim() || identity[key] !== connection.configuration[key]) throw publicationTargetMismatch();
+  }
 }

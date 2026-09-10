@@ -141,6 +141,7 @@ export const CAMPAIGN_STEP_STATUSES = [
   "canceled",
   "rolled_back",
   "manual_resolution",
+  "schedule_blocked",
 ] as const;
 export const SCHEDULE_TYPES = [
   "immediate",
@@ -786,6 +787,8 @@ export interface CampaignStep {
   scheduledAt?: string;
   preferredWindowStart?: string;
   preferredWindowEnd?: string;
+  /** Delay after each required predecessor's first successful completion; defaults to zero. */
+  dependencyDelaySeconds?: number;
   condition?: Readonly<Record<string, unknown>>;
   maxAttempts?: number;
   timeoutSeconds?: number;
@@ -1214,5 +1217,6 @@ export interface ConnectorCapability {
 }
 
 export * from "./policies";
+export * from "./schedule";
 export * from "./demo";
 export * from "./ai";

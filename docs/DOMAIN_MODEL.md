@@ -1,6 +1,48 @@
 # Domain Model and Important Variables
 
-## Current checkpoint: 1.19 implementation contracts
+## Current checkpoint: 1.20 scheduling contracts
+
+The following additions govern implemented bounded scheduling. They do not make every value in the schedule/action enums executable. See [Scheduling contracts](SCHEDULING_CONTRACTS.md) for the detailed authority and clock contract; 1.19 and earlier records below remain historical context.
+
+| Type, field or constant | Purpose and invariant |
+| --- | --- |
+| `CampaignStep.dependencyDelaySeconds`; `MAX_DEPENDENCY_DELAY_SECONDS = 31536000` | Optional at source-compatible call sites, normalized to zero on persistence; a safe integer in `[0,31536000]`. Positive delay requires at least one dependency. `campaign_step.dependency_delay_seconds` has matching integer/database constraints. Save/read/form/approval projections preserve it. |
+| `StepScheduleInput` | The pinned step's dependencies, schedule type, exact time, preferred bounds and delay. Exact time supplies only a lower bound. Preferred bounds are finite ordered absolute instants with an exclusive end. |
+| `StepSchedulePredecessor[]` | `{stepKey,status,completedAt?}` evidence for the same instance and pinned version. Exactly one matching successful/partially-successful record with its first durable completion is required per dependency. Duplicate/missing evidence cannot unlock work. Optional skipped/partial success retains the existing dependency-satisfaction rule. |
+| `StepScheduleState` | Discriminated union: `waiting_dependencies` includes `missingDependencies[]`; `waiting_until` requires `notBefore`; `ready` may carry bounds; `expired` carries `deadline` and `reason: deadline_reached \| no_legal_time`. Bounds are ISO UTC strings. |
+| `StoredStepScheduleState` | Adds `workspaceId,campaignId,campaignInstanceId,campaignVersionId,campaignStepRunId,stepKey,evaluatedAt,predecessors`. `evaluatedAt` is the database clock sampled with the stored evidence, not a client timestamp. Historical sub-millisecond lower bounds/completions round up and deadlines round down. |
+| `evaluateStepSchedule(step, predecessors, now)` | Pure earliest-legal-start evaluation. Effective lower bound is the maximum of the authored lower bound and every required completion plus delay. A lower bound at/after the deadline produces `no_legal_time`; equality with the deadline is never eligible. It does not reserve a slot or predict provider completion. |
+| `CampaignScheduleNotReadyError.schedule` | Exact stored no-admission evidence. Expired state uses issue code `execution_schedule_expired`; waiting states use `execution_schedule_not_ready`. A typed expiry may become blocked only after exact outcome recovery rules are satisfied. |
+| `CampaignScheduledStepExecutionInput` | Legacy instance/step/context input plus mandatory workspace, campaign, version and step-run IDs. Contains **no caller deadline**. `assertScheduleEvidence` compares every identity before accepting evidence/recovery. |
+| `CampaignSchedulingActivities` | Adds `getStepScheduleState` and `executeScheduledStep` to existing activities. The scheduled path opts into `allowBoundedScheduling:true`; the pure validator/legacy authority default remains false. This option permits implemented structure, not provider or approval bypass. |
+| `CampaignStepExecution` | `succeeded + output`, `manual_required + reason`, or `schedule_blocked + reason + expired StoredStepScheduleState`. Uncertain in-flight outcomes are manual-required, never inferred safe expiry. |
+| `recoverScheduledExecution(input)` | Read-only exact-lineage recovery. Returns prior success or unresolved manual-required; `undefined` means no matching prior action/known failed action, so new dispatch still needs authority. The publication key is `campaign:{instanceId}:step:{stepKey}:publish`, not caller-chosen recovery identity. |
+| `ChannelDispatchOptions` | Server-only `dispatchDeadlineAt` (UTC epoch milliseconds) and optional `dispatchMonotonicDeadlineAt` (same-process `performance.now()` cutoff). Never serialize the monotonic value across hosts or persist it as plan data. |
+| `ChannelRequestBudget` | One `signal`, integer `timeoutMs` and `run(operation)` wrapper for request plus body. Timeout is the minimum of ordinary timeout and UTC/monotonic time remaining. `ChannelDispatchDeadlineExceededError.reason` is `invalid \| expired` and means no request started. |
+| `recordConnectionTest(..., expected): Promise<boolean>` | Optional expected ciphertext/configuration snapshot protects a preflight result from overwriting a changed or revoked connection. The locked comparison returns false on mismatch; runtime callers stop. Neither snapshot nor ciphertext belongs in browser/telemetry output. |
+| `schedule_blocked` | Added step-run status with closed reason/evidence. Cannot return to waiting/running/manual/success; cancellation preserves the first evidence. Terminal success/partial-success writes preserve first completion/output/attempt count, keeping dependency-delay anchors stable. |
+
+### V2 deterministic workflow collections and context
+
+These values are per workflow execution, reconstructed from Temporal history. They are not cross-workspace mutable globals or substitutes for repository authorization.
+
+| Local state | Intent |
+| --- | --- |
+| `states: Record<stepKey,state>` | Query-visible branch state, including `manual_resolution` and `schedule_blocked`. Success wakes dependents only after its durable state write. |
+| `revision: number` | Wake counter changed by accepted signals and durable completion. Captured before schedule reads so a concurrent signal cannot be missed while awaiting an activity. |
+| `decisions: Map`; `requestedApprovals: Set` | Pending decisions and already-requested keys. Ignore stale/direct approval signals for unrequested keys. Whole-campaign scope remains reserved `__campaign__`. |
+| `manualOutputs: Map<stepKey,Record<string,unknown>>` | Only accepts current manual-resolution targets in a nonterminal/nonblocked workflow; early completion signals are not buffered for future execution. |
+| `paused,canceled,blocked,campaignApproved,failure` | Workflow control state. A block cannot be resumed; cancellation wakes pending branches but permits already-dispatched activities to settle without replacing accepted/uncertain results. |
+| Branch `runId,approved,waitUntil` | First resolved immutable step-run ID, consumed review state, and optional workflow-wait duration deadline. `waitUntil` uses deterministic workflow time only for the wait operation, never as a predecessor completion anchor. |
+| `context["schedule.<stepKey>"]` | Last stored scheduling evidence read for the branch. |
+| `context["schedule.blocked.<stepKey>"]` | First blocked `{reason,schedule}` evidence; persisted step output also carries `scheduleBlocked`. |
+| `context["steps.<stepKey>"]` | Step result output; dependents wake only after the successful database state write. `execution.validation` contains graph/policy issues; `execution.failure` contains the workflow failure message. `measurement.success` remains unchanged. |
+
+The static patch marker is `bounded-scheduling-v1`; frozen legacy source/policy digests protect recorded 1.19 replay. Exact step-review snapshots add version/run/key, window bounds, dependencies and normalized delay to the existing content/capability/method/autonomy fields. Campaign-wide review still pins the complete version/step snapshot. The form's delay value and calendar labels are presentation state only.
+
+Window-route checks require one official-API text publication through Discord, Slack or Mastodon with zero attachments. Raw stored capability JSON uses `supportedActions.publish_content`; the database client can expose that as `publishContent`, so authority reads handle the normalized form without treating missing/false permission as enabled. Any bounded plan containing `user_assisted` receives `bounded_companion_unsupported`, even when that companion step itself is immediate. Recurring, evergreen, conditional and follow-up values remain preserved authoring vocabulary, not execution support.
+
+## 1.19 implementation contracts (historical)
 
 The following contracts describe the 1.19.0 implementation. See [Releases](RELEASES.md) for verification evidence and [Implementation status](IMPLEMENTATION_STATUS.md) for limits rather than inferring support from enum values or saved fields.
 
@@ -146,15 +188,15 @@ AI cannot waive stabilization. Unknown or incomplete input remains not ready and
 - `CAMPAIGN_OBJECTIVES` is the canonical persisted objective vocabulary. `CAMPAIGN_VERSION_STATUSES` is `draft`, `published`, `superseded`; `CAMPAIGN_STATUSES` covers authoring and execution lifecycle from `draft` through terminal or archived state.
 - `campaign_step.step_key` is stable within one version and must match `[a-z][a-z0-9_-]*`. `depends_on[]` references sibling keys. `validateCampaignGraph` rejects duplicates, missing/self dependencies, cycles, invalid schedule windows, and retry/timeout bounds, and returns a deterministic topological order.
 - `CAMPAIGN_STEP_TYPES` is the provider-neutral desired-action vocabulary: destination creation, publishing, notification, discovery, outreach, monitoring, response, lead collection, system update, approval, wait, analysis, evaluation, follow-up scheduling, and manual handoff.
-- `SCHEDULE_TYPES` is `immediate`, `exact_time`, `preferred_window`, `recurring`, `evergreen_queue`, `dependency`, `conditional`, `follow_up`. Release 0.4 executes immediate/dependency, exact-time, and duration-wait behavior; later releases add recurrence and evergreen scheduling policies.
+- `SCHEDULE_TYPES` is `immediate`, `exact_time`, `preferred_window`, `recurring`, `evergreen_queue`, `dependency`, `conditional`, `follow_up`. Release 0.4 introduced immediate/dependency, exact-time and duration-wait behavior; 1.20 adds the bounded windows/dependency delays described above. Recurrence, evergreen, conditions and follow-up execution remain planned.
 - `campaign_instance` binds one activation to an immutable version. `temporal_workflow_id` is globally unique, `context` contains runtime handoffs, and `requested_by` preserves the activating actor.
 - `campaign_step_run` is the current observable state for one version step. `idempotency_key` is `campaign:<instanceId>:step:<stepKey>`. `attempt_count` increments only on a transition into `running`; duplicate activity delivery while already running is a no-op.
 - `campaign_step_attempt` is append-only attempt history keyed by `(campaign_step_run_id, attempt_number)`. It captures the input snapshot, terminal output/error, and start/completion timestamps. A duplicate `running` write cannot add another attempt.
-- `CAMPAIGN_STEP_STATUSES` is `planned`, `waiting`, `running`, `succeeded`, `partially_succeeded`, `temporarily_failed`, `permanently_failed`, `canceled`, `rolled_back`, `manual_resolution`. Optional rejected work uses `partially_succeeded`; required rejection uses `permanently_failed`.
+- `CAMPAIGN_STEP_STATUSES` is `planned`, `waiting`, `running`, `succeeded`, `partially_succeeded`, `temporarily_failed`, `permanently_failed`, `canceled`, `rolled_back`, `manual_resolution`, `schedule_blocked`. Optional rejected work uses `partially_succeeded`; required rejection uses `permanently_failed`. A missed bounded request-start window has its own blocked evidence rather than a fabricated provider outcome.
 - `campaign_approval` snapshots the requested action and supports `pending`, `approved`, `rejected`, `changes_requested`, or `canceled`. A partial unique index permits only one pending approval for an instance/step pair.
 - `campaign_workflow_command` is the transactional outbox. `command_type` is `start`, `pause`, `resume`, `cancel`, `approval_decision`, or `manual_step_completed`; `payload` is a bounded JSON dictionary; `idempotency_key` suppresses duplicate user/API delivery.
 
-## Workflow in-memory collections
+## Legacy workflow in-memory collections (through 1.19)
 
 - `stepStates: Record<stepKey, state>` is deterministic workflow state reconstructed from Temporal history. It is not an independent database authority; activities mirror externally observable transitions to `campaign_step_run`.
 - `approvalDecisions: Map<stepKey, decision>` holds signal values until the matching approval wait consumes them.

@@ -3,6 +3,7 @@ export * from "./models";
 export * from "./repositories";
 export * from "./campaign-repository";
 export * from "./publishing-repository";
+export * from "./campaign-route-policy";
 export * from "./companion-repository";
 export * from "./profile-repository";
 export * from "./draft-repository";

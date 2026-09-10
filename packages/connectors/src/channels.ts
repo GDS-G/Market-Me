@@ -1,4 +1,5 @@
 import type { ConnectorFetch } from "./types";
+import { ChannelDispatchDeadlineExceededError, createChannelRequestBudget, type ChannelDispatchOptions } from "./request-budget";
 
 export const CHANNEL_PROVIDERS = ["discord_webhook", "mailchimp_email", "slack_webhook", "mastodon_account"] as const;
 export type ChannelProvider = (typeof CHANNEL_PROVIDERS)[number];
@@ -211,20 +212,30 @@ export class DiscordWebhookConnector {
   }
 
   async testConnection(): Promise<ChannelConnectionTest> {
-    const response = await this.request(this.webhookUrl, { method: "GET", headers: { accept: "application/json" } });
-    if (!response.ok) return { ok: false, error: classifyHttpMessage(response.status) };
-    const payload = await response.json() as Record<string, unknown>;
-    return {
-      ok: true,
-      providerIdentity: Object.fromEntries([
-        ["webhookId", payload.id], ["name", payload.name], ["guildId", payload.guild_id], ["channelId", payload.channel_id],
-      ].filter((entry): entry is [string, string] => typeof entry[1] === "string")),
-    };
+    const budget = createChannelRequestBudget(5_000);
+    try {
+      const response = await budget.run(() => this.request(this.webhookUrl, {
+        method: "GET", redirect: "error", headers: { accept: "application/json" }, signal: budget.signal,
+      }));
+      if (!response.ok) return { ok: false, error: classifyHttpMessage(response.status) };
+      const payload = await budget.run(() => readBoundedProviderJson(response, "Discord"));
+      return {
+        ok: true,
+        providerIdentity: Object.fromEntries([
+          ["webhookId", payload.id], ["name", payload.name], ["guildId", payload.guild_id], ["channelId", payload.channel_id],
+        ].filter((entry): entry is [string, string] => typeof entry[1] === "string")),
+      };
+    } catch (error) {
+      return { ok: false, error: error instanceof ChannelConnectorError ? error.message : "Discord connection test could not read a bounded provider response" };
+    }
   }
 
-  async publishContent(input: PublishContentInput): Promise<PublishContentResult> {
+  async publishContent(input: PublishContentInput, options: ChannelDispatchOptions = {}): Promise<PublishContentResult> {
     const content = input.content.trim();
     const attachments = [...(input.attachments ?? [])];
+    if (options.dispatchDeadlineAt !== undefined && (attachments.length || input.providerAttachmentIds?.length)) {
+      throw new ChannelConnectorError("Dispatch deadlines currently support text-only publication, not attachments", "validation");
+    }
     if ((!content && !attachments.length) || content.length > this.manifest.limits.contentCharacters) throw new ChannelConnectorError("Discord content must contain at most 2000 characters and a message requires content or an attachment", "validation");
     if (attachments.length > this.manifest.limits.attachmentsPerMessage) throw new ChannelConnectorError("Discord accepts at most 10 attachments per message", "validation");
     for (const attachment of attachments) validateDiscordAttachment(attachment, this.manifest);
@@ -245,7 +256,14 @@ export class DiscordWebhookConnector {
       attachments.forEach((attachment, index) => form.set(`files[${index}]`, new Blob([attachmentArrayBuffer(attachment.data)], { type: attachment.mimeType }), attachment.fileName));
       body = form; headers = { accept: "application/json" };
     } else { body = JSON.stringify(payload); headers = { "content-type": "application/json", accept: "application/json" }; }
-    const response = await this.request(url, { method: "POST", headers, body });
+    const budget = createChannelRequestBudget(5_000, options);
+    let response: Response;
+    try {
+      response = await budget.run(() => this.request(url, { method: "POST", redirect: "error", headers, body, signal: budget.signal }));
+    } catch (error) {
+      if (error instanceof ChannelDispatchDeadlineExceededError) throw error;
+      throw new ChannelConnectorError("Discord publication outcome is ambiguous", "ambiguous");
+    }
     if (!response.ok) {
       const retryAfterMs = parseRetryAfter(response);
       if (response.status === 429) throw new ChannelConnectorError("Discord rate limit reached", "rate_limit", retryAfterMs);
@@ -253,8 +271,10 @@ export class DiscordWebhookConnector {
       if (response.status >= 500) throw new ChannelConnectorError(`Discord returned ${response.status}; delivery is ambiguous`, "ambiguous");
       throw new ChannelConnectorError(`Discord rejected the message with ${response.status}`, "permanent");
     }
-    const responsePayload = await response.json() as Record<string, unknown>;
-    if (typeof responsePayload.id !== "string") throw new ChannelConnectorError("Discord confirmed delivery without a message ID", "ambiguous");
+    let responsePayload: Record<string, unknown>;
+    try { responsePayload = await budget.run(() => readBoundedProviderJson(response, "Discord")); }
+    catch { throw new ChannelConnectorError("Discord confirmed delivery without a usable bounded response", "ambiguous"); }
+    if (typeof responsePayload.id !== "string" || !responsePayload.id.trim() || responsePayload.id.length > 500) throw new ChannelConnectorError("Discord confirmed delivery without a message ID", "ambiguous");
     const channelId = typeof responsePayload.channel_id === "string" ? responsePayload.channel_id : undefined;
     const guildId = typeof responsePayload.guild_id === "string" ? responsePayload.guild_id : undefined;
     return {
@@ -288,15 +308,15 @@ export class SlackWebhookConnector {
     }
   }
 
-  async publishContent(input: PublishContentInput): Promise<PublishContentResult> {
+  async publishContent(input: PublishContentInput, options: ChannelDispatchOptions = {}): Promise<PublishContentResult> {
     const content = input.content.trim();
     if (!content || content.length > this.manifest.limits.contentCharacters) {
       throw new ChannelConnectorError("Slack content must contain 1 through 4,000 characters", "validation");
     }
-    if (input.attachments?.length) {
+    if (input.attachments?.length || input.providerAttachmentIds?.length) {
       throw new ChannelConnectorError("Slack incoming-webhook delivery does not accept Market Me attachments", "validation");
     }
-    await this.post(content, "delivery");
+    await this.post(content, "delivery", options);
     return {
       metadata: {
         acknowledgement: "ok",
@@ -306,28 +326,28 @@ export class SlackWebhookConnector {
     };
   }
 
-  private async post(content: string, operation: string): Promise<void> {
+  private async post(content: string, operation: string, options: ChannelDispatchOptions = {}): Promise<void> {
+    const body = JSON.stringify({ text: content, mrkdwn: false, link_names: false, unfurl_links: false, unfurl_media: false });
+    const budget = createChannelRequestBudget(5_000, options);
     let response: Response;
     try {
-      response = await this.request(this.webhookUrl, {
+      response = await budget.run(() => this.request(this.webhookUrl, {
         method: "POST",
+        redirect: "error",
         headers: { "content-type": "application/json; charset=utf-8", accept: "text/plain" },
-        body: JSON.stringify({
-          text: content,
-          mrkdwn: false,
-          link_names: false,
-          unfurl_links: false,
-          unfurl_media: false,
-        }),
-        signal: AbortSignal.timeout(5_000),
-      });
-    } catch {
+        body,
+        signal: budget.signal,
+      }));
+    } catch (error) {
+      if (error instanceof ChannelDispatchDeadlineExceededError) throw error;
       throw new ChannelConnectorError(`Slack ${operation} outcome is ambiguous`, "ambiguous");
     }
     if (response.status === 429) {
       throw new ChannelConnectorError("Slack rate limit reached", "rate_limit", parseRetryAfter(response));
     }
-    const acknowledgement = await readBoundedSlackText(response);
+    let acknowledgement: string;
+    try { acknowledgement = await budget.run(() => readBoundedSlackText(response)); }
+    catch { throw new ChannelConnectorError(`Slack ${operation} acknowledgement is ambiguous`, "ambiguous"); }
     if (response.ok && acknowledgement === "ok") return;
     if (response.status === 401 || response.status === 403 || response.status === 404 || response.status === 410) {
       throw new ChannelConnectorError("Slack rejected or disabled the incoming webhook", "authorization");
@@ -410,12 +430,15 @@ export class MastodonAccountConnector {
     }
   }
 
-  async publishContent(input: PublishContentInput): Promise<PublishContentResult> {
+  async publishContent(input: PublishContentInput, options: ChannelDispatchOptions = {}): Promise<PublishContentResult> {
     const content = input.content.trim();
     if (!content || content.length > 100_000) {
       throw new ChannelConnectorError("Mastodon content must contain 1 through 100,000 characters before live limit validation", "validation");
     }
     if (input.attachments?.length) throw new ChannelConnectorError("Upload Mastodon attachments before creating the status", "validation");
+    if (options.dispatchDeadlineAt !== undefined && input.providerAttachmentIds?.length) {
+      throw new ChannelConnectorError("Dispatch deadlines currently support text-only Mastodon publication, not uploaded media", "validation");
+    }
     const providerAttachmentIds = [...(input.providerAttachmentIds ?? [])].map((id) => boundedMastodonIdentity(id, "media ID"));
     if (providerAttachmentIds.length > 4 || new Set(providerAttachmentIds).size !== providerAttachmentIds.length) {
       throw new ChannelConnectorError("Mastodon accepts at most four unique uploaded media IDs", "validation");
@@ -424,9 +447,11 @@ export class MastodonAccountConnector {
     if (!idempotencyKey || idempotencyKey.length > 200 || /[^A-Za-z0-9:._-]/u.test(idempotencyKey)) {
       throw new ChannelConnectorError("Mastodon publishing requires a bounded idempotency key", "validation");
     }
+    const body = JSON.stringify({ status: content, visibility: "public", sensitive: false, ...(providerAttachmentIds.length ? { media_ids: providerAttachmentIds } : {}) });
+    const budget = createChannelRequestBudget(5_000, options);
     let response: Response;
     try {
-      response = await this.request(new URL("/api/v1/statuses", this.origin), {
+      response = await budget.run(() => this.request(new URL("/api/v1/statuses", this.origin), {
         method: "POST",
         redirect: "error",
         headers: {
@@ -435,10 +460,11 @@ export class MastodonAccountConnector {
           accept: "application/json",
           "idempotency-key": idempotencyKey,
         },
-        body: JSON.stringify({ status: content, visibility: "public", sensitive: false, ...(providerAttachmentIds.length ? { media_ids: providerAttachmentIds } : {}) }),
-        signal: AbortSignal.timeout(5_000),
-      });
-    } catch {
+        body,
+        signal: budget.signal,
+      }));
+    } catch (error) {
+      if (error instanceof ChannelDispatchDeadlineExceededError) throw error;
       throw new ChannelConnectorError("Mastodon publication outcome is ambiguous", "ambiguous");
     }
     if (response.status === 429) {
@@ -451,11 +477,13 @@ export class MastodonAccountConnector {
     }
     let payload: Record<string, unknown>;
     try {
-      payload = await readBoundedProviderJson(response, "Mastodon");
+      payload = await budget.run(() => readBoundedProviderJson(response, "Mastodon"));
     } catch {
       throw new ChannelConnectorError("Mastodon confirmed publication without a usable bounded response", "ambiguous");
     }
-    const externalId = boundedMastodonIdentity(payload.id, "status ID");
+    let externalId: string;
+    try { externalId = boundedMastodonIdentity(payload.id, "status ID"); }
+    catch { throw new ChannelConnectorError("Mastodon confirmed publication without a valid status identity", "ambiguous"); }
     const externalUrl = safeMastodonProviderUrl(payload.url, this.origin);
     if (!externalUrl) throw new ChannelConnectorError("Mastodon confirmed publication without a same-instance status URL", "ambiguous");
     return {

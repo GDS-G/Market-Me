@@ -1533,6 +1533,17 @@ export interface StoredCampaignStepRun {
   completedAt?: string;
 }
 
+export type StoredStepScheduleState = import("@market-me/domain").StepScheduleState & {
+  evaluatedAt: string;
+  workspaceId: string;
+  campaignId: string;
+  campaignInstanceId: string;
+  campaignVersionId: string;
+  campaignStepRunId: string;
+  stepKey: string;
+  predecessors: readonly import("@market-me/domain").StepSchedulePredecessor[];
+};
+
 export interface StoredCampaignApproval {
   id: string;
   campaignInstanceId: string;

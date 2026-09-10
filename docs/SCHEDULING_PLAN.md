@@ -1,6 +1,8 @@
 # Bounded scheduling implementation plan
 
-Status: **planned after the 1.19 checkpoint, not executable support**. This plan implements the Preferred Window and Dependency requirements from conceptual sections 10–11. It does not replace the wider scheduler, pacing, calendar, autonomy, or approval requirements. Current supported behavior remains in [Implementation status](IMPLEMENTATION_STATUS.md).
+Status: **initial bounded scope implemented and locally verified in 1.20**. This design implements a bounded subset of the Preferred Window and Dependency requirements from conceptual sections 10–11. It does not replace the wider scheduler, pacing, calendar, autonomy, or approval requirements. Current supported behavior remains in [Implementation status](IMPLEMENTATION_STATUS.md).
+
+Activation now explicitly enables the implemented bounded policy after live integration and replay acceptance. The pure validator remains closed by default for legacy callers. Source/cloud publication evidence is recorded separately in [Releases](RELEASES.md). Data, recovery and clock-budget interfaces are recorded in [Scheduling contracts](SCHEDULING_CONTRACTS.md); the requirements below remain the regression checklist.
 
 ## First useful scope
 
@@ -8,18 +10,18 @@ Add absolute preferred windows and delays after predecessor completion. A window
 
 Preserve current exact-time semantics: an exact time is a not-before target, not a new expiry. Dependency delay defaults to zero. Dates remain absolute instants; the campaign timezone controls presentation, while the existing editor explicitly accepts UTC and preserves milliseconds.
 
-Initial preferred-window execution is limited to verified single-write API routes: Discord, Slack and text-only Mastodon. Mailchimp, media uploads, companion, browser, manual fallback and other routes remain saved-only for windows until every stage has deadline enforcement. This is a temporary capability restriction, not a permanent removal from the specification. Validate route restrictions both before activation and again against the current exact account/content before dispatch.
+Initial preferred-window execution is limited to verified single-write text-only API routes: Discord, Slack and Mastodon. Mailchimp, media uploads, companion, browser, manual fallback and other routes remain saved-only for windows until every stage has deadline enforcement. Any campaign containing a window or positive dependency delay also rejects any companion/user-assisted step, including an immediate predecessor. This is a temporary capability restriction, not a permanent removal from the specification. Validate route restrictions both before activation and again against the current exact account/content before dispatch.
 
 Do not add a slot-reservation table merely to run a bounded window. Quiet hours, collisions, density limits, natural pacing, recurrence, evergreen rotation, follow-up triggers and conditions remain separate tracked work. An earliest-legal-start implementation must not claim those capabilities.
 
-## Proposed data and contracts
+## Implemented data and contracts
 
 - `CampaignStep.dependencyDelaySeconds?: number`: default zero; a safe integer from zero through 31,536,000 seconds (an initial one-year bound); a positive value requires at least one dependency. Reject strings, fractions, negatives, non-finite values and values beyond the bound. Mirror it as `campaign_step.dependency_delay_seconds integer NOT NULL DEFAULT 0` with a database check and preserve it in every version read/write, API and form projection.
 - The governing schedule is always the instance's immutable campaign version. Never take a dispatch deadline from browser parameters, arbitrary `input.context`, the campaign's newer draft, or a replacement account.
 - `effectiveNotBefore` is the maximum of the schedule's lower bound and each required predecessor's first successful/partially-successful completion timestamp plus the delay. Predecessors must belong to the same instance and pinned version. Existing optional skipped/partially-successful predecessors continue to satisfy dependencies; display and document that behavior.
 - Preserve the first durable successful completion timestamp on idempotent state writes. Terminal runs must not regress to waiting/running because of a stale activity. The current scheduler's batch/wave start time is not an acceptable delay anchor.
-- Proposed pure `evaluateStepSchedule` result: `waiting_dependencies`, `waiting_until` with `notBefore`/optional `deadline`, `ready` with the same bounds, or `expired` with `deadline`. Repository resolution supplies one authoritative `clock_timestamp()` and exact stored predecessor evidence. No browser clock is authority.
-- Proposed `schedule_blocked` step-run status distinguishes missed windows from manual provider reconciliation. Persist a closed reason plus the governing schedule evidence; show it in the run and calendar. It must not be clearable using the ordinary manual-completion endpoint.
+- Pure `evaluateStepSchedule` result: `waiting_dependencies`, `waiting_until` with `notBefore`/optional `deadline`, `ready` with the same bounds, or `expired` with `deadline`. Repository resolution supplies one authoritative `clock_timestamp()` and exact stored predecessor evidence. No browser clock is authority.
+- `schedule_blocked` step-run status distinguishes missed windows from manual provider reconciliation. Persist a closed reason plus the governing schedule evidence; show it in the run and calendar. It must not be clearable using the ordinary manual-completion endpoint.
 
 ## Durable workflow and controls
 
@@ -37,11 +39,13 @@ Once a write starts, timeout, abort, malformed acknowledgement or unknown transp
 
 Publication retry requires an exact-target, reauthorized, atomic `failed -> dispatching` claim. Only the winning claimant may send; a losing observer cannot overwrite an active dispatch as ambiguous. Retain provider idempotency keys. Replaying an exact persisted success after the deadline is a read-only recovery operation and must return it without preflight, new tracked links, media work or another provider request. This exception must not authorize a new send.
 
-The 1.19 retry correction establishes one claim winner but does not serialize every mutable rights/preview read with dispatch claiming. Before window support, define the shared begin/retry authorization linearization boundary, cover concurrent revocation/current-preview changes, and use database time after relevant waits. Holding database locks across external HTTP calls is not an acceptable substitute.
+The 1.20 shared begin/retry admission boundary locks exact instance/version/run, approvals, current account and content/destination resources and reads fresh database time after waits. Regression tests cover concurrent retries, revocation and current-preview changes. This does not establish an atomic boundary across every possible rights-scope writer and external HTTP. Window media remains unsupported; holding database locks across external HTTP calls is not an acceptable substitute.
 
 Future multi-stage support must carry the cutoff through Mailchimp create/content/send and Mastodon upload/readiness/status, preserving intermediate provider IDs on interruption. A future companion extension must persist the campaign cutoff, filter expired queue/reclaims, cap signed job expiry and recheck immediately before native execution. A browser opening cannot guarantee when a user completes an external action.
 
 ## Acceptance before enabling support
+
+These gates passed for the implemented 1.20 scope; retain them for regression and each route extension. Three real Temporal history replays cover patch-marked execution and two unmarked 1.19 histories. Exact suite/build/browser evidence is recorded in Releases; test adapters do not prove live provider acceptance.
 
 1. Validate finite ordered ranges, exact end exclusion, millisecond preservation and every invalid delay at API, domain and database boundaries; unchanged exact-time/default-zero cases must still pass.
 2. Prove no early dispatch after timers, queue delay, pause/resume, retries, worker restart and late predecessor completion. A repeated completion write must not move a delay anchor, and unrelated siblings must not delay a newly eligible successor.

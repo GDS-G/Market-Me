@@ -8,6 +8,7 @@ import {
   EXECUTION_METHODS,
   SCHEDULE_TYPES,
   PROVIDER_AGGREGATE_METRIC_TYPES,
+  MAX_DEPENDENCY_DELAY_SECONDS,
   type CampaignMetricType,
   type CampaignStepType,
 } from "@market-me/domain";
@@ -36,6 +37,7 @@ const newStep = (id: string): StepDraft => ({
   operationType: "manual_handoff",
   capability: "manual.handoff",
   dependsOn: "",
+  dependencyDelaySeconds: 0,
   approvalRequired: true,
   scheduleType: "immediate",
   scheduledAt: "",
@@ -173,10 +175,8 @@ export function CampaignForm({
     let request;
     try {
       request = body();
-    } catch {
-      setError(
-        "Campaign context, inputs, outputs, and conditions must be JSON objects; schedule times must be valid UTC values.",
-      );
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Check the campaign JSON, UTC schedule times, and dependency delay.");
       setPending(false);
       return false;
     }
@@ -668,6 +668,13 @@ export function CampaignForm({
                 />
               </label>
               <label className="field">
+                <span>Delay after dependencies (seconds)</span>
+                <input type="number" required min={0} max={MAX_DEPENDENCY_DELAY_SECONDS} step={1}
+                  value={Number.isNaN(step.dependencyDelaySeconds) ? "" : step.dependencyDelaySeconds}
+                  onChange={(event) => updateStep(index, { dependencyDelaySeconds: event.target.valueAsNumber })} />
+                <small>Zero adds no delay. A positive value requires dependencies and starts from each predecessor&apos;s first recorded success or partial success, not from when this form is saved. Campaigns combining bounded scheduling with companion execution remain saved-only.</small>
+              </label>
+              <label className="field">
                 <span>Schedule</span>
                 <select
                   value={step.scheduleType}
@@ -678,11 +685,12 @@ export function CampaignForm({
                   <option value="immediate">Immediate</option>
                   <option value="dependency">After dependencies</option>
                   <option value="exact_time">Exact time</option>
-                  {SCHEDULE_TYPES.filter((kind) => !["immediate", "dependency", "exact_time"].includes(kind)).map((kind) => (
+                  <option value="preferred_window">Preferred request-start window</option>
+                  {SCHEDULE_TYPES.filter((kind) => !["immediate", "dependency", "exact_time", "preferred_window"].includes(kind)).map((kind) => (
                     <option key={kind} value={kind}>{kind.replaceAll("_", " ")} (plan only)</option>
                   ))}
                 </select>
-                {!["immediate", "dependency", "exact_time"].includes(step.scheduleType) && <small>This plan can be saved, but cannot activate until this scheduling mode is implemented.</small>}
+                {!["immediate", "dependency", "exact_time", "preferred_window"].includes(step.scheduleType) && <small>This plan can be saved, but cannot activate until this scheduling mode is implemented.</small>}
               </label>
               {step.scheduleType === "exact_time" && (
                 <label className="field">
@@ -704,6 +712,7 @@ export function CampaignForm({
                   <input type="datetime-local" step="0.001" required value={step[field]} onChange={(event) => updateStep(index, { [field]: event.target.value })} />
                 </label>
               ))}
+              {step.scheduleType === "preferred_window" && <p className="field-wide">The request-start range includes its start and excludes its end. Supported only for text-only Discord, Slack, or Mastodon with official API execution and no fallback. Dependencies and approvals still apply; missing the window requires cancellation and a newly reviewed plan. Provider completion time is not guaranteed. Recurrence, collision resolution, and pacing are not implemented.</p>}
               <label className="field field-wide">
                 <span>Schedule condition (JSON; saved plan)</span>
                 <textarea value={step.condition} onChange={(event) => updateStep(index, { condition: event.target.value })} />

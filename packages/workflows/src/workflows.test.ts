@@ -14,7 +14,7 @@ import {
   resumeCampaign,
 } from "./workflows";
 
-describe("campaignWorkflow", () => {
+describe("frozen 1.19 campaignWorkflow compatibility", () => {
   let environment: TestWorkflowEnvironment;
   beforeAll(async () => {
     environment = await TestWorkflowEnvironment.createTimeSkipping();
@@ -45,7 +45,7 @@ describe("campaignWorkflow", () => {
     const worker = await Worker.create({
       connection: environment.nativeConnection,
       taskQueue,
-      workflowsPath: fileURLToPath(new URL("./workflows.ts", import.meta.url)),
+      workflowsPath: fileURLToPath(new URL("./legacy-capture-workflows.ts", import.meta.url)),
       activities,
     });
     const result = await worker.runUntil(async () => {
@@ -152,7 +152,7 @@ describe("campaignWorkflow", () => {
     const worker = await Worker.create({
       connection: environment.nativeConnection,
       taskQueue,
-      workflowsPath: fileURLToPath(new URL("./workflows.ts", import.meta.url)),
+      workflowsPath: fileURLToPath(new URL("./legacy-capture-workflows.ts", import.meta.url)),
       activities,
     });
     const result = await worker.runUntil(async () => {
@@ -211,7 +211,7 @@ describe("campaignWorkflow", () => {
     const worker = await Worker.create({
       connection: environment.nativeConnection,
       taskQueue,
-      workflowsPath: fileURLToPath(new URL("./workflows.ts", import.meta.url)),
+      workflowsPath: fileURLToPath(new URL("./legacy-capture-workflows.ts", import.meta.url)),
       activities,
     });
     const result = await worker.runUntil(async () => {
@@ -293,7 +293,7 @@ describe("campaignWorkflow", () => {
     const worker = await Worker.create({
       connection: environment.nativeConnection,
       taskQueue: `authority-block-${randomUUID()}`,
-      workflowsPath: fileURLToPath(new URL("./workflows.ts", import.meta.url)),
+      workflowsPath: fileURLToPath(new URL("./legacy-capture-workflows.ts", import.meta.url)),
       activities: {
         setInstanceState: async () => {}, setStepState: async () => {},
         requestStepApproval: async ({ stepKey }: { stepKey: string }) => { approvals.push(stepKey); return "unused"; },
@@ -331,7 +331,7 @@ describe("campaignWorkflow", () => {
     const taskQueue = `authority-review-${randomUUID()}`;
     const worker = await Worker.create({
       connection: environment.nativeConnection, taskQueue,
-      workflowsPath: fileURLToPath(new URL("./workflows.ts", import.meta.url)),
+      workflowsPath: fileURLToPath(new URL("./legacy-capture-workflows.ts", import.meta.url)),
       activities: {
         setInstanceState: async () => {}, setStepState: async () => {},
         requestStepApproval: async () => { notifyApproval(); return "review"; },
@@ -362,7 +362,7 @@ describe("campaignWorkflow", () => {
     const taskQueue = `whole-campaign-review-${randomUUID()}`;
     const worker = await Worker.create({
       connection: environment.nativeConnection, taskQueue,
-      workflowsPath: fileURLToPath(new URL("./workflows.ts", import.meta.url)),
+      workflowsPath: fileURLToPath(new URL("./legacy-capture-workflows.ts", import.meta.url)),
       activities: {
         setInstanceState: async () => {}, setStepState: async () => {},
         requestStepApproval: async ({ snapshot }: { snapshot: Record<string, unknown> }) => { snapshots.push(snapshot); notifyApproval(); return "review"; },

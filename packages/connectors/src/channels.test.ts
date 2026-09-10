@@ -1,9 +1,155 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChannelConnectorError, DISCORD_WEBHOOK_CAPABILITIES, DiscordWebhookConnector, isExactMailchimpCampaignWebhook, MAILCHIMP_EMAIL_CAPABILITIES, MailchimpEmailConnector, MastodonAccountConnector, mastodonCapabilities, parseDiscordWebhookUrl, parseMastodonInstanceOrigin, parseSlackWebhookUrl, renderChannelPreview, SLACK_WEBHOOK_CAPABILITIES, SlackWebhookConnector } from "./channels";
+import { ChannelDispatchDeadlineExceededError } from "./request-budget";
+import type { ConnectorFetch } from "./types";
+
+afterEach(() => vi.restoreAllMocks());
 
 const url = "https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz123456";
 
+const deadlinePublishers = [
+  {
+    name: "Discord",
+    create: (request: ConnectorFetch) => new DiscordWebhookConnector(url, request),
+    acknowledgement: () => new Response(JSON.stringify({ id: "message-1", channel_id: "channel-1" })),
+  },
+  {
+    name: "Slack",
+    create: (request: ConnectorFetch) => new SlackWebhookConnector("https://hooks.slack.com/services/T01234567/B01234567/abcdefghijklmnopqrstuvwxyz123456", request),
+    acknowledgement: () => new Response("ok"),
+  },
+  {
+    name: "Mastodon",
+    create: (request: ConnectorFetch) => new MastodonAccountConnector("https://social.example.test", "mastodon-user-token-abcdefghijklmnopqrstuvwxyz", ["social.example.test"], request),
+    acknowledgement: () => new Response(JSON.stringify({ id: "status-1", url: "https://social.example.test/@marketme/status-1" })),
+  },
+];
+
+describe.each(deadlinePublishers)("$name dispatch deadline", ({ create, acknowledgement }) => {
+  const input = { content: "Exact reviewed text", idempotencyKey: "campaign:instance:step:publish" };
+
+  it.each([NaN, Infinity, -Infinity, 1e100, -1e100, 999, 1_000, "2000", null])("makes zero requests for invalid or closed deadline %s", async (deadline) => {
+    vi.spyOn(Date, "now").mockReturnValue(1_000);
+    const request = vi.fn();
+    await expect(create(request).publishContent(input, { dispatchDeadlineAt: deadline as number })).rejects.toBeInstanceOf(ChannelDispatchDeadlineExceededError);
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, 1_250, 20_000])("uses a capped standard timeout for deadline %s", async (deadline) => {
+    vi.spyOn(Date, "now").mockReturnValue(1_000);
+    const controller = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+    const request = vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => {
+      expect(init?.signal).toBe(controller.signal);
+      expect(init?.redirect).toBe("error");
+      return acknowledgement();
+    });
+    await expect(create(request).publishContent(input, { dispatchDeadlineAt: deadline })).resolves.toBeDefined();
+    expect(timeout).toHaveBeenCalledExactlyOnceWith(deadline === 1_250 ? 250 : 5_000);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reinterpret a received valid acknowledgement after the wall-clock cutoff", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(new AbortController().signal);
+    const request = vi.fn(async () => { clock.mockReturnValue(1_300); return acknowledgement(); });
+    await expect(create(request).publishContent(input, { dispatchDeadlineAt: 1_250 })).resolves.toBeDefined();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(clock).toHaveBeenCalledTimes(2); // budget creation + first I/O only; never the response body
+  });
+
+  it("keeps expiry between budget creation and actual I/O classified as no dispatch", async () => {
+    vi.spyOn(Date, "now").mockReturnValueOnce(1_000).mockReturnValue(1_250);
+    const request = vi.fn();
+    await expect(create(request).publishContent(input, { dispatchDeadlineAt: 1_250 }))
+      .rejects.toBeInstanceOf(ChannelDispatchDeadlineExceededError);
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("makes zero requests after the conservative database-derived monotonic bound", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_000);
+    vi.spyOn(performance, "now").mockReturnValueOnce(100).mockReturnValue(125);
+    const request = vi.fn();
+    await expect(create(request).publishContent(input, { dispatchDeadlineAt: 20_000, dispatchMonotonicDeadlineAt: 125 }))
+      .rejects.toBeInstanceOf(ChannelDispatchDeadlineExceededError);
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("marks raw transport failure after one write attempt ambiguous", async () => {
+    const request = vi.fn(async () => { throw new Error("socket closed after request started"); });
+    await expect(create(request).publishContent(input)).rejects.toMatchObject({ kind: "ambiguous" });
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks an in-flight request timeout ambiguous, not a no-dispatch expiry", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_000);
+    const controller = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+    const request = vi.fn(() => new Promise<Response>(() => undefined));
+    const outcome = expect(create(request).publishContent(input, { dispatchDeadlineAt: 1_250 })).rejects.toMatchObject({ kind: "ambiguous" });
+    expect(request).toHaveBeenCalledTimes(1);
+    controller.abort(new DOMException("request timed out", "TimeoutError"));
+    await outcome;
+  });
+
+  it("keeps the body wait under the original request budget", async () => {
+    const controller = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+    let bodyStarted!: () => void;
+    const readingBody = new Promise<void>((resolve) => { bodyStarted = resolve; });
+    const response = acknowledgement();
+    vi.spyOn(response, "text").mockImplementation(() => { bodyStarted(); return new Promise<string>(() => undefined); });
+    const request = vi.fn(async () => response);
+    const outcome = expect(create(request).publishContent(input)).rejects.toMatchObject({ kind: "ambiguous" });
+    await readingBody;
+    controller.abort(new DOMException("body timed out", "TimeoutError"));
+    await outcome;
+    expect(timeout).toHaveBeenCalledExactlyOnceWith(5_000);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies malformed successful response bodies as ambiguous", async () => {
+    const request = vi.fn(async () => new Response("not a usable acknowledgement"));
+    await expect(create(request).publishContent(input)).rejects.toMatchObject({ kind: "ambiguous" });
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["attachments", "providerAttachmentIds"])("rejects deadline-based %s before any I/O", async (field) => {
+    const request = vi.fn();
+    const media = field === "attachments"
+      ? { attachments: [{ fileName: "reviewed.png", mimeType: "image/png" as const, description: "Reviewed image", data: new Uint8Array([1]) }] }
+      : { providerAttachmentIds: ["media-1"] };
+    await expect(create(request).publishContent({ ...input, ...media }, { dispatchDeadlineAt: Date.now() + 60_000 })).rejects.toMatchObject({ kind: "validation" });
+    expect(request).not.toHaveBeenCalled();
+  });
+});
+
 describe("DiscordWebhookConnector", () => {
+  it("bounds connection-test headers and body without exposing raw transport errors", async () => {
+    const controller = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+    let bodyStarted!: () => void;
+    const readingBody = new Promise<void>((resolve) => { bodyStarted = resolve; });
+    const response = new Response("{}");
+    vi.spyOn(response, "text").mockImplementation(() => { bodyStarted(); return new Promise<string>(() => undefined); });
+    const request = vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => {
+      expect(init?.method).toBe("GET");
+      expect(init?.signal).toBe(controller.signal);
+      return response;
+    });
+    const result = new DiscordWebhookConnector(url, request).testConnection();
+    await readingBody;
+    controller.abort(new Error("sensitive raw provider diagnostic"));
+    await expect(result).resolves.toEqual({ ok: false, error: "Discord connection test could not read a bounded provider response" });
+    expect(timeout).toHaveBeenCalledExactlyOnceWith(5_000);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("bounds Discord acknowledgement size and rejects invalid message identity", async () => {
+    for (const body of [JSON.stringify({ id: "" }), " ".repeat(65_537)]) {
+      await expect(new DiscordWebhookConnector(url, async () => new Response(body)).publishContent({ content: "Reviewed" })).rejects.toMatchObject({ kind: "ambiguous" });
+    }
+  });
   it("renders a capability-bounded channel preview with presentation and destination sections", () => {
     expect(renderChannelPreview(DISCORD_WEBHOOK_CAPABILITIES, { body: "Doors open at nine.", callToAction: "Reserve a place.", hashtags: ["#Community"], destinationUrl: "https://example.com/event" })).toEqual({
       content: "Doors open at nine.\n\nReserve a place.\n\n#Community\n\nhttps://example.com/event",

@@ -1,6 +1,6 @@
 {
   "name": "@market-me/worker",
-  "version": "1.19.0",
+  "version": "1.20.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,10 +8,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@market-me/connectors": "1.19.0",
-    "@market-me/database": "1.19.0",
-    "@market-me/ingestion": "1.19.0",
-    "@market-me/media": "1.19.0"
+    "@market-me/connectors": "1.20.0",
+    "@market-me/database": "1.20.0",
+    "@market-me/ingestion": "1.20.0",
+    "@market-me/media": "1.20.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

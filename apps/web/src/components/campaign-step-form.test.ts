@@ -5,6 +5,7 @@ import { fromUtcDateTimeInput, serializeStepDraft, toStepDraft, toUtcDateTimeInp
 const step: CampaignStep = {
   id: "followup", name: "Follow up", operationType: "manual_handoff", desiredCapability: "manual.handoff",
   dependsOn: ["publish"], inputs: { text: "Review first" }, outputs: { receipt: "string" },
+  dependencyDelaySeconds: 3600,
   executionMethods: ["user_assisted", "manual_handoff"], approvalRequired: true,
   scheduleType: "follow_up", scheduledAt: "2026-09-12T10:30:42.125Z",
   preferredWindowStart: "2026-09-12T10:00:00.000Z", preferredWindowEnd: "2026-09-12T11:00:00.000Z",
@@ -12,6 +13,18 @@ const step: CampaignStep = {
 };
 
 describe("Campaign step form round trip", () => {
+  it("defaults a legacy missing delay to zero without changing its UTC times", () => {
+    const legacy = { ...step, dependencyDelaySeconds: undefined };
+    expect(serializeStepDraft(toStepDraft(legacy))).toEqual({ ...step, dependencyDelaySeconds: 0 });
+  });
+  it.each([-1, 0.5, NaN, Infinity, 31_536_001, "60", null])("rejects invalid delay %s without coercing or dropping it", (delay) => {
+    expect(() => serializeStepDraft({ ...toStepDraft(step), dependencyDelaySeconds: delay as number })).toThrow("Dependency delay");
+  });
+  it("requires a predecessor for a positive delay and preserves window milliseconds on rename", () => {
+    expect(() => serializeStepDraft({ ...toStepDraft(step), dependsOn: " , " })).toThrow("requires at least one dependency");
+    const window = { ...step, preferredWindowStart: "2026-09-12T10:00:01.125Z", preferredWindowEnd: "2026-09-12T11:00:02.875Z" };
+    expect(serializeStepDraft({ ...toStepDraft(window), name: "Rename" })).toEqual({ ...window, name: "Rename" });
+  });
   it("preserves advanced schedule data, execution methods and optionality", () => {
     expect(serializeStepDraft(toStepDraft(step))).toEqual(step);
   });

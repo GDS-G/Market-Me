@@ -5,11 +5,15 @@ import {
   validateCampaignGraph,
   validateCampaignExecution,
   campaignStepRequiresApproval,
+  evaluateStepSchedule,
+  type StepScheduleInput,
+  type StepSchedulePredecessor,
   type CampaignStep,
   type CampaignVersion,
   type CommunicationPolicyInput,
 } from "@market-me/domain";
 import type { DatabaseClient } from "./client";
+import { preferredWindowRouteIssue } from "./campaign-route-policy";
 import type {
   CampaignDraftWrite,
   CampaignWorkflowDefinition,
@@ -19,6 +23,7 @@ import type {
   StoredCampaignApproval,
   StoredCampaignInstance,
   StoredCampaignStepRun,
+  StoredStepScheduleState,
   StoredDestination,
 } from "./models";
 
@@ -37,6 +42,17 @@ export class CampaignValidationError extends Error {
   ) {
     super(issues.map((issue) => issue.message).join(" "));
     this.name = "CampaignValidationError";
+  }
+}
+
+/** No execution was admitted; callers may persist expiry or wait using this exact evidence. */
+export class CampaignScheduleNotReadyError extends CampaignValidationError {
+  constructor(readonly schedule: StoredStepScheduleState) {
+    super([{ code: schedule.state === "expired" ? "execution_schedule_expired" : "execution_schedule_not_ready",
+      stepId: schedule.stepKey, message: schedule.state === "expired"
+        ? "The campaign action has no remaining legal request-start time."
+        : "The campaign action is waiting for its persisted scheduling requirements." }]);
+    this.name = "CampaignScheduleNotReadyError";
   }
 }
 
@@ -263,10 +279,10 @@ export class CampaignRepository {
       const executionSteps = await transaction<CampaignStep[]>`
         SELECT step_key AS id, name, operation_type, desired_capability, depends_on, inputs, outputs,
           execution_methods, approval_required, schedule_type, scheduled_at, preferred_window_start,
-          preferred_window_end, condition, max_attempts, timeout_seconds, optional
+          preferred_window_end, dependency_delay_seconds, condition, max_attempts, timeout_seconds, optional
         FROM campaign_step WHERE campaign_version_id = ${rows[0].versionId}
       `;
-      const executionIssues = validateCampaignExecution(rows[0].autonomyMode, executionSteps);
+      const executionIssues = validateCampaignExecution(rows[0].autonomyMode, executionSteps.map(normalizeStepScheduleFields), { allowBoundedScheduling: true });
       if (executionIssues.length) throw new CampaignValidationError(executionIssues);
       if (rows[0].destinationId) {
         const destinations = await transaction<{ status: string }[]>`
@@ -392,6 +408,7 @@ export class CampaignRepository {
             },
           ]);
       }
+      await this.validateBoundedActivationRoutes(transaction, input.workspaceId, rows[0].versionId, executionSteps);
       const assistedSteps = await transaction<
         { stepKey: string; workerId?: string }[]
       >`
@@ -427,6 +444,16 @@ export class CampaignRepository {
         rows[0].autonomyMode === "campaign_approval"
           ? "awaiting_approval"
           : "scheduled";
+      // Last activation-time check uses a fresh clock after every validation wait.
+      // Runtime/connector admission still rechecks; activation does not reserve a slot.
+      const closedWindows = await transaction<{ stepKey: string }[]>`
+        SELECT step_key FROM campaign_step WHERE campaign_version_id = ${rows[0].versionId}
+          AND schedule_type = 'preferred_window' AND preferred_window_end <= clock_timestamp()
+      `;
+      if (closedWindows.length) throw new CampaignValidationError(closedWindows.map((step) => ({
+        code: "execution_schedule_expired", stepId: step.stepKey,
+        message: "A preferred request-start window has already closed. Publish a newly reviewed plan before activation.",
+      })));
       await transaction`
         INSERT INTO campaign_instance (id, workspace_id, campaign_id, campaign_version_id, status, requested_by)
         VALUES (${instanceId}, ${input.workspaceId}, ${input.campaignId}, ${rows[0].versionId}, ${status}, ${input.actorUserId})
@@ -498,13 +525,38 @@ export class CampaignRepository {
     idempotencyKey: string;
     actorUserId: string;
   }): Promise<boolean> {
-    const rows = await this.sql<{ id: string }[]>`
-      INSERT INTO campaign_workflow_command (id, workspace_id, campaign_instance_id, command_type, idempotency_key, payload, actor_user_id)
-      SELECT ${randomUUID()}, ${input.workspaceId}, id, ${input.commandType}, ${input.idempotencyKey}, ${this.sql.json((input.payload ?? {}) as JSONValue)}, ${input.actorUserId}
-      FROM campaign_instance WHERE id = ${input.instanceId} AND workspace_id = ${input.workspaceId}
-      ON CONFLICT (idempotency_key) DO NOTHING RETURNING id
-    `;
-    return Boolean(rows[0]);
+    return this.sql.begin(async (transaction) => {
+      const instances = await transaction<{ id: string; status: StoredCampaignInstance["status"] }[]>`
+        SELECT id, status FROM campaign_instance WHERE id = ${input.instanceId} AND workspace_id = ${input.workspaceId} FOR NO KEY UPDATE
+      `;
+      if (!instances[0]) return false;
+      if (input.commandType === "resume" || input.commandType === "manual_step_completed") {
+        // Serialize control admission with status writes to the exact pinned runs.
+        // A command admitted before a later block must still be checked by the workflow.
+        const runs = await transaction<{ stepKey: string; status: StoredCampaignStepRun["status"] }[]>`
+          SELECT step.step_key, run.status FROM campaign_step_run run
+          JOIN campaign_instance instance ON instance.id = run.campaign_instance_id
+          JOIN campaign_step step ON step.id = run.campaign_step_id AND step.campaign_version_id = instance.campaign_version_id
+          WHERE instance.id = ${input.instanceId} AND instance.workspace_id = ${input.workspaceId}
+          ORDER BY run.id FOR UPDATE OF run
+        `;
+        if (runs.some((run) => run.status === "schedule_blocked")) {
+          throw new CampaignValidationError([{ code: "schedule_blocked", message: "This run contains schedule-blocked work. Cancel it and publish a newly reviewed plan; resume and manual completion cannot bypass the closed schedule." }]);
+        }
+        if (input.commandType === "manual_step_completed"
+          && (!["active", "paused"].includes(instances[0].status)
+            || typeof input.payload?.stepKey !== "string"
+            || !runs.some((run) => run.stepKey === input.payload?.stepKey && run.status === "manual_resolution"))) {
+          throw new CampaignValidationError([{ code: "manual_completion_unavailable", message: "Manual completion requires an active or paused run and its exact step awaiting manual resolution." }]);
+        }
+      }
+      const rows = await transaction<{ id: string }[]>`
+        INSERT INTO campaign_workflow_command (id, workspace_id, campaign_instance_id, command_type, idempotency_key, payload, actor_user_id)
+        VALUES (${randomUUID()}, ${input.workspaceId}, ${input.instanceId}, ${input.commandType}, ${input.idempotencyKey}, ${transaction.json((input.payload ?? {}) as JSONValue)}, ${input.actorUserId})
+        ON CONFLICT (idempotency_key) DO NOTHING RETURNING id
+      `;
+      return Boolean(rows[0]);
+    });
   }
 
   async claimWorkflowCommands(
@@ -558,13 +610,24 @@ export class CampaignRepository {
     instanceId: string,
     status: StoredCampaignInstance["status"],
   ): Promise<void> {
-    await this.sql`
+    await this.sql.begin(async (transaction) => {
+      // Acquire the row first, then evaluate sibling blocks in a fresh statement
+      // snapshot. A resume waiting behind a pause must not use pre-wait evidence.
+      await transaction`SELECT id FROM campaign_instance WHERE id = ${instanceId} FOR NO KEY UPDATE`;
+      await transaction`
       UPDATE campaign_instance SET status = ${status}, updated_at = now(),
-        completed_at = CASE WHEN ${status} IN ('completed', 'failed', 'canceled') THEN now() ELSE completed_at END
-      WHERE id = ${instanceId}
-    `;
+        completed_at = CASE WHEN ${status} IN ('completed', 'failed', 'canceled') THEN COALESCE(completed_at, now()) ELSE completed_at END
+      WHERE id = ${instanceId} AND status NOT IN ('completed', 'failed', 'canceled')
+        AND (${!["scheduled", "active", "awaiting_approval"].includes(status)} OR NOT EXISTS (
+          SELECT 1 FROM campaign_step_run blocked
+          JOIN campaign_step step ON step.id = blocked.campaign_step_id
+          WHERE blocked.campaign_instance_id = campaign_instance.id
+            AND step.campaign_version_id = campaign_instance.campaign_version_id AND blocked.status = 'schedule_blocked'
+        ))
+      `;
+    });
     await this
-      .sql`UPDATE campaign SET status = ${status}, updated_at = now() WHERE id = (SELECT campaign_id FROM campaign_instance WHERE id = ${instanceId})`;
+      .sql`UPDATE campaign SET status = (SELECT status FROM campaign_instance WHERE id = ${instanceId}), updated_at = now() WHERE id = (SELECT campaign_id FROM campaign_instance WHERE id = ${instanceId})`;
   }
 
   async getWorkflowDefinition(
@@ -580,22 +643,96 @@ export class CampaignRepository {
     const steps = await this.sql<(CampaignStep & { sortOrder: number })[]>`
       SELECT step_key AS id, name, operation_type, desired_capability, depends_on, inputs, outputs,
         execution_methods, approval_required, schedule_type, scheduled_at, preferred_window_start,
-        preferred_window_end, condition, max_attempts, timeout_seconds, optional, sort_order
+        preferred_window_end, dependency_delay_seconds, condition, max_attempts, timeout_seconds, optional, sort_order
       FROM campaign_step WHERE campaign_version_id = ${rows[0].campaignVersionId} ORDER BY sort_order
     `;
-    return { ...rows[0], steps };
+    return { ...rows[0], steps: steps.map(normalizeStepScheduleFields) };
+  }
+
+  /** Read the pinned step, same-instance predecessor evidence and one authoritative clock in one snapshot. */
+  async getStepScheduleState(instanceId: string, stepKey: string): Promise<StoredStepScheduleState | undefined> {
+    type ScheduleRow = {
+      nowMs: number;
+      workspaceId: string;
+      campaignId: string;
+      campaignInstanceId: string;
+      campaignVersionId: string;
+      campaignStepRunId: string;
+      stepKey: string;
+      scheduleType: StepScheduleInput["scheduleType"];
+      dependsOn: string[];
+      dependencyDelaySeconds: number;
+      scheduledAtMs: number | null;
+      preferredWindowStartMs: number | null;
+      preferredWindowEndMs: number | null;
+      predecessors: { stepKey: string; status: StepSchedulePredecessor["status"]; completedAtMs: number | null }[];
+    };
+    const rows = await this.sql<ScheduleRow[]>`
+      WITH evaluation_clock AS MATERIALIZED (SELECT clock_timestamp() AS evaluated_at)
+      SELECT (extract(epoch FROM evaluation_clock.evaluated_at) * 1000)::double precision AS now_ms,
+        instance.workspace_id, instance.campaign_id, instance.id AS campaign_instance_id, instance.campaign_version_id, run.id AS campaign_step_run_id,
+        step.step_key, step.schedule_type, step.depends_on, step.dependency_delay_seconds,
+        ceil(extract(epoch FROM step.scheduled_at) * 1000)::double precision AS scheduled_at_ms,
+        ceil(extract(epoch FROM step.preferred_window_start) * 1000)::double precision AS preferred_window_start_ms,
+        floor(extract(epoch FROM step.preferred_window_end) * 1000)::double precision AS preferred_window_end_ms,
+        COALESCE((
+          SELECT jsonb_agg(jsonb_build_object(
+            'stepKey', predecessor.step_key, 'status', COALESCE(completed.status, 'planned'),
+            'completedAtMs', ceil(extract(epoch FROM completed.completed_at) * 1000)
+          ) ORDER BY predecessor.step_key)
+          FROM campaign_step predecessor
+          LEFT JOIN campaign_step_run completed ON completed.campaign_step_id = predecessor.id
+            AND completed.campaign_instance_id = instance.id
+          WHERE predecessor.campaign_version_id = instance.campaign_version_id AND predecessor.step_key = ANY(step.depends_on)
+        ), '[]'::jsonb) AS predecessors
+      FROM campaign_instance instance
+      JOIN campaign_step step ON step.campaign_version_id = instance.campaign_version_id AND step.step_key = ${stepKey}
+      JOIN campaign_step_run run ON run.campaign_instance_id = instance.id AND run.campaign_step_id = step.id
+      CROSS JOIN evaluation_clock
+      WHERE instance.id = ${instanceId}
+    `;
+    const row = rows[0];
+    if (!row) return undefined;
+    // JavaScript supports milliseconds. Round lower bounds up and upper bounds
+    // down, so historical PostgreSQL microseconds cannot authorize early/late I/O.
+    const toIso = (value: number | null): string | undefined => value === null ? undefined : new Date(value).toISOString();
+    const predecessors: StepSchedulePredecessor[] = row.predecessors.map((entry) => ({
+      stepKey: entry.stepKey, status: entry.status, ...(entry.completedAtMs === null ? {} : { completedAt: toIso(entry.completedAtMs)! }),
+    }));
+    // A database-valid sub-millisecond window can disappear under inward
+    // quantization. That is a proven empty executable interval, not malformed
+    // authoring (the pure authoring validator must still reject reversed ranges).
+    const collapsedWindow = row.scheduleType === "preferred_window" && row.preferredWindowStartMs !== null
+      && row.preferredWindowEndMs !== null && row.preferredWindowStartMs >= row.preferredWindowEndMs;
+    const state = collapsedWindow ? {
+      state: "expired" as const, reason: "no_legal_time" as const,
+      notBefore: toIso(row.preferredWindowStartMs)!, deadline: toIso(row.preferredWindowEndMs)!,
+    } : evaluateStepSchedule({
+      scheduleType: row.scheduleType, dependsOn: row.dependsOn, dependencyDelaySeconds: row.dependencyDelaySeconds,
+      scheduledAt: toIso(row.scheduledAtMs), preferredWindowStart: toIso(row.preferredWindowStartMs), preferredWindowEnd: toIso(row.preferredWindowEndMs),
+    }, predecessors, row.nowMs);
+    return { ...state, evaluatedAt: new Date(row.nowMs).toISOString(), workspaceId: row.workspaceId, campaignId: row.campaignId, campaignInstanceId: row.campaignInstanceId,
+      campaignVersionId: row.campaignVersionId, campaignStepRunId: row.campaignStepRunId, stepKey: row.stepKey, predecessors };
   }
 
   /** Recheck persisted policy and decisions for each activity, including activities queued by older workers. */
-  async assertStepExecutionAuthorized(instanceId: string, stepKey: string): Promise<void> {
+  async assertStepExecutionAuthorized(
+    instanceId: string,
+    stepKey: string,
+    options: { allowBoundedScheduling?: boolean } = {},
+  ): Promise<void> {
     const definition = await this.getWorkflowDefinition(instanceId);
     const step = definition?.steps.find((candidate) => candidate.id === stepKey);
     if (!definition || !step) throw new CampaignValidationError([{ code: "execution_target_missing", message: "Campaign execution target is unavailable." }]);
-    const issues = validateCampaignExecution(definition.autonomyMode, definition.steps);
+    const issues = validateCampaignExecution(definition.autonomyMode, definition.steps, options);
     if (issues.length) throw new CampaignValidationError(issues);
     const authority = await this.sql<{ active: boolean; stepRunning: boolean; campaignApproved: boolean; stepApproved: boolean; scheduleDue: boolean; dependenciesReady: boolean }[]>`
-      SELECT i.status = 'active' AS active, r.status = 'running' AS step_running,
-        (s.schedule_type <> 'exact_time' OR s.scheduled_at <= now()) AS schedule_due,
+      SELECT (i.status = 'active' AND NOT EXISTS (
+          SELECT 1 FROM campaign_step_run blocked JOIN campaign_step blocked_step ON blocked_step.id = blocked.campaign_step_id
+          WHERE blocked.campaign_instance_id = i.id AND blocked_step.campaign_version_id = i.campaign_version_id
+            AND blocked.status = 'schedule_blocked'
+        )) AS active, r.status = 'running' AS step_running,
+        (s.schedule_type <> 'exact_time' OR s.scheduled_at <= clock_timestamp()) AS schedule_due,
         NOT EXISTS (
           SELECT 1 FROM unnest(s.depends_on) dependency(step_key) WHERE NOT EXISTS (
             SELECT 1 FROM campaign_step predecessor JOIN campaign_step_run completed ON completed.campaign_step_id = predecessor.id
@@ -621,6 +758,12 @@ export class CampaignRepository {
     if (campaignStepRequiresApproval(definition.autonomyMode, step) && !authority[0].stepApproved) {
       throw new CampaignValidationError([{ code: "step_approval_required", stepId: stepKey, message: "This campaign action has not been approved for execution." }]);
     }
+    if (options.allowBoundedScheduling) {
+      const schedule = await this.getStepScheduleState(instanceId, stepKey);
+      if (!schedule) throw new CampaignValidationError([{ code: "execution_target_missing", stepId: stepKey, message: "Campaign execution schedule is unavailable." }]);
+      if (schedule.state !== "ready") throw new CampaignScheduleNotReadyError(schedule);
+      return;
+    }
     if (!authority[0].scheduleDue) {
       throw new CampaignValidationError([{ code: "execution_not_due", stepId: stepKey, message: "This action's scheduled time has not arrived." }]);
     }
@@ -641,14 +784,17 @@ export class CampaignRepository {
         { id: string; attemptCount: number; input: Record<string, unknown> }[]
       >`
         UPDATE campaign_step_run r SET status = ${input.status},
-          output = CASE WHEN ${input.output ? true : false} THEN ${transaction.json((input.output ?? {}) as JSONValue)} ELSE output END,
-          last_error = ${input.error ?? null},
+          output = CASE WHEN r.status = 'schedule_blocked' THEN r.output WHEN ${input.output ? true : false} THEN ${transaction.json((input.output ?? {}) as JSONValue)} ELSE output END,
+          last_error = CASE WHEN r.status = 'schedule_blocked' THEN r.last_error ELSE ${input.error ?? null} END,
           attempt_count = CASE WHEN ${input.status} = 'running' AND r.status <> 'running' THEN attempt_count + 1 ELSE attempt_count END,
           started_at = CASE WHEN ${input.status} = 'running' THEN COALESCE(started_at, now()) ELSE started_at END,
-          completed_at = CASE WHEN ${input.status} IN ('succeeded', 'partially_succeeded', 'permanently_failed', 'canceled', 'rolled_back') THEN now() ELSE completed_at END,
+          completed_at = CASE WHEN ${input.status} IN ('succeeded', 'partially_succeeded', 'permanently_failed', 'canceled', 'rolled_back', 'schedule_blocked') THEN COALESCE(completed_at, clock_timestamp()) ELSE completed_at END,
           updated_at = now()
         FROM campaign_step s
         WHERE r.campaign_step_id = s.id AND r.campaign_instance_id = ${input.instanceId} AND s.step_key = ${input.stepKey}
+          AND EXISTS (SELECT 1 FROM campaign_instance instance WHERE instance.id = r.campaign_instance_id AND instance.campaign_version_id = s.campaign_version_id)
+          AND (r.status NOT IN ('succeeded', 'partially_succeeded', 'permanently_failed', 'canceled', 'rolled_back', 'schedule_blocked')
+            OR (r.status = 'schedule_blocked' AND ${input.status} = 'canceled'))
         RETURNING r.id, r.attempt_count, r.input
       `;
       const run = runs[0];
@@ -666,7 +812,7 @@ export class CampaignRepository {
           ? "succeeded"
           : input.status === "temporarily_failed"
             ? "temporarily_failed"
-            : input.status === "permanently_failed"
+            : input.status === "permanently_failed" || input.status === "schedule_blocked"
               ? "permanently_failed"
               : input.status === "canceled"
                 ? "canceled"
@@ -675,9 +821,10 @@ export class CampaignRepository {
       await transaction`
         UPDATE campaign_step_attempt SET status = ${attemptStatus},
           output = CASE WHEN ${input.output ? true : false} THEN ${transaction.json((input.output ?? {}) as JSONValue)} ELSE output END,
-          error_code = CASE WHEN ${input.error ? true : false} THEN 'CAMPAIGN_STEP_ERROR' ELSE null END,
-          error_message = ${input.error ?? null}, completed_at = now()
+          error_code = CASE WHEN ${input.status} = 'schedule_blocked' THEN 'CAMPAIGN_SCHEDULE_BLOCKED' WHEN ${input.error ? true : false} THEN 'CAMPAIGN_STEP_ERROR' ELSE null END,
+          error_message = ${input.error ?? null}, completed_at = COALESCE(completed_at, now())
         WHERE campaign_step_run_id = ${run.id} AND attempt_number = ${run.attemptCount}
+          AND status = 'running'
       `;
     });
   }
@@ -707,9 +854,9 @@ export class CampaignRepository {
         return id;
       }
       const rows = await transaction<
-        { runId: string; workspaceId: string; requestedBy: string }[]
+        { runId: string; workspaceId: string; requestedBy: string; status: StoredCampaignStepRun["status"] }[]
       >`
-        SELECT r.id AS run_id, i.workspace_id, i.requested_by
+        SELECT r.id AS run_id, i.workspace_id, i.requested_by, r.status
         FROM campaign_step_run r
         JOIN campaign_step s ON s.id = r.campaign_step_id
         JOIN campaign_instance i ON i.id = r.campaign_instance_id
@@ -722,6 +869,9 @@ export class CampaignRepository {
           AND campaign_step_run_id = ${rows[0].runId} ORDER BY created_at DESC LIMIT 1
       `;
       if (existing[0]) return existing[0].id;
+      if (["succeeded", "partially_succeeded", "permanently_failed", "canceled", "rolled_back", "schedule_blocked"].includes(rows[0].status)) {
+        throw new CampaignValidationError([{ code: "execution_terminal", stepId: input.stepKey, message: "A terminal campaign step cannot be returned to approval waiting." }]);
+      }
       const id = randomUUID();
       await transaction`
         INSERT INTO campaign_approval (
@@ -790,6 +940,52 @@ export class CampaignRepository {
       steps.map((step) => ({ ...step, outputs: step.outputs ?? {} })),
     );
     if (!result.valid) throw new CampaignValidationError(result.issues);
+  }
+
+  private async validateBoundedActivationRoutes(
+    transaction: TransactionSql, workspaceId: string, versionId: string, steps: readonly CampaignStep[],
+  ): Promise<void> {
+    const bounded = steps.some((step) => step.scheduleType === "preferred_window" || (step.dependencyDelaySeconds ?? 0) > 0);
+    if (!bounded) return;
+    // The companion queue still uses the legacy whole-definition authority gate.
+    // Reject the mixed campaign too, not merely a delayed companion step, so a
+    // required immediate companion predecessor cannot become a runtime dead end.
+    const companionSteps = steps.filter((step) => step.executionMethods.includes("user_assisted"));
+    if (companionSteps.length) throw new CampaignValidationError(companionSteps.map((step) => ({
+      code: "bounded_companion_unsupported", stepId: step.id,
+      message: "Campaigns with preferred windows or positive dependency delays cannot include companion execution yet. Keep this plan saved until companion queue timing is supported.",
+    })));
+    for (const step of steps.filter((candidate) => candidate.scheduleType === "preferred_window")) {
+      const selected = (await transaction<{
+        provider?: string; status?: string; capabilities?: Record<string, unknown>; attachmentCount: number;
+      }[]>`
+        SELECT connection.provider, connection.status, connection.capabilities,
+          (SELECT count(*)::integer FROM draft_channel_preview_asset asset WHERE asset.draft_channel_preview_id = preview.id) AS attachment_count
+        FROM campaign_step step
+        LEFT JOIN draft_channel_preview preview ON preview.id::text = step.inputs->>'draftChannelPreviewId' AND preview.workspace_id = ${workspaceId}
+        LEFT JOIN channel_connection connection ON connection.id::text = COALESCE(step.inputs->>'channelConnectionId', step.inputs->>'channel_connection_id', preview.channel_connection_id::text)
+          AND connection.workspace_id = ${workspaceId}
+        WHERE step.campaign_version_id = ${versionId} AND step.step_key = ${step.id}
+      `)[0];
+      const issue = preferredWindowRouteIssue({
+        operationType: step.operationType ?? "manual_handoff", executionMethods: step.executionMethods,
+        provider: selected?.provider, attachmentCount: selected?.attachmentCount ?? 0,
+      });
+      if (issue) throw new CampaignValidationError([{ code: "preferred_window_route_unsupported", stepId: step.id, message: issue }]);
+      const supportedActions = selected?.capabilities?.supportedActions as Record<string, unknown> | undefined;
+      const supportedMethods = selected?.capabilities?.executionMethods;
+      if (selected?.status !== "active" || (supportedActions?.publish_content ?? supportedActions?.publishContent) !== true
+        || !Array.isArray(supportedMethods) || !supportedMethods.includes("official_api")) throw new CampaignValidationError([{
+        code: "preferred_window_connection_unavailable", stepId: step.id,
+        message: "Preferred-window activation requires an active workspace channel with verified publishing capability.",
+      }]);
+      if (selected.provider !== "discord_webhook" && typeof step.inputs.draftChannelPreviewId !== "string") throw new CampaignValidationError([{
+        code: "draft_channel_preview_required", stepId: step.id, message: "This preferred-window provider requires an exact approved Draft preview.",
+      }]);
+      if (typeof step.inputs.draftChannelPreviewId !== "string" && (typeof step.inputs.content !== "string" || !step.inputs.content.trim())) throw new CampaignValidationError([{
+        code: "publication_content_required", stepId: step.id, message: "Preferred-window publication requires nonempty exact content.",
+      }]);
+    }
   }
 
   private async validateReferences(
@@ -978,13 +1174,14 @@ export class CampaignRepository {
       INSERT INTO campaign_step (
         id, campaign_version_id, step_key, name, operation_type, desired_capability,
         depends_on, inputs, outputs, execution_methods, approval_required, schedule_type,
-        scheduled_at, preferred_window_start, preferred_window_end, condition,
+        scheduled_at, preferred_window_start, preferred_window_end, dependency_delay_seconds, condition,
         max_attempts, timeout_seconds, optional, sort_order
       ) VALUES (
         ${randomUUID()}, ${versionId}, ${step.id}, ${step.name}, ${step.operationType ?? "manual_handoff"}, ${step.desiredCapability},
         ${[...step.dependsOn]}, ${transaction.json(step.inputs as JSONValue)}, ${transaction.json((step.outputs ?? {}) as JSONValue)},
         ${[...step.executionMethods]}, ${step.approvalRequired}, ${step.scheduleType ?? "immediate"},
         ${step.scheduledAt ?? null}, ${step.preferredWindowStart ?? null}, ${step.preferredWindowEnd ?? null},
+        ${step.dependencyDelaySeconds ?? 0},
         ${transaction.json((step.condition ?? {}) as JSONValue)}, ${step.maxAttempts ?? 3}, ${step.timeoutSeconds ?? 300},
         ${step.optional ?? false}, ${sortOrder}
       )
@@ -1009,7 +1206,7 @@ export class CampaignRepository {
         >`
       SELECT step_key AS id, campaign_version_id, name, operation_type, desired_capability, depends_on,
         inputs, outputs, execution_methods, approval_required, schedule_type, scheduled_at,
-        preferred_window_start, preferred_window_end, condition, max_attempts, timeout_seconds, optional, sort_order
+        preferred_window_start, preferred_window_end, dependency_delay_seconds, condition, max_attempts, timeout_seconds, optional, sort_order
       FROM campaign_step WHERE campaign_version_id IN ${this.sql(versionIds)} ORDER BY sort_order
     `
       : [];
@@ -1026,7 +1223,7 @@ export class CampaignRepository {
       audienceProfileVersionIds: audienceBindings
         .filter((binding) => binding.campaignVersionId === version.id)
         .map((binding) => binding.audienceProfileVersionId),
-      steps: steps.filter((step) => step.campaignVersionId === version.id),
+      steps: steps.filter((step) => step.campaignVersionId === version.id).map(normalizeStepScheduleFields),
     }));
     return rows.map(({ currentVersionId, ...row }) => ({
       ...row,
@@ -1064,4 +1261,14 @@ export class CampaignRepository {
       ),
     }));
   }
+}
+
+function normalizeStepScheduleFields<T extends CampaignStep>(step: T): T {
+  return {
+    ...step,
+    dependencyDelaySeconds: step.dependencyDelaySeconds ?? 0,
+    scheduledAt: step.scheduledAt ? new Date(step.scheduledAt).toISOString() : undefined,
+    preferredWindowStart: step.preferredWindowStart ? new Date(step.preferredWindowStart).toISOString() : undefined,
+    preferredWindowEnd: step.preferredWindowEnd ? new Date(step.preferredWindowEnd).toISOString() : undefined,
+  };
 }

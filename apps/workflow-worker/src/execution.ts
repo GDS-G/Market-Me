@@ -1,5 +1,6 @@
 import {
   ChannelConnectorError,
+  ChannelDispatchDeadlineExceededError,
   decodeMailchimpCredentialBundle,
   DiscordWebhookConnector,
   MailchimpEmailConnector,
@@ -8,6 +9,7 @@ import {
   SlackWebhookConnector,
   decryptToken,
   type ChannelCapabilityManifest,
+  type PublishContentResult,
 } from "@market-me/connectors";
 import { validateCompanionTargetUrl } from "@market-me/companion-protocol";
 import type {
@@ -15,11 +17,14 @@ import type {
   CompanionRepository,
   PublishingRepository,
   StoredCompanionWorker,
+  StoredStepScheduleState,
 } from "@market-me/database";
+import { preferredWindowRouteIssue } from "@market-me/database";
 import { inspectImageDimensions, sha256Hex, type ObjectStore } from "@market-me/media";
 import type {
   CampaignStepExecution,
   CampaignStepExecutionInput,
+  CampaignScheduledStepExecutionInput,
 } from "@market-me/workflows";
 
 export class CampaignExecutionRouter {
@@ -32,6 +37,19 @@ export class CampaignExecutionRouter {
     private readonly mastodonAllowedHosts: readonly string[] = [],
   ) {}
 
+  /** Resolve exact persisted outcomes before timing checks or any provider/asset work. */
+  async recoverScheduledExecution(input: CampaignScheduledStepExecutionInput): Promise<
+    Exclude<CampaignStepExecution, { status: "schedule_blocked" }> | undefined
+  > {
+    const prior = await this.repository.getCampaignPublicationForRecovery(input);
+    if (prior?.status === "succeeded") return { status: "succeeded", output: actionOutput(prior) };
+    if (prior?.status === "dispatching" || prior?.status === "ambiguous") return {
+      status: "manual_required",
+      reason: "A prior provider request may have been accepted. Reconcile its outcome; expiry does not authorize a resend or prove non-delivery.",
+    };
+    return undefined;
+  }
+
   async execute(
     input: CampaignStepExecutionInput,
   ): Promise<CampaignStepExecution> {
@@ -39,6 +57,17 @@ export class CampaignExecutionRouter {
       input.instanceId,
       input.stepKey,
     );
+    if (target?.scheduleType === "preferred_window" && preferredWindowRouteIssue({
+      operationType: target.operationType, executionMethods: target.executionMethods,
+      provider: target.connection?.provider, attachmentCount: target.draftPreviewAssets?.length ?? 0,
+    })) return {
+      status: "manual_required",
+      reason: "Preferred request-start windows support only single-write Discord, Slack and text-only Mastodon official API publications, without media or fallback execution.",
+    };
+    if (target?.scheduleType === "preferred_window") {
+      const admission = await this.checkSchedule(target);
+      if ("outcome" in admission) return admission.outcome;
+    }
     const companion = target ? await this.queueCompanionJob(target) : undefined;
     if (companion) return companion;
     if (!target || target.operationType !== "publish_content")
@@ -191,6 +220,7 @@ export class CampaignExecutionRouter {
           target.workspaceId,
           target.connection.id,
           { ok: false, error: preflight.error },
+          target.connection,
         );
         return {
           status: "manual_required",
@@ -207,6 +237,7 @@ export class CampaignExecutionRouter {
           target.workspaceId,
           target.connection.id,
           { ok: false, error },
+          target.connection,
         );
         return {
           status: "manual_required",
@@ -223,7 +254,7 @@ export class CampaignExecutionRouter {
           || !Number.isSafeInteger(liveReservedPerUrl) || liveReservedPerUrl !== approvedReservedPerUrl
           || mastodonStatusCharacterCount(content, liveReservedPerUrl) > liveLimit) {
           const error = "Mastodon instance publishing limits changed after preview approval";
-          await this.repository.recordConnectionTest?.(target.workspaceId, target.connection.id, { ok: false, error });
+          await this.repository.recordConnectionTest?.(target.workspaceId, target.connection.id, { ok: false, error }, target.connection);
           return { status: "manual_required", reason: `${error}. Re-test the Channel Connection and render a new exact preview.` };
         }
         const attachmentIssue = await validateMastodonAttachmentPreflight(
@@ -232,12 +263,12 @@ export class CampaignExecutionRouter {
           target.connection.capabilities,
         );
         if (attachmentIssue) {
-          await this.repository.recordConnectionTest?.(target.workspaceId, target.connection.id, { ok: false, error: attachmentIssue });
+          await this.repository.recordConnectionTest?.(target.workspaceId, target.connection.id, { ok: false, error: attachmentIssue }, target.connection);
           return { status: "manual_required", reason: `${attachmentIssue}. Re-test the Channel Connection and render a new exact preview.` };
         }
       }
       if (!(connector instanceof SlackWebhookConnector)) {
-        await this.repository.recordConnectionTest?.(
+        const recorded = await this.repository.recordConnectionTest?.(
           target.workspaceId,
           target.connection.id,
           { ok: true, configuration: {
@@ -248,7 +279,11 @@ export class CampaignExecutionRouter {
             } : {}),
             ...(preflight.providerConfiguration ?? {}),
           } },
+          target.connection,
         );
+        if (recorded === false) return {
+          status: "manual_required", reason: "The channel was revoked or changed during preflight. No publication was attempted; review the current connection before replanning.",
+        };
       }
     } catch (error) {
       const reason =
@@ -259,10 +294,17 @@ export class CampaignExecutionRouter {
         target.workspaceId,
         target.connection.id,
         { ok: false, error: reason },
+        target.connection,
       );
       return { status: "manual_required", reason };
     }
 
+    // Preflight and asset preparation can consume the whole window. Use fresh
+    // database time again before claiming a publication, never a browser deadline.
+    if (target.scheduleType === "preferred_window") {
+      const admission = await this.checkSchedule(target);
+      if ("outcome" in admission) return admission.outcome;
+    }
     let action = prior;
     if (action?.status === "failed") {
       if (!await this.repository.retryPublicationAction(action.id, target, { content, subject }))
@@ -277,6 +319,7 @@ export class CampaignExecutionRouter {
           subject,
           provider: target.connection.provider,
           destinationId: target.destinationId,
+          renderedDestinationUrl: destinationUrl,
           trackedLinkId,
           draftChannelPreviewId: draftPreviewId,
           draftVersionId: target.draftPreviewVersionId,
@@ -345,6 +388,13 @@ export class CampaignExecutionRouter {
       }
     }
 
+    let dispatchOptions: { dispatchDeadlineAt: number; dispatchMonotonicDeadlineAt: number } | undefined;
+    if (target.scheduleType === "preferred_window") {
+      const admission = await this.checkSchedule(target, true);
+      if ("outcome" in admission) return this.closeUndispatchedClaim(action.id, admission.outcome);
+      dispatchOptions = admission;
+    }
+    let result: PublishContentResult;
     try {
       let mastodonMediaIds: string[] | undefined;
       if (connector instanceof MastodonAccountConnector && attachments.length) {
@@ -381,17 +431,17 @@ export class CampaignExecutionRouter {
           mastodonMediaIds.push(mediaId);
         }
       }
-      const result = connector instanceof DiscordWebhookConnector
+      result = connector instanceof DiscordWebhookConnector
         ? await connector.publishContent({
             content,
             username: typeof target.input.username === "string" ? target.input.username : undefined,
             suppressNotifications: target.input.suppressNotifications === true,
             attachments,
-          })
+          }, dispatchOptions)
         : connector instanceof SlackWebhookConnector
-          ? await connector.publishContent({ content })
+          ? await connector.publishContent({ content }, dispatchOptions)
           : connector instanceof MastodonAccountConnector
-            ? await connector.publishContent({ content, idempotencyKey, providerAttachmentIds: mastodonMediaIds })
+            ? await connector.publishContent({ content, idempotencyKey, providerAttachmentIds: mastodonMediaIds }, dispatchOptions)
           : await connector.publishCampaign({
             audienceId: String(target.connection.configuration.audienceId ?? ""),
             subject: subject!,
@@ -404,21 +454,16 @@ export class CampaignExecutionRouter {
               await this.repository.recordPublicationProviderIdentity(action.id, campaignId, providerUrl);
             },
             });
-      await this.repository.finishPublicationAction(action.id, {
-        status: "succeeded",
-        providerExternalId: result.externalId,
-        providerUrl: result.externalUrl,
-        responseMetadata: { ...result.metadata, trackedLinkId },
-      });
-      return {
-        status: "succeeded",
-        output: {
-          externalId: result.externalId,
-          externalUrl: result.externalUrl,
-          trackedLinkId,
-        },
-      };
     } catch (error) {
+      if (error instanceof ChannelDispatchDeadlineExceededError) {
+        // This distinct connector error guarantees no write request was started.
+        // Only DB evidence may call it expired; clock disagreement requires review.
+        const admission = await this.checkSchedule(target, true);
+        const outcome: CampaignStepExecution = "outcome" in admission ? admission.outcome : {
+          status: "manual_required", reason: "The worker deadline check prevented dispatch, but the database does not confirm expiry. Check clock synchronization before replanning.",
+        };
+        return this.closeUndispatchedClaim(action.id, outcome);
+      }
       if (
         error instanceof ChannelConnectorError &&
         (error.kind === "rate_limit" || error.kind === "transient")
@@ -443,6 +488,63 @@ export class CampaignExecutionRouter {
             ? error.message
             : "Provider execution failed.",
       };
+    }
+    // Provider acceptance and database persistence are different failure domains.
+    // An uncertain commit must never be overwritten as safely retryable failure.
+    try {
+      await this.repository.finishPublicationAction(action.id, {
+        status: "succeeded",
+        providerExternalId: result.externalId,
+        providerUrl: result.externalUrl,
+        responseMetadata: { ...result.metadata, trackedLinkId },
+      });
+    } catch {
+      return { status: "manual_required", reason: "The provider accepted this publication, but durable outcome recording could not be confirmed. Reconcile the existing publication; automatic resend is suppressed." };
+    }
+    return {
+      status: "succeeded",
+      output: { externalId: result.externalId, externalUrl: result.externalUrl, trackedLinkId },
+    };
+  }
+
+  private async checkSchedule(target: CampaignExecutionTarget, ownsUndispatchedClaim = false): Promise<
+    { dispatchDeadlineAt: number; dispatchMonotonicDeadlineAt: number } | { outcome: CampaignStepExecution }
+  > {
+    const scheduleReadStartedAt = performance.now();
+    const schedule = await this.repository.getPublicationScheduleState(target.campaignInstanceId, target.stepKey);
+    if (!schedule || schedule.workspaceId !== target.workspaceId || schedule.campaignId !== target.campaignId
+      || schedule.campaignVersionId !== target.campaignVersionId || schedule.campaignStepRunId !== target.campaignStepRunId
+      || schedule.campaignInstanceId !== target.campaignInstanceId || schedule.stepKey !== target.stepKey
+      || !schedule.deadline || !Number.isFinite(Date.parse(schedule.deadline)) || !Number.isFinite(Date.parse(schedule.evaluatedAt))) {
+      return { outcome: { status: "manual_required", reason: "The exact stored publication schedule could not be verified." } };
+    }
+    if (schedule.state === "ready") return {
+      dispatchDeadlineAt: Date.parse(schedule.deadline),
+      // Charge the entire DB round trip and one truncated timestamp millisecond
+      // against the remaining interval. A slow/skewed worker clock cannot extend it.
+      dispatchMonotonicDeadlineAt: scheduleReadStartedAt + Math.floor(Date.parse(schedule.deadline) - Date.parse(schedule.evaluatedAt) - 1),
+    };
+    if (!ownsUndispatchedClaim) {
+      const recovered = await this.recoverScheduledExecution({
+        instanceId: target.campaignInstanceId, stepKey: target.stepKey, context: {},
+        workspaceId: target.workspaceId, campaignId: target.campaignId,
+        campaignVersionId: schedule.campaignVersionId, campaignStepRunId: target.campaignStepRunId,
+      });
+      if (recovered) return { outcome: recovered };
+    }
+    return { outcome: schedule.state === "expired" ? scheduleBlocked(schedule) : {
+      status: "manual_required", reason: "The stored publication schedule is not yet eligible; no request was started.",
+    } };
+  }
+
+  private async closeUndispatchedClaim(actionId: string, outcome: CampaignStepExecution): Promise<CampaignStepExecution> {
+    try {
+      await this.repository.finishPublicationAction(actionId, {
+        status: "failed", error: "Dispatch admission closed before any provider write request started.",
+      });
+      return outcome;
+    } catch {
+      return { status: "manual_required", reason: "No provider write was started, but publication claim cleanup could not be confirmed. Reconcile the existing claim before replanning." };
     }
   }
 
@@ -720,5 +822,14 @@ function actionOutput(
     externalId: action.providerExternalId,
     externalUrl: action.providerUrl,
     trackedLinkId: action.responseMetadata.trackedLinkId ?? trackedLinkId,
+  };
+}
+
+function scheduleBlocked(schedule: Extract<StoredStepScheduleState, { state: "expired" }>): CampaignStepExecution {
+  return {
+    status: "schedule_blocked", schedule,
+    reason: schedule.reason === "no_legal_time"
+      ? "No legal request-start time remains after the recorded dependencies and delay. Cancel and publish a newly reviewed plan."
+      : "The preferred request-start window expired before provider dispatch. Cancel and publish a newly reviewed plan.",
   };
 }

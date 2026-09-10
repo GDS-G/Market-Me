@@ -28,6 +28,23 @@ const base = {
   ],
 };
 
+describe("campaign scheduling schema", () => {
+  it("defaults delay to zero and preserves valid bounded plans with millisecond UTC precision", () => {
+    expect(campaignDraftSchema.parse(base).steps[0].dependencyDelaySeconds).toBe(0);
+    const schedule = { dependencyDelaySeconds: 31_536_000, dependsOn: ["prepare"], scheduleType: "preferred_window", preferredWindowStart: "2026-09-12T10:00:01.125Z", preferredWindowEnd: "2026-09-12T11:00:02.875Z", condition: { futurePolicy: true }, optional: true };
+    expect(campaignDraftSchema.parse({ ...base, steps: [{ ...base.steps[0], ...schedule }] }).steps[0]).toMatchObject(schedule);
+  });
+  it.each([-1, 0.1, NaN, Infinity, -Infinity, 31_536_001, "60", null, true])("rejects delay %s without coercion", (delay) => {
+    expect(campaignDraftSchema.safeParse({ ...base, steps: [{ ...base.steps[0], dependsOn: ["prepare"], dependencyDelaySeconds: delay }] }).success).toBe(false);
+  });
+  it("requires dependencies for positive delays and an ordered complete window", () => {
+    expect(campaignDraftSchema.safeParse({ ...base, steps: [{ ...base.steps[0], dependencyDelaySeconds: 1 }] }).success).toBe(false);
+    for (const end of [undefined, "invalid", "2026-09-12T10:00:00.000Z", "2026-09-12T09:00:00.000Z"]) {
+      expect(campaignDraftSchema.safeParse({ ...base, steps: [{ ...base.steps[0], scheduleType: "preferred_window", preferredWindowStart: "2026-09-12T10:00:00.000Z", preferredWindowEnd: end }] }).success).toBe(false);
+    }
+  });
+});
+
 describe("campaign success criteria schema", () => {
   it("defaults to no goals and accepts bounded normalized event-count goals", () => {
     expect(campaignDraftSchema.parse(base)).toEqual(

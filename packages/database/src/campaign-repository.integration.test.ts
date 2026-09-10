@@ -21,7 +21,7 @@ describe.skipIf(!databaseUrl)("campaign repositories", () => {
     const publishing = new PublishingRepository(sql);
     const { user, workspace } = await core.bootstrapDevelopmentWorkspace({ email: `publication-authority-${randomUUID()}@market-me.local`, displayName: "Publication Authority Test" });
     try {
-      const connection = await publishing.saveChannelConnection({ workspaceId: workspace.workspaceId, provider: "discord_webhook", name: "Approved channel", encryptedCredentials: "test-not-used", capabilities: {} }, user.id);
+      const connection = await publishing.saveChannelConnection({ workspaceId: workspace.workspaceId, provider: "discord_webhook", name: "Approved channel", encryptedCredentials: "test-not-used", capabilities: {}, configuration: { webhookId: "authority-webhook", channelId: "authority-channel" } }, user.id);
       const other = await publishing.saveChannelConnection({ workspaceId: workspace.workspaceId, provider: "discord_webhook", name: "Other channel", encryptedCredentials: "test-not-used", capabilities: {} }, user.id);
       const campaign = await campaigns.createCampaign({
         workspaceId: workspace.workspaceId, name: "Publication authority", description: "", objective: "awareness", contentPackageIds: [], audienceProfileVersionIds: [], informationDepth: "contextual", promotionalStrength: "light", autonomyMode: "approval_required", timezone: "UTC", context: {},
@@ -34,7 +34,7 @@ describe.skipIf(!databaseUrl)("campaign repositories", () => {
       const instance = (await campaigns.activateCampaign({ workspaceId: workspace.workspaceId, campaignId: campaign.id, actorUserId: user.id }))!;
       const target = (await publishing.getCampaignExecutionTarget(instance.id, "publish"))!;
       expect(target.humanApprovalGranted).toBe(false);
-      const start = { target, idempotencyKey: `authority:${instance.id}`, requestSnapshot: { content: "Reviewed content" } };
+      const start = { target, idempotencyKey: `authority:${instance.id}`, requestSnapshot: { content: "Reviewed content", providerPreflight: { checked: true, targetIdentity: connection.configuration } } };
       await expect(publishing.beginPublicationAction(start)).rejects.toMatchObject({ issues: [expect.objectContaining({ code: "execution_not_active" })] });
       await campaigns.setInstanceStatus(instance.id, "active");
       await campaigns.setStepRunState({ instanceId: instance.id, stepKey: "publish", status: "running" });
@@ -44,11 +44,11 @@ describe.skipIf(!databaseUrl)("campaign repositories", () => {
       await campaigns.setStepRunState({ instanceId: instance.id, stepKey: "publish", status: "running" });
       const reviewed = (await publishing.getCampaignExecutionTarget(instance.id, "publish"))!;
       expect(reviewed.humanApprovalGranted).toBe(true);
-      await expect(publishing.beginPublicationAction({ ...start, target: reviewed })).rejects.toMatchObject({ issues: [expect.objectContaining({ code: "execution_dependencies_incomplete" })] });
+      await expect(publishing.beginPublicationAction({ ...start, target: reviewed })).rejects.toMatchObject({ issues: [expect.objectContaining({ code: "execution_schedule_not_ready" })] });
       await campaigns.setStepRunState({ instanceId: instance.id, stepKey: "prepare", status: "running" });
       await campaigns.setStepRunState({ instanceId: instance.id, stepKey: "prepare", status: "succeeded" });
       await sql`UPDATE campaign_step SET schedule_type = 'exact_time', scheduled_at = now() + interval '1 hour' WHERE campaign_version_id = ${instance.campaignVersionId} AND step_key = 'publish'`;
-      await expect(publishing.beginPublicationAction({ ...start, target: reviewed })).rejects.toMatchObject({ issues: [expect.objectContaining({ code: "execution_not_due" })] });
+      await expect(publishing.beginPublicationAction({ ...start, target: reviewed })).rejects.toMatchObject({ issues: [expect.objectContaining({ code: "execution_schedule_not_ready" })] });
       await sql`UPDATE campaign_step SET schedule_type = 'immediate', scheduled_at = null WHERE campaign_version_id = ${instance.campaignVersionId} AND step_key = 'publish'`;
       await expect(publishing.beginPublicationAction({ ...start, target: { ...reviewed, connection: other, channelConnectionId: other.id } })).rejects.toMatchObject({ issues: [expect.objectContaining({ code: "publication_target_mismatch" })] });
       await expect(publishing.beginPublicationAction({ ...start, target: { ...reviewed, campaignStepRunId: randomUUID() } })).rejects.toMatchObject({ issues: [expect.objectContaining({ code: "publication_target_mismatch" })] });
@@ -75,7 +75,7 @@ describe.skipIf(!databaseUrl)("campaign repositories", () => {
       for (const scheduleType of ["conditional", "follow_up", "preferred_window", "recurring", "evergreen_queue"] as const) {
         const draft = await campaigns.createCampaign({ ...base, steps: [{ ...base.steps[0], scheduleType, preferredWindowStart: "2026-09-10T09:00:00Z", preferredWindowEnd: "2026-09-10T17:00:00Z" }] }, user.id);
         await campaigns.publishCampaign(workspace.workspaceId, draft.id);
-        await expect(campaigns.activateCampaign({ workspaceId: workspace.workspaceId, campaignId: draft.id, actorUserId: user.id })).rejects.toMatchObject({ issues: [expect.objectContaining({ code: "unsupported_schedule" })] });
+        await expect(campaigns.activateCampaign({ workspaceId: workspace.workspaceId, campaignId: draft.id, actorUserId: user.id })).rejects.toMatchObject({ issues: [expect.objectContaining({ code: scheduleType === "preferred_window" ? "preferred_window_route_unsupported" : "unsupported_schedule" })] });
         expect((await campaigns.getCampaign(workspace.workspaceId, draft.id))?.currentVersion?.steps[0].scheduleType).toBe(scheduleType);
       }
       const drafting = await campaigns.createCampaign({ ...base, autonomyMode: "draft_only" }, user.id);

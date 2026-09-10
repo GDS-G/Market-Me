@@ -56,7 +56,7 @@ if ((reportCollectionEnabled || webhookHealthEnabled || mastodonReportCollection
 
 const sql = createDatabaseClient(databaseUrl);
 const repository = new CampaignRepository(sql);
-const publishingRepository = new PublishingRepository(sql);
+const publishingRepository = new PublishingRepository(sql, { appBaseUrl: process.env.APP_BASE_URL });
 const companionRepository = new CompanionRepository(sql);
 const mediaStore = createObjectStoreFromEnvironment();
 const mastodonAllowedHosts = (process.env.MASTODON_ALLOWED_HOSTS ?? "").split(",").map((host) => host.trim().toLowerCase()).filter(Boolean);

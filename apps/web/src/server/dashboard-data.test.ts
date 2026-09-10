@@ -29,10 +29,34 @@ describe("workspace overview", () => {
     expect(formatDashboardTime(instant, "America/Chicago")).toBe("Sep 10, 2026, 10:00 AM (America/Chicago)");
     expect(formatDashboardTime(instant, "invalid/timezone")).toBe(formatDashboardTime(instant));
     expect(formatDashboardTime("not a date")).toBe("Unknown time");
+    expect(formatDashboardTime("2026-09-10T15:00:01.125Z", "America/Chicago", "millisecond")).toBe("Sep 10, 2026, 10:00:01.125 AM (America/Chicago)");
+    expect(formatDashboardTime("2026-09-10T15:00:01.125Z", "invalid/timezone", "millisecond")).toBe("Sep 10, 2026, 3:00:01.125 PM (UTC)");
   });
 });
 
 describe("campaign calendar agenda", () => {
+  it("shows both authored window boundaries and delay from the pinned run version without inventing a dispatch time", () => {
+    const windowStep = { ...step, dependsOn: ["prepare"], scheduleType: "preferred_window" as const, dependencyDelaySeconds: 90, preferredWindowStart: "2026-09-12T10:00:01.125Z", preferredWindowEnd: "2026-09-12T11:00:02.875Z" };
+    const newer = { ...campaign, currentVersion: { ...version, id: "new-version", steps: [{ ...windowStep, preferredWindowEnd: "2026-10-01T12:00:00.000Z" }] } };
+    const entries = buildCampaignAgenda("workspace-1", [newer], [instance], [{ ...definition, steps: [windowStep] }]);
+    const run = entries.find((entry) => entry.origin === "run")!;
+    expect(run).toMatchObject({ campaignVersionId: version.id, preferredWindowStart: windowStep.preferredWindowStart, preferredWindowEnd: windowStep.preferredWindowEnd, dependencyDelaySeconds: 90, timing: "Preferred request-start window" });
+    expect(run.scheduledAt).toBeUndefined();
+    expect(run.warnings.join(" ")).toContain("requires only official API");
+    expect(run.warnings.join(" ")).not.toContain("requires the new scheduler");
+    expect(entries.find((entry) => entry.origin === "published_plan")?.preferredWindowEnd).toBe("2026-10-01T12:00:00.000Z");
+  });
+  it("keeps a blocked step visible in open paused runs with an explicit recovery warning", () => {
+    const entries = buildCampaignAgenda("workspace-1", [campaign], [{ ...instance, status: "paused", stepRuns: [{ ...instance.stepRuns[0], status: "schedule_blocked" }] }], [definition]);
+    expect(entries[0]).toMatchObject({ status: "schedule_blocked", finished: false });
+    expect(entries[0].warnings.join(" ")).toContain("do not resume or mark it manually complete");
+  });
+  it("does not invent range bounds for malformed historical window plans", () => {
+    const entries = buildCampaignAgenda("workspace-1", [campaign], [instance], [{ ...definition, steps: [{ ...step, scheduleType: "preferred_window", preferredWindowStart: "invalid", preferredWindowEnd: instant }] }]);
+    expect(entries[0]).toMatchObject({ timing: "Preferred window missing or invalid — cannot activate" });
+    expect(entries[0].preferredWindowStart).toBeUndefined();
+    expect(entries[0].scheduledAt).toBeUndefined();
+  });
   it("uses each immutable run version and does not duplicate an activated plan", () => {
     const entries = buildCampaignAgenda("workspace-1", [campaign], [instance], [definition]);
     expect(entries).toHaveLength(1);
@@ -97,7 +121,7 @@ describe("campaign calendar agenda", () => {
     const entries = buildCampaignAgenda("workspace-1", [campaign], [instance], [{ ...definition, steps: [{ ...step, scheduledAt: "not-a-date" }] }]);
     expect(entries[0].timing).toBe("Exact time missing or invalid");
     expect(entries[0].scheduledAt).toBeUndefined();
-    expect(entries[0].warnings.join(" ")).toContain("valid exact execution time");
+    expect(entries[0].warnings.join(" ")).toMatch(/valid|absolute ISO/);
   });
 
   it("loads definitions only for authorized instance IDs, at most ten concurrently", async () => {
