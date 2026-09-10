@@ -1,6 +1,6 @@
 # Review-first campaign preparation
 
-Status: preparation shipped in the verified 1.22 preview. The separate protected [Campaign finalization](CAMPAIGN_FINALIZATION.md) implementation is under 1.23 release verification. This document describes the preparation boundary; exact acceptance is in [Releases](RELEASES.md). See [the plan](CAMPAIGN_PREPARATION_PLAN.md) for rationale and broader setup requirements that remain open.
+Status: preparation shipped in the verified 1.22 preview. The separate protected [Campaign finalization](CAMPAIGN_FINALIZATION.md) implementation shipped in the verified 1.23 preview. This document describes the preparation boundary; exact acceptance is in [Releases](RELEASES.md). See [the plan](CAMPAIGN_PREPARATION_PLAN.md) for rationale and broader setup requirements that remain open.
 
 ## User-facing scope
 

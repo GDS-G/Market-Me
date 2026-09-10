@@ -1,6 +1,6 @@
 # Review-first campaign preparation
 
-Status: immutable evidence is published in 1.21 and preparation in 1.22. The 1.23 implementation adds the protected same-Campaign preview-to-executable-draft finalizer; full release gates are in progress. Current contracts are in [Campaign preparation](CAMPAIGN_PREPARATION.md) and [Campaign finalization](CAMPAIGN_FINALIZATION.md); exact acceptance is in [Releases](RELEASES.md). The design below is retained for rationale, not a claim that every broader setup/template requirement is delivered. Source-ready binding and complete beginner setup remain open.
+Status: immutable evidence is published in 1.21, preparation in 1.22 and the protected same-Campaign preview-to-executable-draft finalizer in verified 1.23. Current contracts are in [Campaign preparation](CAMPAIGN_PREPARATION.md) and [Campaign finalization](CAMPAIGN_FINALIZATION.md); exact acceptance is in [Releases](RELEASES.md). The design below is retained for rationale, not a claim that every broader setup/template requirement is delivered. Source-ready binding and complete beginner setup remain open.
 
 ## Why this comes next
 

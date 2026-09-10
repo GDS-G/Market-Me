@@ -1,12 +1,12 @@
 # Market Me implementation status
 
-## Current implementation: 1.23.0 preview under verification, 2026-09-09
+## Current implementation: 1.23.0 local preview, 2026-09-09
 
 Market Me is still being built against the [approved conceptual specification](https://docs.google.com/document/d/1Iidc682xecSknAS8WeaNc1HH4V0ZvcKL_izEiU9Ng_k/edit), including its 23 child specification sections. The local review used the current `market-me-spec-current.md` extract in the task workspace. This document is a current capability/gap map, not a completion certificate. The specification's global acceptance requirements remain the target; implemented subsets do not replace them.
 
 The preview prepares a non-executable Campaign and governed drafts directly from an approved package, then finalizes one exact approved text preview into a protected same-Campaign executable draft without JSON graph authoring. Separate exact-version publication and activation remain explicit; finalization grants neither approval nor sending. It builds on historical evidence retention, bounded scheduling, workspace views and governed publication infrastructure. Source setup, automatic ready-event template binding and the full folder-to-approved-draft-to-campaign experience remain unfinished. [Finalization contracts](CAMPAIGN_FINALIZATION.md), [Campaign preparation contracts](CAMPAIGN_PREPARATION.md) and [the remaining plan](CAMPAIGN_PREPARATION_PLAN.md) distinguish supported subsets from subsequent work.
 
-Package/native metadata is 1.23.0. All 1,405 TypeScript tests across 101 files pass without skips, along with workspace typechecks/lint, all 112 migration checksums, both zero-vulnerability audits and companion native checks/three Rust tests/unsigned packaging. Browser, production build and cloud verification are in progress. The last published baseline remains verified 1.22. Current exact evidence belongs in [Releases](RELEASES.md) and [CI](CI.md). No installer distribution, hosted production deployment or native cross-platform acceptance is implied by the version number.
+Package/native metadata is 1.23.0. All 1,405 TypeScript tests across 101 files pass without skips, along with workspace typechecks/lint, all 112 migration checksums, both zero-vulnerability audits and companion native checks/three Rust tests/unsigned packaging. Authenticated browser and 94-page production build/smoke pass. Reviewed source `02d84a0531a01bb6a07f9d25d3292808b55189b3` passed clean Linux CI in 3 minutes 44 seconds with the same 1,405 cases and is published on main. Exact evidence belongs in [Releases](RELEASES.md) and [CI](CI.md). No installer distribution, hosted production deployment or native cross-platform acceptance is implied by the version number.
 
 ## Supported behavior and remaining work
 

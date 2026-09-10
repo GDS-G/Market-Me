@@ -1,6 +1,6 @@
 # Exact-preview Campaign finalization
 
-Status: **implemented locally for the 1.23 preview; full release validation pending**. This is a programmer contract, not a production-readiness or whole-product completion declaration. Focused evidence currently comprises 57 finalization integration cases, 52 raw-loader cases, 134 fingerprint cases, 101 compiler cases, 44 combined helper/fence cases and 30 common-proof cases. These are separate focused suites, not a full-regression total. Browser, native, cloud and final release acceptance are not asserted here; consult [Releases](RELEASES.md) and [Implementation status](IMPLEMENTATION_STATUS.md).
+Status: **implemented in the verified 1.23 local preview and Linux CI**. This is a programmer contract, not a production-readiness or whole-product completion declaration. The full suite passes 1,405 cases across 101 files without skips; focused subsets include 57 finalization integration cases, 52 raw-loader cases, 134 fingerprint cases, 101 compiler cases, 44 combined helper/fence cases and 30 common-proof cases. Repeated subsets are not additional cases. Exact browser, build/native, source and cloud acceptance belongs in [Releases](RELEASES.md) and [Implementation status](IMPLEMENTATION_STATUS.md).
 
 ## Product boundary and lifecycle
 
