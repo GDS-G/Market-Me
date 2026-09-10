@@ -1,6 +1,14 @@
 # Domain Model and Important Variables
 
-## Current checkpoint: 1.21 historical evidence contracts
+## Current implementation: 1.22 preparation and retry identities
+
+`compileGeneralAnnouncementPreparation(input: unknown)` returns frozen normalized settings, fixed-order canonical JSON and an ordinary non-executable `CampaignDraftWrite`. `GENERAL_ANNOUNCEMENT_TEMPLATE_KEY = general_announcement`, template version `1`, are server-owned semantics, not an execution grant. Ordered audience IDs (maximum 20), exact package revision, optional current published profile pins, optional unversioned Destination, contextual/informational/UTC defaults and bounded normalized text are documented with every limit in [Campaign preparation contracts](CAMPAIGN_PREPARATION.md).
+
+`CampaignPreparationRepository.prepare(input, idempotencyKey, actorUserId)` returns `{ preparation, replayed }`; the actor is authenticated server identity, and the UUID key is separate from canonical settings. Migration 0111 stores `campaign_preparation`: workspace/key uniqueness, template/revision, full canonical bytes, SHA-256, normalized/reference snapshots, exact Campaign/planning/generation IDs, ordered initial `{draftId, versionId}` references, actor and database timestamp. Immutable receipts persist across later source/profile/draft changes; they are not current approval. No expiration or deletion API exists.
+
+Transaction-local profile Maps separate sorted lock order from user-authored variant order. New helper return values contain exact created IDs and never hydrate through mutable current pointers. `publishExactCampaignDraftInTransaction` only compares identity: an existing mutable draft requires additional content-revision safeguards before future finalization. The shared `CommunicationPolicyInput` now explicitly allows SQL-null settings; both most-specific selection and least-permissive-ceiling selection ignore null/undefined without ignoring a real lower ceiling.
+
+## 1.21 historical evidence contracts
 
 `content_draft_claim_evidence.evidence_item_id` retains a historical UUID from the owning draft generation's `evidence_snapshot`; migration 0110 removes its live-evidence foreign key, not the claim-owned lifecycle. A current live row may no longer exist or may describe a newer revision. Historical reads must use the captured snapshot.
 

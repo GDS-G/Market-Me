@@ -11,7 +11,7 @@ describe("Campaign preview picker", () => {
     expect(assessCampaignPreview({ ...option, linkMode: "tracked" }, "destination-1")).toMatchObject({ eligible: false, reasons: [expect.stringContaining("tracked link")] });
   });
 
-  it("writes the immutable preview reference while removing conflicting overrides", () => {
+  it("writes the stored preview reference while removing conflicting overrides", () => {
     const output = writeDraftChannelPreviewId(JSON.stringify({ custom: 7, appendDestination: true, useTrackedLink: true, channelConnectionId: "wrong" }), "preview-2");
     expect(JSON.parse(output)).toEqual({ custom: 7, draftChannelPreviewId: "preview-2" });
     expect(readDraftChannelPreviewId(output)).toBe("preview-2");

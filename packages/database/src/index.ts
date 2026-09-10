@@ -7,6 +7,8 @@ export * from "./campaign-route-policy";
 export * from "./companion-repository";
 export * from "./profile-repository";
 export * from "./draft-repository";
+export * from "./campaign-preparation-template";
+export * from "./campaign-preparation-repository";
 export * from "./relationship-repository";
 export * from "./conversation-repository";
 export * from "./conversation-assistant-repository";

@@ -1,6 +1,14 @@
 # Architecture
 
-## Current checkpoint: 1.21 immutable draft evidence
+## Current implementation: 1.22 review-first preparation
+
+The short-form Campaign starter compiles an approved package into one ordinary `draft_only` Campaign version and its governed variants. A completed-only PostgreSQL receipt binds exact compiler settings, historical references and generated IDs under a tenant-scoped idempotency key. One transaction rechecks writer authority, locks current approved/published references, preserves profile ceilings, creates the planning version/drafts and records the receipt/audit. No workflow instance, command, approval decision or provider request is created. See [Campaign preparation contracts](CAMPAIGN_PREPARATION.md) and [Releases](RELEASES.md) for acceptance status.
+
+The modular architecture is unchanged: the compiler emits existing domain structures, transaction-scoped repository helpers retain existing validation/generation, and the web form/result page reuses the current workspace shell and review routes. There is no second workflow engine or browser-memory idempotency ledger. Profile and package locks protect the exact snapshot; destination snapshots are historical because Destinations are unversioned. The nullable communication-policy boundary now treats SQL NULL as absent so it cannot mask a stricter selected audience.
+
+The later preview-to-executable-draft finalizer remains separate. It must retain the same Campaign's planning ancestor and compare exact mutable preview content as well as ID; an existing editable draft must not be overwritten. Preparation does not yet finish the full no-JSON publishing journey.
+
+## 1.21 immutable draft evidence
 
 Source refresh replaces current package evidence but must not erase the trace of an older approved draft. Claim links now identify captured generation-snapshot UUIDs independently of live `evidence_item` rows. A database proof function and insertion/update trigger validate exact workspace/version/generation lineage and the complete captured factual order. Historical backfill restores only provable missing links, never a text-based guess. See [Evidence retention](EVIDENCE_RETENTION.md) for the contract and rollout limits.
 

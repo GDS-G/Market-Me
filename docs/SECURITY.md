@@ -1,6 +1,18 @@
 # Security and Integration Controls
 
-## Current checkpoint: 1.21 immutable evidence boundaries
+## Current implementation: 1.22 preparation boundaries
+
+Preparation grants no publication authority. Its server-owned compiler rejects arbitrary steps, context, credentials, account overrides and approval flags; it emits only a `draft_only` review plan. The API checks the configured Origin and current writer membership; the database transaction independently rechecks and locks that membership before replay or mutation. Viewer/analyst/approver roles do not gain write access through preparation. Draft approval remains a separate permission.
+
+Exact current package approval/revision and current published profile versions are locked in the authorized workspace. Null profile settings are absent, not sortable limits: the shared policy resolver now preserves every real ceiling even alongside SQL-null profiles. This correction applies to both starter and advanced Campaign validation. Destination snapshot data describes the past and never authorizes a URL request. No automatic account, attachment or provider operation is selected.
+
+Retry identity is durable and tenant-scoped. A completed receipt compares full canonical bytes; changed payload under the same UUID key conflicts, while a response-loss retry returns the original IDs after source changes. Current access is always rechecked. Ancestor-before-membership and profile-root-before-version lock order prevents the identified deletion/publication inversions. Receipt guards protect lineage and reject updates; privileged direct database modification remains outside this application authority model.
+
+Stored pending browser choices contain no session cookie or provider credential and are not an authorization source. Result reads require current membership and must not silently switch workspaces. See [Campaign preparation contracts](CAMPAIGN_PREPARATION.md) for fields and acceptance. Preview-to-executable-plan finalization is not yet shipped; mutable preview IDs alone are insufficient stale-review protection.
+
+Preview capability snapshots now require exact raw JSONB, provider and observed-timestamp agreement with the current connection, not only matching timestamps. One locked connection read supplies both raw capability JSON and its lossless timestamp before the draft locks. This closes the reproduced old-rendering/new-stamp race and rejects pre-existing inconsistent previews without deleting them. Historical camelized snapshots fail closed and require recreation/review. No permissive alias equivalence is introduced. Matching capabilities still do not make a mutable preview ID a content approval token; the future simplified finalizer must compare the exact reviewed snapshot separately.
+
+## 1.21 immutable evidence boundaries
 
 Historical evidence is not a current approval or publishing grant. Removing the live-evidence foreign key prevents source refresh from cascading away recorded claim links, but new links must satisfy exact generation-snapshot/workspace/version proof. The validator rejects ambiguous IDs, incomplete factual order, invalid metadata and mismatched captured claims. The backfill restores only provable missing identity; unavailable history remains explicitly unavailable.
 

@@ -1,6 +1,7 @@
 import "server-only";
 import {
   CampaignRepository,
+  CampaignPreparationRepository,
   CompanionRepository,
   ConversationAssistantRepository,
   ConversationComposerRepository,
@@ -19,6 +20,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
   marketMeDatabase?: {
     core: MarketMeRepository;
     campaigns: CampaignRepository;
+    preparations: CampaignPreparationRepository;
     publishing: PublishingRepository;
     companion: CompanionRepository;
     profiles: ProfileRepository;
@@ -46,6 +48,10 @@ export function getRepository(): MarketMeRepository {
 
 export function getCampaignRepository(): CampaignRepository {
   return getRepositories().campaigns;
+}
+
+export function getCampaignPreparationRepository(): CampaignPreparationRepository {
+  return getRepositories().preparations;
 }
 
 export function getPublishingRepository(): PublishingRepository {
@@ -87,6 +93,7 @@ export function getAiRepository(): AiRepository {
 function getRepositories(): {
   core: MarketMeRepository;
   campaigns: CampaignRepository;
+  preparations: CampaignPreparationRepository;
   publishing: PublishingRepository;
   companion: CompanionRepository;
   profiles: ProfileRepository;
@@ -104,6 +111,7 @@ function getRepositories(): {
   const repositories = {
     core: new MarketMeRepository(sql),
     campaigns: new CampaignRepository(sql),
+    preparations: new CampaignPreparationRepository(sql),
     publishing: new PublishingRepository(sql),
     companion: new CompanionRepository(sql),
     profiles: new ProfileRepository(sql),

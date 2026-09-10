@@ -1,12 +1,12 @@
 # Market Me implementation status
 
-## Current checkpoint: 1.21.0 local preview, 2026-09-09
+## Current implementation: 1.22.0 local preview, 2026-09-09
 
 Market Me is still being built against the [approved conceptual specification](https://docs.google.com/document/d/1Iidc682xecSknAS8WeaNc1HH4V0ZvcKL_izEiU9Ng_k/edit), including its 23 child specification sections. The local review used the current `market-me-spec-current.md` extract in the task workspace. This document is a current capability/gap map, not a completion certificate. The specification's global acceptance requirements remain the target; implemented subsets do not replace them.
 
-The preview preserves historical draft claim evidence through source refresh and rejects missing or contradictory proof in ordinary and AI revisions. It builds on bounded scheduling, real workspace views and governed publication infrastructure. Customers still need manual configuration and campaign construction to connect several implemented subsystems. The required simple folder-to-approved-draft-to-campaign experience is not yet fully delivered; [Campaign preparation](CAMPAIGN_PREPARATION_PLAN.md) defines that next slice.
+The preview now prepares a non-executable Campaign and governed drafts directly from an approved package, with durable retry recovery and no JSON graph needed for preparation. It builds on historical evidence retention, bounded scheduling, workspace views and governed publication infrastructure. The approved-preview-to-executable-plan finalizer, source setup and automatic ready-event template binding remain unfinished. The full folder-to-approved-draft-to-campaign experience is not yet delivered; [Campaign preparation contracts](CAMPAIGN_PREPARATION.md) and [the remaining plan](CAMPAIGN_PREPARATION_PLAN.md) distinguish supported preparation from subsequent work.
 
-Package/native metadata is 1.21.0. The final source `2640b75ee6635f0c020259bf864d81eaccf8bdde` is published on main and passed clean Linux CI with 695 TypeScript tests across 83 files without skips. Local acceptance includes the original 693-case integrated suite, two additional deterministic early-pause cases in the 43-case workflow rerun, three Rust tests and browser/build/native checks. Exact evidence belongs in [Releases](RELEASES.md) and [CI](CI.md). No installer release, hosted production deployment or native cross-platform acceptance is implied by the version number.
+Package/native metadata is 1.22.0. The full local suite passes 864 TypeScript tests across 90 files without skips, all workspace typechecks and 111 migration checksums. Authenticated browser acceptance, the 93-page production build/smoke and companion frontend/native packaging pass; cloud acceptance is pending on `codex/campaign-starter`. The prior 1.21 source is already published on main and cloud-verified. Current exact evidence belongs in [Releases](RELEASES.md) and [CI](CI.md). No installer distribution, hosted production deployment or native cross-platform acceptance is implied by the version number.
 
 ## Supported behavior and remaining work
 
@@ -28,6 +28,14 @@ The implementation pointers below locate relevant code; they do not by themselve
 | Reliability, OS/deployment and extensibility (20–22) | Durable workflow/command/idempotency state, reconciliation/retry primitives, worker heartbeats/readiness, logical database recovery drill, container composition, Windows companion preview and selected authenticated APIs. | Complete end-to-end restore/load/failure acceptance; independent collector outage monitoring; signed distribution/updates; macOS, Ubuntu and CentOS Stream/RHEL-compatible companion/server validation; Podman validation; all named browser coverage; supported public API/webhook/export/extension SDK contracts. |
 
 Primary implementation locations are `apps/web/src/app`, `packages/database/src`, `packages/domain/src/policies.ts`, `packages/workflows/src`, `apps/workflow-worker/src`, `packages/connectors/src`, `packages/ingestion/src`, `packages/media/src`, `packages/generation/src`, and `apps/companion`. Detailed current contracts are in [Domain Model](DOMAIN_MODEL.md); build/operations instructions are in [Developer Guide](DEVELOPMENT.md).
+
+## What the 1.22 preview changes
+
+- Approved packages offer a writer-only short form for General Announcement v1, exact reviewed package revision, current published profile pins, optional Destination and copy controls. The result lists every initial variant and immutable source/reference evidence, without activation or sending.
+- One transaction creates a `draft_only` planning Campaign/version, governed drafts, completed immutable preparation receipt and audit. Tenant/key uniqueness and full canonical payload comparison prevent duplicate campaigns after uncertain responses. Current role locks, source/profile locks and existing policy validation remain mandatory.
+- Saved exact browser requests support manual check/retry after reload; an explicit new-attempt action acknowledges possible prior success. Membership-scoped Campaign receipt links recover results even after tab storage is lost. Historical receipt IDs do not follow later edits or imply current approval.
+- Real regressions exposed SQL-null profile settings masking a stricter audience ceiling and split preview capability/timestamp reads admitting stale rendering. Null settings are now absent; exact raw capability snapshot/provider/timestamp checks and connection-first locking fail closed. Affected historical normalized previews require recreation/review, without deleting their records.
+- Readiness expects migration 0111/count 111. The future same-Campaign executable-plan finalizer, reusable templates, automatic source-ready preparation, complete onboarding and broader specification remain open.
 
 ## What the 1.21 preview changes
 

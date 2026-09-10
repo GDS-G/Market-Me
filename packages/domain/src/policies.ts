@@ -269,10 +269,11 @@ export type CommunicationPolicyLevel = (typeof COMMUNICATION_POLICY_LEVELS)[numb
 export interface CommunicationPolicyInput {
   source: string;
   level: CommunicationPolicyLevel;
-  informationDepth?: InformationDepth;
-  informationDepthCeiling?: Exclude<InformationDepth, "custom">;
-  promotionalStrength?: PromotionalStrength;
-  promotionalStrengthCeiling?: Exclude<PromotionalStrength, "custom">;
+  /** SQL NULL and omitted settings both mean no value at this policy level. */
+  informationDepth?: InformationDepth | null;
+  informationDepthCeiling?: Exclude<InformationDepth, "custom"> | null;
+  promotionalStrength?: PromotionalStrength | null;
+  promotionalStrengthCeiling?: Exclude<PromotionalStrength, "custom"> | null;
 }
 
 export interface CommunicationPolicyResolution {
@@ -321,7 +322,7 @@ export function resolveCommunicationPolicy(inputs: readonly CommunicationPolicyI
 
 function selectMostSpecific<T extends string>(inputs: readonly CommunicationPolicyInput[], field: "informationDepth" | "promotionalStrength", rank: Record<Exclude<T, "custom">, number>): { value: T; source: string } | undefined {
   for (const level of [...COMMUNICATION_POLICY_LEVELS].reverse()) {
-    const candidates = inputs.filter((input) => input.level === level && input[field] !== undefined).map((input) => ({ value: input[field] as T, source: input.source }));
+    const candidates = inputs.filter((input) => input.level === level && input[field] != null).map((input) => ({ value: input[field] as T, source: input.source }));
     if (!candidates.length) continue;
     return candidates.sort((left, right) => {
       if (left.value === "custom") return 1;
@@ -333,7 +334,7 @@ function selectMostSpecific<T extends string>(inputs: readonly CommunicationPoli
 }
 
 function selectCeiling<T extends string>(inputs: readonly CommunicationPolicyInput[], field: "informationDepthCeiling" | "promotionalStrengthCeiling", rank: Record<T, number>): { value: T; source: string } | undefined {
-  return inputs.filter((input) => input[field] !== undefined).map((input) => ({ value: input[field] as T, source: input.source }))
+  return inputs.filter((input) => input[field] != null).map((input) => ({ value: input[field] as T, source: input.source }))
     .sort((left, right) => rank[left.value] - rank[right.value])[0];
 }
 

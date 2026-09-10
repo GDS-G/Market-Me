@@ -66,6 +66,41 @@ describe("resolveScopedValue", () => {
 });
 
 describe("resolveCommunicationPolicy", () => {
+  it.each([false, true])("does not let SQL-null ceilings mask another audience's limit (reverse=%s)", (reverse) => {
+    const audiences = [
+      { source: "Unrestricted", level: "audience" as const, informationDepthCeiling: null, promotionalStrengthCeiling: null },
+      { source: "Restricted", level: "audience" as const, informationDepthCeiling: "teaser" as const, promotionalStrengthCeiling: "informational" as const },
+    ];
+    const result = resolveCommunicationPolicy([
+      { source: "Nullable brand", level: "brand", informationDepthCeiling: null, promotionalStrengthCeiling: null },
+      ...(reverse ? audiences.reverse() : audiences),
+      { source: "Campaign", level: "campaign", informationDepth: "detailed", promotionalStrength: "strong" },
+    ]);
+    expect(result).toMatchObject({ informationDepthCeiling: "teaser", promotionalStrengthCeiling: "informational" });
+    expect(result.issues.map((issue) => issue.code)).toEqual(["information_depth_ceiling", "promotional_strength_ceiling"]);
+    expect(result.issues.every((issue) => issue.source === "Restricted")).toBe(true);
+  });
+
+  it("treats SQL-null selections as absent, including at more specific levels", () => {
+    expect(resolveCommunicationPolicy([
+      { source: "Workspace", level: "workspace", informationDepth: "contextual", promotionalStrength: "light" },
+      { source: "Campaign", level: "campaign", informationDepth: null, promotionalStrength: null,
+        informationDepthCeiling: null, promotionalStrengthCeiling: null },
+    ])).toEqual({ informationDepth: "contextual", informationDepthSource: "Workspace",
+      promotionalStrength: "light", promotionalStrengthSource: "Workspace", issues: [] });
+    expect(resolveCommunicationPolicy([{ source: "Empty", level: "action", informationDepth: null,
+      promotionalStrength: null, informationDepthCeiling: null, promotionalStrengthCeiling: null }])).toEqual({ issues: [] });
+  });
+
+  it("still rejects custom controls beneath a real ceiling after nullable profiles", () => {
+    const result = resolveCommunicationPolicy([
+      { source: "Nullable brand", level: "brand", informationDepthCeiling: null, promotionalStrengthCeiling: null },
+      { source: "Audience", level: "audience", informationDepthCeiling: "minimal", promotionalStrengthCeiling: "informational" },
+      { source: "Campaign", level: "campaign", informationDepth: "custom", promotionalStrength: "custom" },
+    ]);
+    expect(result.issues.map((issue) => issue.code)).toEqual(["information_depth_ceiling", "promotional_strength_ceiling"]);
+  });
+
   it("uses the most-specific value while preserving the most restrictive ceiling", () => {
     expect(resolveCommunicationPolicy([
       { source: "workspace", level: "workspace", informationDepth: "contextual", promotionalStrength: "light" },

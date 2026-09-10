@@ -1,6 +1,6 @@
 # Review-first campaign preparation
 
-Status: planned next vertical slice after the published 1.20 scheduling checkpoint. The immutable draft-evidence prerequisite is being repaired on `codex/review-first-preparation`; the starter itself is not executable support yet. This implements part of conceptual sections 01, 03, 06 and 10, not the complete beginner setup or template specification.
+Status: immutable evidence prerequisite is published in 1.21. The 1.22 implementation on `codex/campaign-starter` delivers the first preparation half (planning Campaign plus governed drafts); acceptance status is in [Releases](RELEASES.md) and full implementation contracts are in [Campaign preparation](CAMPAIGN_PREPARATION.md). The preview-to-executable-draft finalizer remains to be built. This covers part of conceptual sections 01, 03, 06 and 10, not the complete beginner setup or template specification.
 
 ## Why this comes next
 
@@ -24,6 +24,8 @@ The repair must retain exact claim-to-generation-snapshot identity across refres
 6. Present the final plan and hand off to explicit version publication, activation and execution approvals. Never auto-approve or auto-activate.
 
 The compiler emits ordinary `CampaignDraftWrite`; it is not another execution engine. Media automation, source-ready automatic preparation, reusable user-authored/shared templates, recurrence and broader setup follow this bounded slice.
+
+Finalizer prerequisite discovered during review: channel previews can be rewritten under the same ID, so a preview ID alone is not a content/review token. Require a server-derived full snapshot fingerprint or revision, checked during finalization and again at activation and locked publication admission. Release 1.22 repairs the split capability read/timestamp race with connection-first locking and exact raw JSONB/provider/timestamp checks; this does not make preview content immutable. First finalization should require no existing editable Campaign draft and retain its original compiled definition in an immutable completed receipt.
 
 ## Transaction and data contract to implement
 

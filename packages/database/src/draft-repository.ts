@@ -53,172 +53,222 @@ export class DraftRepository {
     },
     actorUserId: string,
   ): Promise<readonly StoredContentDraft[]> {
-    const ids = await this.sql.begin(async (transaction) => {
-      const campaigns = await transaction<
-        {
-          campaignVersionId: string;
-          campaignName: string;
-          contentPackageIds: string[];
-          brandProfileVersionId?: string;
-          informationDepth: StoredDraftGeneration["informationDepth"];
-          promotionalStrength: StoredDraftGeneration["promotionalStrength"];
-        }[]
-      >`
-        SELECT cv.id AS campaign_version_id, c.name AS campaign_name, cv.content_package_ids,
-          cv.brand_profile_version_id, cv.information_depth, cv.promotional_strength
+    const generated = await this.sql.begin(async (transaction) => {
+      const current = await transaction<{ campaignVersionId: string; contentPackageIds: string[] }[]>`
+        SELECT cv.id AS campaign_version_id, cv.content_package_ids
         FROM campaign c JOIN campaign_version cv ON cv.id = c.current_version_id
         WHERE c.id = ${input.campaignId} AND c.workspace_id = ${input.workspaceId} AND cv.status IN ('published', 'superseded')
       `;
-      const campaign = campaigns[0];
-      if (!campaign)
-        throw new DraftValidationError([
-          {
-            code: "campaign_not_published",
-            message: "A published Campaign version is required.",
-          },
-        ]);
-      if (!campaign.contentPackageIds.includes(input.contentPackageId))
-        throw new DraftValidationError([
-          {
-            code: "package_not_bound",
-            message:
-              "The Content Package is not bound to the published Campaign version.",
-          },
-        ]);
-      const packages = await transaction<
-        { id: string; title: string; version: number; status: string }[]
-      >`
-        SELECT id, title, version, status FROM content_package WHERE id = ${input.contentPackageId} AND workspace_id = ${input.workspaceId}
-        FOR SHARE
+      if (!current[0]) throw new DraftValidationError([{
+        code: "campaign_not_published", message: "A published Campaign version is required.",
+      }]);
+      if (!current[0].contentPackageIds.includes(input.contentPackageId)) throw new DraftValidationError([{
+        code: "package_not_bound", message: "The Content Package is not bound to the published Campaign version.",
+      }]);
+      const packages = await transaction<{ version: number; status: string }[]>`
+        SELECT id, title, version, status FROM content_package
+        WHERE id = ${input.contentPackageId} AND workspace_id = ${input.workspaceId} FOR SHARE
       `;
-      if (packages[0]?.status !== "approved")
-        throw new DraftValidationError([
-          {
-            code: "package_not_approved",
-            message: "An approved Content Package is required.",
-          },
-        ]);
-      const evidence = await transaction<EvidenceItem[]>`
-        SELECT id, fact_key, claim, provenance, source_references, confidence, context_pack_version_id, superseded_by_evidence_id
-        FROM evidence_item WHERE content_package_id = ${input.contentPackageId} AND superseded_by_evidence_id IS NULL ORDER BY created_at, id
-      `;
-      const usable = evidence.filter(
-        (item) => item.provenance !== "unresolved",
-      );
-      if (!usable.length)
-        throw new DraftValidationError([
-          {
-            code: "evidence_required",
-            message: "At least one resolved evidence item is required.",
-          },
-        ]);
-
-      const brandRows = campaign.brandProfileVersionId
-        ? await transaction<{ name: string; profile: BrandProfileData }[]>`
-        SELECT b.name, bv.profile FROM brand_profile_version bv JOIN brand_profile b ON b.id = bv.brand_profile_id
-        WHERE bv.id = ${campaign.brandProfileVersionId} AND b.workspace_id = ${input.workspaceId}
-      `
-        : [];
-      const audiences = await transaction<
-        { id: string; name: string; profile: AudienceProfileData }[]
-      >`
-        SELECT av.id, a.name, av.profile FROM campaign_version_audience_profile binding
-        JOIN audience_profile_version av ON av.id = binding.audience_profile_version_id
-        JOIN audience_profile a ON a.id = av.audience_profile_id
-        WHERE binding.campaign_version_id = ${campaign.campaignVersionId} AND a.workspace_id = ${input.workspaceId}
-        ORDER BY binding.sort_order
-      `;
-      const variants: readonly {
-        id?: string;
-        name?: string;
-        profile?: AudienceProfileData;
-      }[] = audiences.length ? audiences : [{}];
-      const characterBudgetAudienceName = audiences.reduce<string | undefined>(
-        (longest, audience) =>
-          !longest || audience.name.length > longest.length
-            ? audience.name
-            : longest,
-        undefined,
-      );
-      const generationId = randomUUID();
-      const evidenceSnapshot = usable.map(
-        ({ id, factKey, claim, provenance, sourceReferences, confidence }) => ({
-          id,
-          ...(factKey ? { factKey } : {}),
-          claim,
-          provenance,
-          sourceReferences,
-          ...(confidence !== undefined ? { confidence } : {}),
-        }),
-      );
-      await transaction`
-        INSERT INTO draft_generation (id, workspace_id, campaign_version_id, content_package_id, content_package_version,
-          brand_profile_version_id, information_depth, promotional_strength, evidence_snapshot,
-          generator_provider, generator_model, generator_version, prompt_version, draft_format, created_by)
-        VALUES (${generationId}, ${input.workspaceId}, ${campaign.campaignVersionId}, ${input.contentPackageId}, ${packages[0]!.version},
-          ${campaign.brandProfileVersionId ?? null}, ${campaign.informationDepth}, ${campaign.promotionalStrength},
-          ${transaction.json(evidenceSnapshot as JSONValue)}, ${GENERATOR_PROVIDER}, ${GENERATOR_MODEL}, ${GENERATOR_VERSION}, ${PROMPT_VERSION}, ${input.draftFormat ?? "channel_neutral"}, ${actorUserId})
-      `;
-      const draftIds: string[] = [];
-      for (const audience of variants) {
-        let generated;
-        try {
-          generated = generateGroundedDraft({
-            packageTitle: packages[0]!.title,
-            evidence: usable,
-            informationDepth: campaign.informationDepth,
-            promotionalStrength: campaign.promotionalStrength,
-            format: input.draftFormat ?? "channel_neutral",
-            ...(characterBudgetAudienceName
-              ? { characterBudgetAudienceName }
-              : {}),
-            ...(brandRows[0] ? { brand: brandRows[0] } : {}),
-            ...(audience.id && audience.name && audience.profile
-              ? { audience: { name: audience.name, profile: audience.profile } }
-              : {}),
-          });
-        } catch (error) {
-          throw new DraftValidationError([
-            {
-              code: "format_limit",
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "The selected format cannot contain the approved evidence.",
-            },
-          ]);
-        }
-        const draftId = randomUUID();
-        const versionId = randomUUID();
-        draftIds.push(draftId);
-        await transaction`
-          INSERT INTO content_draft (id, workspace_id, draft_generation_id, audience_profile_version_id, current_version_id, created_by)
-          VALUES (${draftId}, ${input.workspaceId}, ${generationId}, ${audience.id ?? null}, null, ${actorUserId})
-        `;
-        await transaction`
-          INSERT INTO content_draft_version (id, content_draft_id, version_number, headline, body, call_to_action, hashtags, alt_text, rationale, presentation_choices, created_by)
-          VALUES (${versionId}, ${draftId}, 1, ${generated.headline}, ${generated.body}, ${generated.callToAction ?? null}, ${[...generated.hashtags]}, ${generated.altText ?? null}, ${generated.rationale}, ${transaction.json(generated.presentationChoices as JSONValue)}, ${actorUserId})
-        `;
-        await transaction`UPDATE content_draft SET current_version_id = ${versionId} WHERE id = ${draftId}`;
-        await this.insertClaims(transaction, versionId, generated.claims);
-      }
-      await this.audit(
-        transaction,
-        input.workspaceId,
-        actorUserId,
-        "draft.generated",
-        "draft_generation",
-        generationId,
-        {
-          campaignVersionId: campaign.campaignVersionId,
-          contentPackageId: input.contentPackageId,
-          draftIds,
-        },
-      );
-      return draftIds;
+      if (packages[0]?.status !== "approved") throw new DraftValidationError([{
+        code: "package_not_approved", message: "An approved Content Package is required.",
+      }]);
+      return this.generateDraftsInTransaction(transaction, {
+        ...input, campaignVersionId: current[0].campaignVersionId,
+        expectedContentPackageVersion: packages[0].version,
+      }, actorUserId);
     });
     const drafts = await this.list(input.workspaceId);
-    return ids.map((id) => drafts.find((draft) => draft.id === id)!);
+    return generated.drafts.map(({ draftId }) => drafts.find((draft) => draft.id === draftId)!);
+  }
+
+  /** Exact generation identity, using only the caller's transaction and no current-version fallback. */
+  async generateDraftsInTransaction(
+    transaction: TransactionSql,
+    input: {
+      workspaceId: string;
+      campaignId: string;
+      campaignVersionId: string;
+      contentPackageId: string;
+      expectedContentPackageVersion: number;
+      draftFormat?: DraftFormat;
+    },
+    actorUserId: string,
+  ): Promise<{ generationId: string; drafts: readonly { draftId: string; versionId: string }[] }> {
+    if (!Number.isInteger(input.expectedContentPackageVersion) || input.expectedContentPackageVersion < 1
+      || input.expectedContentPackageVersion > 2_147_483_647) {
+      throw new DraftValidationError([{
+        code: "invalid_package_version", message: "An exact positive Content Package revision within the database integer range is required.",
+      }]);
+    }
+    const campaigns = await transaction<
+      {
+        campaignVersionId: string;
+        campaignName: string;
+        contentPackageIds: string[];
+        brandProfileVersionId?: string;
+        informationDepth: StoredDraftGeneration["informationDepth"];
+        promotionalStrength: StoredDraftGeneration["promotionalStrength"];
+      }[]
+    >`
+      SELECT cv.id AS campaign_version_id, c.name AS campaign_name, cv.content_package_ids,
+        cv.brand_profile_version_id, cv.information_depth, cv.promotional_strength
+      FROM campaign c JOIN campaign_version cv ON cv.campaign_id = c.id AND cv.id = ${input.campaignVersionId}
+      WHERE c.id = ${input.campaignId} AND c.workspace_id = ${input.workspaceId} AND cv.status IN ('published', 'superseded')
+    `;
+    const campaign = campaigns[0];
+    if (!campaign)
+      throw new DraftValidationError([
+        {
+          code: "campaign_not_published",
+          message: "A published Campaign version is required.",
+        },
+      ]);
+    if (!campaign.contentPackageIds.includes(input.contentPackageId))
+      throw new DraftValidationError([
+        {
+          code: "package_not_bound",
+          message:
+            "The Content Package is not bound to the published Campaign version.",
+        },
+      ]);
+    const packages = await transaction<
+      { id: string; title: string; version: number; status: string }[]
+    >`
+      SELECT id, title, version, status FROM content_package WHERE id = ${input.contentPackageId} AND workspace_id = ${input.workspaceId}
+      FOR SHARE
+    `;
+    if (packages[0]?.status !== "approved")
+      throw new DraftValidationError([
+        {
+          code: "package_not_approved",
+          message: "An approved Content Package is required.",
+        },
+      ]);
+    if (packages[0].version !== input.expectedContentPackageVersion) {
+      throw new DraftValidationError([{
+        code: "package_version_mismatch", message: "The Content Package revision has changed. Review the current package before preparing drafts.",
+      }]);
+    }
+    const evidence = await transaction<EvidenceItem[]>`
+      SELECT id, fact_key, claim, provenance, source_references, confidence, context_pack_version_id, superseded_by_evidence_id
+      FROM evidence_item WHERE content_package_id = ${input.contentPackageId} AND superseded_by_evidence_id IS NULL ORDER BY created_at, id
+    `;
+    const usable = evidence.filter(
+      (item) => item.provenance !== "unresolved",
+    );
+    if (!usable.length)
+      throw new DraftValidationError([
+        {
+          code: "evidence_required",
+          message: "At least one resolved evidence item is required.",
+        },
+      ]);
+
+    const brandRows = campaign.brandProfileVersionId
+      ? await transaction<{ name: string; profile: BrandProfileData }[]>`
+      SELECT b.name, bv.profile FROM brand_profile_version bv JOIN brand_profile b ON b.id = bv.brand_profile_id
+      WHERE bv.id = ${campaign.brandProfileVersionId} AND b.workspace_id = ${input.workspaceId}
+    `
+      : [];
+    const audiences = await transaction<
+      { id: string; name: string; profile: AudienceProfileData }[]
+    >`
+      SELECT av.id, a.name, av.profile FROM campaign_version_audience_profile binding
+      JOIN audience_profile_version av ON av.id = binding.audience_profile_version_id
+      JOIN audience_profile a ON a.id = av.audience_profile_id
+      WHERE binding.campaign_version_id = ${campaign.campaignVersionId} AND a.workspace_id = ${input.workspaceId}
+      ORDER BY binding.sort_order
+    `;
+    const variants: readonly {
+      id?: string;
+      name?: string;
+      profile?: AudienceProfileData;
+    }[] = audiences.length ? audiences : [{}];
+    const characterBudgetAudienceName = audiences.reduce<string | undefined>(
+      (longest, audience) =>
+        !longest || audience.name.length > longest.length
+          ? audience.name
+          : longest,
+      undefined,
+    );
+    const generationId = randomUUID();
+    const evidenceSnapshot = usable.map(
+      ({ id, factKey, claim, provenance, sourceReferences, confidence }) => ({
+        id,
+        ...(factKey ? { factKey } : {}),
+        claim,
+        provenance,
+        sourceReferences,
+        ...(confidence !== undefined ? { confidence } : {}),
+      }),
+    );
+    await transaction`
+      INSERT INTO draft_generation (id, workspace_id, campaign_version_id, content_package_id, content_package_version,
+        brand_profile_version_id, information_depth, promotional_strength, evidence_snapshot,
+        generator_provider, generator_model, generator_version, prompt_version, draft_format, created_by)
+      VALUES (${generationId}, ${input.workspaceId}, ${campaign.campaignVersionId}, ${input.contentPackageId}, ${packages[0]!.version},
+        ${campaign.brandProfileVersionId ?? null}, ${campaign.informationDepth}, ${campaign.promotionalStrength},
+        ${transaction.json(evidenceSnapshot as JSONValue)}, ${GENERATOR_PROVIDER}, ${GENERATOR_MODEL}, ${GENERATOR_VERSION}, ${PROMPT_VERSION}, ${input.draftFormat ?? "channel_neutral"}, ${actorUserId})
+    `;
+    const draftIds: string[] = [];
+    const draftReferences: { draftId: string; versionId: string }[] = [];
+    for (const audience of variants) {
+      let generated;
+      try {
+        generated = generateGroundedDraft({
+          packageTitle: packages[0]!.title,
+          evidence: usable,
+          informationDepth: campaign.informationDepth,
+          promotionalStrength: campaign.promotionalStrength,
+          format: input.draftFormat ?? "channel_neutral",
+          ...(characterBudgetAudienceName
+            ? { characterBudgetAudienceName }
+            : {}),
+          ...(brandRows[0] ? { brand: brandRows[0] } : {}),
+          ...(audience.id && audience.name && audience.profile
+            ? { audience: { name: audience.name, profile: audience.profile } }
+            : {}),
+        });
+      } catch (error) {
+        throw new DraftValidationError([
+          {
+            code: "format_limit",
+            message:
+              error instanceof Error
+                ? error.message
+                : "The selected format cannot contain the approved evidence.",
+          },
+        ]);
+      }
+      const draftId = randomUUID();
+      const versionId = randomUUID();
+      draftIds.push(draftId);
+      draftReferences.push({ draftId, versionId });
+      await transaction`
+        INSERT INTO content_draft (id, workspace_id, draft_generation_id, audience_profile_version_id, current_version_id, created_by)
+        VALUES (${draftId}, ${input.workspaceId}, ${generationId}, ${audience.id ?? null}, null, ${actorUserId})
+      `;
+      await transaction`
+        INSERT INTO content_draft_version (id, content_draft_id, version_number, headline, body, call_to_action, hashtags, alt_text, rationale, presentation_choices, created_by)
+        VALUES (${versionId}, ${draftId}, 1, ${generated.headline}, ${generated.body}, ${generated.callToAction ?? null}, ${[...generated.hashtags]}, ${generated.altText ?? null}, ${generated.rationale}, ${transaction.json(generated.presentationChoices as JSONValue)}, ${actorUserId})
+      `;
+      await transaction`UPDATE content_draft SET current_version_id = ${versionId} WHERE id = ${draftId}`;
+      await this.insertClaims(transaction, versionId, generated.claims);
+    }
+    await this.audit(
+      transaction,
+      input.workspaceId,
+      actorUserId,
+      "draft.generated",
+      "draft_generation",
+      generationId,
+      {
+        campaignVersionId: campaign.campaignVersionId,
+        contentPackageId: input.contentPackageId,
+        draftIds,
+      },
+    );
+    return { generationId, drafts: draftReferences };
   }
 
   async list(workspaceId: string): Promise<StoredContentDraft[]> {
@@ -433,6 +483,32 @@ export class DraftRepository {
     actorUserId: string;
   }): Promise<StoredDraftChannelPreview | undefined> {
     const previewId = await this.sql.begin(async (transaction) => {
+      // Publication admission locks connection -> approval -> draft/version ->
+      // preview. Take the connection first here too, so a concurrent capability
+      // refresh cannot mix its new observation stamp with an older rendering.
+      // Read and bind the stamp as text (cast back in SQL) to bypass the driver's
+      // Date parser/parameter serializer and preserve PostgreSQL microseconds.
+      const connections = await transaction<
+        {
+          id: string;
+          provider: ChannelProvider;
+          capabilities: Record<string, unknown>;
+          capabilitiesJson: string;
+          capabilitiesObservedAt: string;
+        }[]
+      >`
+        SELECT id, provider, capabilities, capabilities::text AS capabilities_json,
+          capabilities_observed_at::text AS capabilities_observed_at FROM channel_connection
+        WHERE id = ${input.channelConnectionId} AND workspace_id = ${input.workspaceId} AND status = 'active'
+        FOR SHARE
+      `;
+      if (!connections[0])
+        throw new DraftValidationError([
+          {
+            code: "active_channel_required",
+            message: "Select an active channel connection from this workspace.",
+          },
+        ]);
       const drafts = await transaction<
         {
           versionId: string;
@@ -462,28 +538,13 @@ export class DraftRepository {
               "Approve the exact Draft version before creating a channel preview.",
           },
         ]);
-      const connections = await transaction<
-        {
-          id: string;
-          provider: ChannelProvider;
-          capabilities: Record<string, unknown>;
-          capabilitiesObservedAt: string;
-        }[]
-      >`
-        SELECT id, provider, capabilities, capabilities_observed_at FROM channel_connection
-        WHERE id = ${input.channelConnectionId} AND workspace_id = ${input.workspaceId} AND status = 'active'
-      `;
-      if (!connections[0])
-        throw new DraftValidationError([
-          {
-            code: "active_channel_required",
-            message: "Select an active channel connection from this workspace.",
-          },
-        ]);
       const manifest = parseChannelManifest(
         connections[0].provider,
         connections[0].capabilities,
       );
+      // postgres.camel transforms JSON keys on reads. Persist the exact stored
+      // JSON, not that normalized projection; eligibility compares JSONB values.
+      const capabilitySnapshot = JSON.parse(connections[0].capabilitiesJson) as JSONValue;
       const assetIds = [...(input.assetIds ?? [])];
       if (new Set(assetIds).size !== assetIds.length)
         throw new DraftValidationError([
@@ -715,11 +776,11 @@ export class DraftRepository {
           destination_id, link_mode, provider, capability_version, capability_observed_at, status, rendered_subject,
           subject_count, subject_limit, rendered_content, character_count, character_limit, validation_issues, capability_snapshot, created_by)
         VALUES (${id}, ${input.workspaceId}, ${input.draftId}, ${drafts[0].versionId}, ${connections[0].id},
-          ${destination?.id ?? null}, ${linkMode}, ${manifest.provider}, ${manifest.version}, (SELECT capabilities_observed_at FROM channel_connection WHERE id = ${connections[0].id}),
+          ${destination?.id ?? null}, ${linkMode}, ${manifest.provider}, ${manifest.version}, ${connections[0].capabilitiesObservedAt}::text::timestamptz,
           ${rendered.issues.length ? "blocked" : "ready"}, ${rendered.subject ?? null},
           ${rendered.subjectCount ?? null}, ${rendered.subjectLimit ?? null}, ${rendered.content}, ${rendered.characterCount},
           ${rendered.characterLimit ?? null}, ${transaction.json([...rendered.issues] as JSONValue)},
-          ${transaction.json(connections[0].capabilities as JSONValue)}, ${input.actorUserId})
+          ${transaction.json(capabilitySnapshot)}, ${input.actorUserId})
         ON CONFLICT (content_draft_version_id, channel_connection_id, destination_id, link_mode) DO UPDATE SET
           provider = EXCLUDED.provider, capability_version = EXCLUDED.capability_version,
           capability_observed_at = EXCLUDED.capability_observed_at, status = EXCLUDED.status,
@@ -804,6 +865,8 @@ export class DraftRepository {
         preview.rendered_content, preview.character_count,
         preview.character_limit, preview.validation_issues, preview.capability_snapshot,
         (connection.capabilities_observed_at IS DISTINCT FROM preview.capability_observed_at
+          OR connection.capabilities IS DISTINCT FROM preview.capability_snapshot
+          OR connection.provider IS DISTINCT FROM preview.provider
           OR connection.status <> 'active'
           OR EXISTS (
             SELECT 1
@@ -889,6 +952,8 @@ export class DraftRepository {
         preview.rendered_content, preview.character_count,
         preview.character_limit, preview.validation_issues, preview.capability_snapshot,
         (connection.capabilities_observed_at IS DISTINCT FROM preview.capability_observed_at
+          OR connection.capabilities IS DISTINCT FROM preview.capability_snapshot
+          OR connection.provider IS DISTINCT FROM preview.provider
           OR connection.status <> 'active'
           OR EXISTS (
             SELECT 1

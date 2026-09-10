@@ -1,6 +1,6 @@
 {
   "name": "@market-me/workflows",
-  "version": "1.21.0",
+  "version": "1.22.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -13,8 +13,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@market-me/database": "1.21.0",
-    "@market-me/domain": "1.21.0",
+    "@market-me/database": "1.22.0",
+    "@market-me/domain": "1.22.0",
     "@temporalio/activity": "1.22.0",
     "@temporalio/client": "1.22.0",
     "@temporalio/worker": "1.22.0",

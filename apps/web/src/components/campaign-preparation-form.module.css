@@ -1,0 +1,17 @@
+.fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.notice { padding: 18px; border: 1px solid #dcd5ec; border-radius: 12px; background: #faf8ff; }
+.notice p { margin: 8px 0; line-height: 1.6; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+.audiences { border: 1px solid #e9e5ef; border-radius: 10px; padding: 14px; }
+.audiences legend { font-size: 13px; font-weight: 600; padding: 0 6px; }
+.audiences label { display: flex; gap: 8px; align-items: center; margin: 9px 0; }
+.receipt { display: grid; gap: 16px; }
+.receipt dl { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(0, 2fr); gap: 12px; }
+.receipt dt { font-weight: 600; }
+.receipt dd { margin: 0; overflow-wrap: anywhere; }
+.receipt ul { margin: 0; padding-left: 20px; }
+.receipt li { margin: 12px 0; }
+.receipt small { display: block; margin-top: 6px; overflow-wrap: anywhere; }
+.receipt details { padding: 16px; border: 1px solid #e9e5ef; border-radius: 10px; }
+.receipt summary { cursor: pointer; font-weight: 600; }
+@media (max-width: 700px) { .receipt dl { grid-template-columns: 1fr; } }

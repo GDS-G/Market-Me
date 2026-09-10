@@ -1,6 +1,6 @@
 {
   "name": "@market-me/connectors",
-  "version": "1.21.0",
+  "version": "1.22.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@market-me/domain": "1.21.0"
+    "@market-me/domain": "1.22.0"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

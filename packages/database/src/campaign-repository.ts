@@ -154,25 +154,27 @@ export class CampaignRepository {
     input: CampaignDraftWrite,
     actorUserId: string,
   ): Promise<StoredCampaign> {
+    const created = await this.sql.begin((transaction) =>
+      this.createCampaignDraftInTransaction(transaction, input, actorUserId));
+    return (await this.getCampaign(input.workspaceId, created.campaignId))!;
+  }
+
+  /** Caller owns commit/rollback; this helper never opens or reads outside its transaction. */
+  async createCampaignDraftInTransaction(
+    transaction: TransactionSql,
+    input: CampaignDraftWrite,
+    actorUserId: string,
+  ): Promise<{ campaignId: string; campaignVersionId: string }> {
     this.assertGraph(input.steps);
     const campaignId = randomUUID();
-    const versionId = randomUUID();
-    await this.sql.begin(async (transaction) => {
-      await this.validateReferences(transaction, input);
-      await transaction`
-        INSERT INTO campaign (id, workspace_id, name, description, created_by)
-        VALUES (${campaignId}, ${input.workspaceId}, ${input.name}, ${input.description}, ${actorUserId})
-      `;
-      await this.insertVersion(
-        transaction,
-        campaignId,
-        versionId,
-        1,
-        input,
-        actorUserId,
-      );
-    });
-    return (await this.getCampaign(input.workspaceId, campaignId))!;
+    const campaignVersionId = randomUUID();
+    await this.validateReferences(transaction, input);
+    await transaction`
+      INSERT INTO campaign (id, workspace_id, name, description, created_by)
+      VALUES (${campaignId}, ${input.workspaceId}, ${input.name}, ${input.description}, ${actorUserId})
+    `;
+    await this.insertVersion(transaction, campaignId, campaignVersionId, 1, input, actorUserId);
+    return { campaignId, campaignVersionId };
   }
 
   async saveCampaignDraft(
@@ -245,12 +247,35 @@ export class CampaignRepository {
         SELECT id FROM campaign_version WHERE campaign_id = ${campaignId} AND status = 'draft' FOR UPDATE
       `;
       if (!drafts[0]) return false;
-      await transaction`UPDATE campaign_version SET status = 'superseded' WHERE campaign_id = ${campaignId} AND status = 'published'`;
-      await transaction`UPDATE campaign_version SET status = 'published', published_at = now() WHERE id = ${drafts[0].id}`;
-      await transaction`UPDATE campaign SET current_version_id = ${drafts[0].id}, updated_at = now() WHERE id = ${campaignId}`;
-      return true;
+      return this.publishExactCampaignDraftInTransaction(transaction, workspaceId, campaignId, drafts[0].id);
     });
     return published ? this.getCampaign(workspaceId, campaignId) : undefined;
+  }
+
+  /**
+   * Publish only the selected draft identity, never a substitute. Draft content can
+   * still change in place: this is NOT a content-revision CAS for user-facing
+   * finalization. Preparation calls it only for its own uncommitted new draft.
+   */
+  async publishExactCampaignDraftInTransaction(
+    transaction: TransactionSql,
+    workspaceId: string,
+    campaignId: string,
+    expectedDraftVersionId: string,
+  ): Promise<boolean> {
+    const campaigns = await transaction<{ id: string }[]>`
+      SELECT id FROM campaign WHERE id = ${campaignId} AND workspace_id = ${workspaceId} FOR UPDATE
+    `;
+    if (!campaigns[0]) return false;
+    const drafts = await transaction<{ id: string }[]>`
+      SELECT id FROM campaign_version
+      WHERE id = ${expectedDraftVersionId} AND campaign_id = ${campaignId} AND status = 'draft' FOR UPDATE
+    `;
+    if (!drafts[0]) return false;
+    await transaction`UPDATE campaign_version SET status = 'superseded' WHERE campaign_id = ${campaignId} AND status = 'published'`;
+    await transaction`UPDATE campaign_version SET status = 'published', published_at = now() WHERE id = ${expectedDraftVersionId} AND status = 'draft'`;
+    await transaction`UPDATE campaign SET current_version_id = ${expectedDraftVersionId}, updated_at = now() WHERE id = ${campaignId} AND workspace_id = ${workspaceId}`;
+    return true;
   }
 
   async activateCampaign(input: {
@@ -345,6 +370,8 @@ export class CampaignRepository {
           WHERE preview.id::text = ${step.previewId} AND preview.workspace_id = ${input.workspaceId}
             AND preview.status = 'ready' AND connection.status = 'active'
             AND connection.capabilities_observed_at = preview.capability_observed_at
+            AND connection.capabilities = preview.capability_snapshot
+            AND connection.provider = preview.provider
             AND (NOT EXISTS (SELECT 1 FROM draft_channel_preview_asset asset WHERE asset.draft_channel_preview_id = preview.id)
               OR preview.capability_snapshot->'features'->>'attachments' = 'true')
             AND NOT EXISTS (

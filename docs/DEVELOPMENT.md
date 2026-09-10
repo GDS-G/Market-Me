@@ -1,6 +1,18 @@
 # Developer Guide
 
-## Current checkpoint: 1.21 evidence retention implementation
+## Current implementation: 1.22 preparation
+
+Apply `0111_campaign_preparations.sql` before enabling the new preparation API. SHA-256: `c4c51566c1cbe394766c9f6d677e12a97f43171ea281e7bb8fa895e96a42323a`. Readiness now requires exactly 111 migrations and that latest filename. This additive migration introduces the completed-only retry receipt and lineage/immutable-update guard; no dependency upgrade, new secret, background worker or provider configuration is required. Prior 0110 coordinated-writer rollout still applies when upgrading from 1.20 or earlier.
+
+Use `CampaignPreparationRepository.prepare` as the sole orchestration boundary. Do not call public Campaign creation, publication and draft generation sequentially: only the new transaction-scoped helpers provide all-or-nothing behavior. Explicit `APP_BASE_URL` Origin enforcement is required for the new browser POST. The UI retains an exact pending key/payload for manual recovery; the database receipt remains authoritative. See [Campaign preparation contracts](CAMPAIGN_PREPARATION.md) for lock order, structures, retries and limits.
+
+The live preparation integration suite requires `market_me_qa_*` or `market_me_ci`, never the application database. It exercises concurrent retries, permission/package/profile/Destination lock races, current pins, rollback after all variants are generated, exact receipt guards and zero execution records. A nullable SQL setting previously masked a stricter audience ceiling; domain regression and both starter/advanced-Campaign database paths now reject that violation. Release counts, builds, browser/cloud evidence and installer hashes are recorded only after their checks in [Releases](RELEASES.md).
+
+Rollback may disable the new UI/API while retaining migration/receipts and existing non-executable planning versions. Do not delete receipts to retry uncertain requests or activate prepared plans. There is no down-migration. Administrative retention must account for referenced Campaign, generation and draft history; synthetic tests explicitly remove only their owned receipts before fixture cleanup.
+
+Preview capability consistency is also tightened in this release. Capture a connection's raw JSON and `capabilities_observed_at::text` under the same `FOR SHARE` lock before draft/version locks, retaining PostgreSQL sub-millisecond precision when binding the timestamp. Rendering may use the parsed domain representation, but persistence must not store the PostgreSQL driver's recursively camelized JSON in place of the raw snapshot. Strict snapshot/timestamp/provider equality protects picker, activation and publication eligibility, including existing contradictory records. Older normalized snapshots may become stale even when semantically similar: recreate/review them explicitly; do not rewrite history or add an alias normalizer to bypass the gate. Drain incompatible preview/publication writers and deploy matching web/workers before resuming. The preview itself is still mutable under its ID; future finalization needs a separate content fingerprint.
+
+## 1.21 evidence retention implementation
 
 Apply `0110_immutable_draft_claim_evidence.sql` only with compatible draft/AI writers. Its SHA-256 is `249e7ab29f1158e9092548530b731c8648c9e9e6c3581d8968a02c6bc536cdff`; readiness requires exactly 110 migrations and that latest filename. No new environment variable or dependency upgrade is required. The snapshot reference function is now called by ordinary/AI revisions and AI context construction, so code and schema must be deployed together.
 

@@ -641,6 +641,7 @@ export class PublishingRepository {
           AND preview.provider = preview_connection.provider
           AND EXISTS (SELECT 1 FROM content_draft_approval approved_draft WHERE approved_draft.content_draft_version_id = preview.content_draft_version_id AND approved_draft.status = 'approved')
           AND preview_connection.status = 'active' AND preview_connection.capabilities_observed_at = preview.capability_observed_at
+          AND preview_connection.capabilities = preview.capability_snapshot
           AND NOT EXISTS (
             SELECT 1
             FROM draft_channel_preview_asset snapshot

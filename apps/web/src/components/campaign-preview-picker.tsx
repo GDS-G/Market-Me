@@ -80,7 +80,7 @@ export function CampaignPreviewPicker({ options, destinationId, inputJson, onInp
           return <option disabled={!eligibility.eligible && option.id !== selectedId} key={option.id} value={option.id}>{audience} · {option.draftHeadline} · {option.channelConnectionName} · {destination} · {mode} · {option.assets.length} media · {state}</option>;
         })}
       </select>
-      <small>Selection writes the immutable preview reference and removes conflicting link/connection override fields. Other advanced inputs are preserved.</small>
+      <small>Selection stores a preview reference and removes conflicting link/connection overrides. Its current rendering can change when recreated; other advanced inputs are preserved.</small>
     </label>
     {!options.length && <p className="form-help">No previews exist for this Campaign. Generate and approve a Draft, then create its channel preview first.</p>}
     {selected ? <div aria-live="polite" className={`campaign-preview-summary ${selectedEligibility?.eligible ? "preview-eligible" : "preview-ineligible"}`}>

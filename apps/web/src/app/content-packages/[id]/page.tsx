@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { ContentPackageReviewActions } from "@/components/content-package-review-actions";
+import { canPrepareCampaign } from "@/components/campaign-preparation-request";
 import { getAuthenticatedUser } from "@/server/auth";
 import {
   getCampaignRepository,
@@ -122,6 +123,11 @@ export default async function ContentPackagePage({
             {item.status.replaceAll("_", " ")}
           </span>
         </header>
+
+        {canPrepareCampaign(workspace.role, item.status) && <section className="resource-panel"><div className="empty-inline">
+          <h2>Ready for campaign preparation</h2><p>Create a planning campaign and governed drafts from this approved package revision. Nothing will be activated or sent externally.</p>
+          <Link className="button-primary resource-button" href={`/campaigns/prepare?contentPackageId=${item.id}`}>Prepare campaign</Link>
+        </div></section>}
 
         {previews.length > 0 && (
           <section className="review-section">
