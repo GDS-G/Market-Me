@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { StoredCampaignPreparation } from "@market-me/database";
 import { PrepareAnotherCampaign } from "./prepare-another-campaign";
+import { finalizationFormPath } from "./campaign-finalization-request";
 import styles from "./campaign-preparation-form.module.css";
 
 /** Captured Destination values are displayed as text, never interpreted as executable links or settings. */
@@ -46,7 +47,7 @@ export function CampaignPreparationResult({ preparation, userId, canWrite, avail
       <dt>Prepared by</dt><dd>{preparation.createdBy}</dd>
     </dl></details>
     <div className={styles.actions}><Link href="/drafts">All drafts</Link><Link href="/campaigns">Campaigns</Link>
-      {canWrite && <><Link href={`/campaigns/${preparation.campaignId}/edit`}>Advanced campaign editor</Link><PrepareAnotherCampaign userId={userId} workspaceId={preparation.workspaceId} completedAttemptKey={preparation.idempotencyKey} /></>}
+      {canWrite && <><Link className="button-primary" href={finalizationFormPath(preparation.id, preparation.workspaceId)}>Review or finalize an exact preview</Link><Link href={`/campaigns/${preparation.campaignId}/edit`}>Campaign plan and controls</Link><PrepareAnotherCampaign userId={userId} workspaceId={preparation.workspaceId} completedAttemptKey={preparation.idempotencyKey} /></>}
     </div>
   </div>;
 }

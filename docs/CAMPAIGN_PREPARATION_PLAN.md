@@ -1,6 +1,6 @@
 # Review-first campaign preparation
 
-Status: immutable evidence prerequisite is published in 1.21. The 1.22 implementation on `codex/campaign-starter` delivers the first preparation half (planning Campaign plus governed drafts); acceptance status is in [Releases](RELEASES.md) and full implementation contracts are in [Campaign preparation](CAMPAIGN_PREPARATION.md). The preview-to-executable-draft finalizer remains to be built. This covers part of conceptual sections 01, 03, 06 and 10, not the complete beginner setup or template specification.
+Status: immutable evidence is published in 1.21 and preparation in 1.22. The 1.23 implementation adds the protected same-Campaign preview-to-executable-draft finalizer; full release gates are in progress. Current contracts are in [Campaign preparation](CAMPAIGN_PREPARATION.md) and [Campaign finalization](CAMPAIGN_FINALIZATION.md); exact acceptance is in [Releases](RELEASES.md). The design below is retained for rationale, not a claim that every broader setup/template requirement is delivered. Source-ready binding and complete beginner setup remain open.
 
 ## Why this comes next
 

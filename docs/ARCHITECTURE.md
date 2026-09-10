@@ -1,12 +1,22 @@
 # Architecture
 
-## Current implementation: 1.22 review-first preparation
+## Current implementation: 1.23 exact-preview finalization
+
+The review-first path now connects an approved prepared draft preview to one unpublished executable version of the same Campaign. The ordinary Campaign/workflow architecture is retained: a strict pure compiler emits one approval-required official-API text publication step, and one transaction inserts the distinct draft plus completed immutable receipt. It never publishes, activates, approves, or contacts a provider. Discord/Slack/Mastodon text and immediate/exact/preferred-window timing are bounded first-slice support; media, email, automated source-ready finalization and broader template recipes remain separate work. See [Campaign finalization contracts](CAMPAIGN_FINALIZATION.md) for exact APIs, state and limits.
+
+The raw preview loader captures one coherent SQL projection, preserves JSON keys and UTC microseconds, rejects lossy JSON-number round trips, and re-renders the approved copy. The v1 canonical fingerprint includes exact content/counts/capabilities/account/Destination/tracked-link state and creation metadata, excluding credentials and routine health timestamps. Finalization checks current writer membership and exact original preparation/package/profile lineage under consistent locks. A completed retry returns original history; it is not a renewed execution grant.
+
+Migration 0112 stores protected Campaign provenance outside editable step inputs. Advanced edits/successor versions are denied after finalization. Current proof is mandatory at activation, pinned-step activity authorization, and both initial/failed-retry publication admission. The existing publication transaction carries a precisely scoped local `market_me.exact_preview_admission` marker that blocks incompatible old workers from claiming protected dispatches; it is a compatibility fence, not authentication against privileged SQL. Preserve read-only success/ambiguity recovery before attempting any new send and allow in-flight result settlement.
+
+The web form stores a tab-scoped exact attempt before submission, fetches coherent preview/token data and exposes publication/activation as separate explicit actions. No new service, background job, provider secret or mutable process-global request state is added. Full 1.23 release validation remains pending: focused suite results are documented in the contract guide, not evidence of cloud/native/browser or whole-product acceptance. Deploy compatible readers/admission/workers before finalization writers and exclude incompatible consumers from protected executions.
+
+## 1.22 review-first preparation
 
 The short-form Campaign starter compiles an approved package into one ordinary `draft_only` Campaign version and its governed variants. A completed-only PostgreSQL receipt binds exact compiler settings, historical references and generated IDs under a tenant-scoped idempotency key. One transaction rechecks writer authority, locks current approved/published references, preserves profile ceilings, creates the planning version/drafts and records the receipt/audit. No workflow instance, command, approval decision or provider request is created. See [Campaign preparation contracts](CAMPAIGN_PREPARATION.md) and [Releases](RELEASES.md) for acceptance status.
 
 The modular architecture is unchanged: the compiler emits existing domain structures, transaction-scoped repository helpers retain existing validation/generation, and the web form/result page reuses the current workspace shell and review routes. There is no second workflow engine or browser-memory idempotency ledger. Profile and package locks protect the exact snapshot; destination snapshots are historical because Destinations are unversioned. The nullable communication-policy boundary now treats SQL NULL as absent so it cannot mask a stricter selected audience.
 
-The later preview-to-executable-draft finalizer remains separate. It must retain the same Campaign's planning ancestor and compare exact mutable preview content as well as ID; an existing editable draft must not be overwritten. Preparation does not yet finish the full no-JSON publishing journey.
+At the 1.22 checkpoint, preview-to-executable-draft finalization remained separate. The 1.23 path above implements that boundary while retaining the same Campaign's planning ancestor, comparing exact mutable preview content as well as ID, and never overwriting an existing editable draft. Preparation alone still does not publish or activate anything.
 
 ## 1.21 immutable draft evidence
 
@@ -14,7 +24,7 @@ Source refresh replaces current package evidence but must not erase the trace of
 
 Generation holds a shared package-row lock while reading approval, revision and evidence. Ordinary and AI revisions preserve all facts, reject missing/invalid proof, and insert the complete claim set before its links. AI context construction checks proof before a paid invocation can be prepared. Historical UI trace distinguishes captured references from unavailable evidence and nonfactual calls to action. This does not transfer an old approval to refreshed content or add automatic publishing.
 
-The review-first campaign starter remains planned, not implemented: [Campaign preparation](CAMPAIGN_PREPARATION_PLAN.md) describes its atomic/idempotent next slice. The existing scheduling architecture below remains applicable.
+At the 1.21 checkpoint the review-first starter was planned; it was implemented in 1.22 as described above. [The preparation plan](CAMPAIGN_PREPARATION_PLAN.md) retains the design history. The existing scheduling architecture below remains applicable.
 
 ## 1.20 bounded scheduling
 

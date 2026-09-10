@@ -55,7 +55,7 @@ if (!Number.isInteger(webhookHealthIntervalSeconds) || webhookHealthIntervalSeco
 if ((reportCollectionEnabled || webhookHealthEnabled || mastodonReportCollectionEnabled) && !process.env.CONNECTOR_TOKEN_ENCRYPTION_KEY) throw new Error("CONNECTOR_TOKEN_ENCRYPTION_KEY is required when provider automation is enabled");
 
 const sql = createDatabaseClient(databaseUrl);
-const repository = new CampaignRepository(sql);
+const repository = new CampaignRepository(sql, { appBaseUrl: process.env.APP_BASE_URL });
 const publishingRepository = new PublishingRepository(sql, { appBaseUrl: process.env.APP_BASE_URL });
 const companionRepository = new CompanionRepository(sql);
 const mediaStore = createObjectStoreFromEnvironment();

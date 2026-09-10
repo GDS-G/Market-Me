@@ -1,6 +1,6 @@
 {
   "name": "@market-me/database",
-  "version": "1.22.0",
+  "version": "1.23.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -13,10 +13,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@market-me/companion-protocol": "1.22.0",
-    "@market-me/connectors": "1.22.0",
-    "@market-me/domain": "1.22.0",
-    "@market-me/generation": "1.22.0",
+    "@market-me/companion-protocol": "1.23.0",
+    "@market-me/connectors": "1.23.0",
+    "@market-me/domain": "1.23.0",
+    "@market-me/generation": "1.23.0",
     "postgres": "^3.4.7"
   },
   "devDependencies": {

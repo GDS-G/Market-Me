@@ -12,6 +12,8 @@ import type { DatabaseClient } from "./client";
 import type { StoredDraftPreviewAsset, StoredStepScheduleState } from "./models";
 import { CampaignRepository, CampaignScheduleNotReadyError, CampaignValidationError } from "./campaign-repository";
 import { preferredWindowRouteIssue } from "./campaign-route-policy";
+import { assertFinalizedCampaignPreviewInTransaction, CampaignFinalizationProofError,
+  setFinalizedPublicationAdmissionInTransaction } from "./campaign-finalization-proof";
 
 export type ChannelProvider = "discord_webhook" | "mailchimp_email" | "slack_webhook" | "mastodon_account";
 export type { MeasurementEventType } from "@market-me/domain";
@@ -237,6 +239,9 @@ export interface CampaignExecutionTarget {
   draftPreviewEligible?: boolean;
   draftPreviewTrackedLinkId?: string;
   draftPreviewAssets?: readonly StoredDraftPreviewAsset[];
+  /** Durable campaign provenance, not values accepted from optional step inputs. */
+  campaignFinalizationId?: string;
+  draftChannelPreviewFingerprint?: string;
 }
 
 export interface StoredTrackedLink {
@@ -301,7 +306,7 @@ export class PublishingRepository {
   constructor(private readonly sql: DatabaseClient, private readonly options: { appBaseUrl?: string } = {}) {}
 
   async getPublicationScheduleState(instanceId: string, stepKey: string): Promise<StoredStepScheduleState | undefined> {
-    return new CampaignRepository(this.sql).getStepScheduleState(instanceId, stepKey);
+    return new CampaignRepository(this.sql, this.options).getStepScheduleState(instanceId, stepKey);
   }
 
   private async admitPublication(
@@ -313,7 +318,7 @@ export class PublishingRepository {
     // repository methods. Never call a nested .begin() on these scoped readers.
     const readerSql = transaction as unknown as DatabaseClient;
     const reader = new PublishingRepository(readerSql, this.options);
-    const campaigns = new CampaignRepository(readerSql);
+    const campaigns = new CampaignRepository(readerSql, this.options);
     const instances = await transaction<{ campaignVersionId: string }[]>`
       SELECT campaign_version_id FROM campaign_instance
       WHERE id = ${target.campaignInstanceId} AND workspace_id = ${target.workspaceId} AND campaign_id = ${target.campaignId}
@@ -354,7 +359,12 @@ export class PublishingRepository {
       `;
     }
     if (discovered.destinationId) await transaction`SELECT id FROM destination WHERE id = ${discovered.destinationId} FOR SHARE`;
-    const trackedLinkId = typeof snapshot.trackedLinkId === "string" ? snapshot.trackedLinkId : discovered.draftPreviewTrackedLinkId;
+    // A stored preview owns its link. Never let a caller substitute a different
+    // row to lock while the exact-rendering reader examines the original link.
+    const trackedLinkId = typeof previewId === "string" ? discovered.draftPreviewTrackedLinkId
+      : typeof snapshot.trackedLinkId === "string" ? snapshot.trackedLinkId : undefined;
+    if (typeof previewId === "string" && snapshot.trackedLinkId !== undefined
+      && snapshot.trackedLinkId !== trackedLinkId) throw publicationTargetMismatch();
     if (trackedLinkId) await transaction`SELECT id FROM tracked_link WHERE id::text = ${trackedLinkId} FOR SHARE`;
 
     const current = await reader.getCampaignExecutionTarget(target.campaignInstanceId, target.stepKey);
@@ -419,6 +429,28 @@ export class PublishingRepository {
       expectedSubject = typeof current.input.subject === "string" ? current.input.subject : undefined;
     }
     if (!expectedContent || snapshot.content !== expectedContent || (snapshot.subject ?? undefined) !== expectedSubject) throw publicationTargetMismatch();
+    // Every initial/failed-retry path reaches this locked boundary. The durable
+    // provenance check also catches a removed token or substitute pinned version.
+    let proof;
+    try {
+      proof = await assertFinalizedCampaignPreviewInTransaction(transaction, {
+        workspaceId: current.workspaceId, campaignId: current.campaignId,
+        campaignVersionId: versionId, stepKey: current.stepKey,
+      }, this.options);
+    } catch (error) {
+      if (error instanceof CampaignFinalizationProofError) throw new CampaignValidationError([{ code: error.code, message: error.message }]);
+      throw error;
+    }
+    if (proof) {
+      if (snapshot.campaignFinalizationId !== proof.finalizationId
+        || snapshot.draftChannelPreviewFingerprint !== proof.previewFingerprint
+        || target.campaignFinalizationId !== proof.finalizationId
+        || target.draftChannelPreviewFingerprint !== proof.previewFingerprint
+        || connection.id !== proof.channelConnectionId) throw publicationTargetMismatch();
+      await setFinalizedPublicationAdmissionInTransaction(transaction, proof, {
+        campaignInstanceId: current.campaignInstanceId, campaignStepRunId: current.campaignStepRunId,
+      });
+    }
     return { current, connection, campaigns };
   }
 
@@ -625,6 +657,8 @@ export class PublishingRepository {
       SELECT i.workspace_id, i.campaign_id, i.campaign_version_id, i.id AS campaign_instance_id, r.id AS campaign_step_run_id,
         s.schedule_type, s.preferred_window_start, s.preferred_window_end, s.dependency_delay_seconds,
         i.requested_by, brand_version.brand_profile_id,
+        finalization.id AS campaign_finalization_id,
+        finalization.preview_fingerprint AS draft_channel_preview_fingerprint,
         s.step_key, s.operation_type, s.desired_capability, s.approval_required, s.execution_methods, s.inputs AS input,
         (EXISTS (SELECT 1 FROM campaign_approval approval WHERE approval.campaign_instance_id = i.id
           AND approval.workspace_id = i.workspace_id AND approval.campaign_step_run_id = r.id AND approval.status = 'approved')
@@ -696,6 +730,7 @@ export class PublishingRepository {
         cv.destination_id, d.canonical_url AS destination_url
       FROM campaign_instance i
       JOIN campaign_version cv ON cv.id = i.campaign_version_id
+      LEFT JOIN campaign_finalization finalization ON finalization.campaign_id = i.campaign_id AND finalization.workspace_id = i.workspace_id
       LEFT JOIN brand_profile_version brand_version ON brand_version.id = cv.brand_profile_version_id
       JOIN campaign_step s ON s.campaign_version_id = cv.id AND s.step_key = ${stepKey}
       JOIN campaign_step_run r ON r.campaign_instance_id = i.id AND r.campaign_step_id = s.id
@@ -709,6 +744,19 @@ export class PublishingRepository {
     `;
     const target = rows[0];
     if (!target) return undefined;
+    if (target.campaignFinalizationId) {
+      try {
+        await assertFinalizedCampaignPreviewInTransaction(this.sql, {
+          workspaceId: target.workspaceId, campaignId: target.campaignId,
+          campaignVersionId: target.campaignVersionId!, stepKey: target.stepKey,
+        }, this.options);
+      } catch (error) {
+        if (!(error instanceof CampaignFinalizationProofError)) throw error;
+        // Current ineligibility must not erase a previously accepted/ambiguous
+        // result; recovery APIs remain independent of this live target state.
+        target.draftPreviewEligible = false;
+      }
+    }
     const connection = target.channelConnectionId
       ? await this.getChannelConnection(
           target.workspaceId,
@@ -2272,7 +2320,7 @@ function assertPublicationIdentity(snapshot: Record<string, unknown>, connection
   if (preflight?.checked !== true || !identity || typeof identity !== "object" || Array.isArray(identity)) throw publicationTargetMismatch();
   for (const key of publicationIdentityKeys(connection.provider)) {
     // Discord DMs may have no guild; the webhook/channel tuple is always required.
-    if (connection.provider === "discord_webhook" && key === "guildId" && identity[key] === undefined && connection.configuration[key] === undefined) continue;
+    if (connection.provider === "discord_webhook" && key === "guildId" && identity[key] == null && connection.configuration[key] == null) continue;
     if (typeof identity[key] !== "string" || !(identity[key] as string).trim() || identity[key] !== connection.configuration[key]) throw publicationTargetMismatch();
   }
 }

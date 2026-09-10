@@ -2,6 +2,7 @@ import "server-only";
 import {
   CampaignRepository,
   CampaignPreparationRepository,
+  CampaignFinalizationRepository,
   CompanionRepository,
   ConversationAssistantRepository,
   ConversationComposerRepository,
@@ -21,6 +22,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
     core: MarketMeRepository;
     campaigns: CampaignRepository;
     preparations: CampaignPreparationRepository;
+    finalizations: CampaignFinalizationRepository;
     publishing: PublishingRepository;
     companion: CompanionRepository;
     profiles: ProfileRepository;
@@ -52,6 +54,10 @@ export function getCampaignRepository(): CampaignRepository {
 
 export function getCampaignPreparationRepository(): CampaignPreparationRepository {
   return getRepositories().preparations;
+}
+
+export function getCampaignFinalizationRepository(): CampaignFinalizationRepository {
+  return getRepositories().finalizations;
 }
 
 export function getPublishingRepository(): PublishingRepository {
@@ -94,6 +100,7 @@ function getRepositories(): {
   core: MarketMeRepository;
   campaigns: CampaignRepository;
   preparations: CampaignPreparationRepository;
+  finalizations: CampaignFinalizationRepository;
   publishing: PublishingRepository;
   companion: CompanionRepository;
   profiles: ProfileRepository;
@@ -110,9 +117,10 @@ function getRepositories(): {
   const sql = createDatabaseClient(databaseUrl);
   const repositories = {
     core: new MarketMeRepository(sql),
-    campaigns: new CampaignRepository(sql),
+    campaigns: new CampaignRepository(sql, { appBaseUrl: process.env.APP_BASE_URL }),
     preparations: new CampaignPreparationRepository(sql),
-    publishing: new PublishingRepository(sql),
+    finalizations: new CampaignFinalizationRepository(sql, { appBaseUrl: process.env.APP_BASE_URL }),
+    publishing: new PublishingRepository(sql, { appBaseUrl: process.env.APP_BASE_URL }),
     companion: new CompanionRepository(sql),
     profiles: new ProfileRepository(sql),
     drafts: new DraftRepository(sql),

@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## 1.23 verification in progress
+
+Exact-preview finalization is being verified locally. A 1.23 cloud run has not yet been published; do not treat the prior 1.22 run below as evidence for changed source. The same clean Linux workflow will run all migrations, test suites, types, lint, frontend builds and audits before main promotion.
+
+## Historical 1.22 checkpoint
+
 The **1.22 source** [`f174493cbb7621e367a81caddd2261907a001377`](https://github.com/GDS-G/Market-Me/commit/f174493cbb7621e367a81caddd2261907a001377) passed [Linux cloud CI](https://github.com/GDS-G/Market-Me/actions/runs/34435564818) in 3 minutes 30 seconds. All **864 tests across 90 files passed without skips**, including 111-migration PostgreSQL integration, atomic preparation/retry/authority races, exact raw preview capability regressions and three actual Temporal history replays. Package counts: web 274, workflow-worker 60, companion protocol 4, connectors 166, database 188, domain 65, generation 29, ingestion 11, media 24 and workflows 43. Clean locked installation, native dependency smoke, generated types, all workspace typechecks, lint, the 93-page web/companion frontend builds and both zero-vulnerability audits passed. No cloud-only source fix was required. Exact tested source was fast-forwarded to main; no production deployment or native installer distribution occurred.
 
 ## Historical 1.21 checkpoint

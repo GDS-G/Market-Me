@@ -1,6 +1,18 @@
 # Developer Guide
 
-## Current implementation: 1.22 preparation
+## Current implementation: 1.23 exact-preview finalization
+
+Apply `0112_campaign_finalizations.sql` with coordinated compatible writers/workers. SHA-256: `f38620c1b9c61a2e8298b9a1eb70b2b7a37ddc453e1f73f15ef243575c479566`. Readiness requires exactly 112 migrations and that filename. Fresh isolated QA123 has 131 public base tables; a second migration run verifies all 112 checksums unchanged. Never edit an applied migration or substitute application credentials into integration fixtures.
+
+Stop/drain incompatible web and execution writers before enabling finalization, migrate, deploy matching web/worker binaries, verify consumers, then expose the new controls. The database rejects old-worker protected dispatch/retry claims without the new transaction-local admission marker. This compatibility fence does not replace a coordinated rollout or defend against a privileged SQL client forging that marker. Do not roll protected plans back onto 1.22 workers. Retain receipts, preview snapshots, versions and publication history; disabling the new UI/API is safer than deleting provenance. There is no down-migration.
+
+Use `CampaignFinalizationRepository.finalize` as the atomic orchestration boundary; never chain standalone public writes. Configure `APP_BASE_URL` on web and worker Campaign/Publishing/Finalization repositories. Canonical-link previews need no tracked origin; tracked previews bind the configured public origin and reject changes. No new secret or dependency resolution is introduced. `market_me.exact_preview_admission` is a transaction-local PostgreSQL setting created only after locked proof/approval checks, not an environment variable. See [Finalization contracts](CAMPAIGN_FINALIZATION.md) for all functions, fields, constants, collections, lock ordering and lifetimes.
+
+Finalization selects exactly one approved variant from the original preparation generation, preserves all original Campaign profile pins, and creates one fixed text-only official-API publishing step. Discord, Slack and Mastodon are supported; media, email/multistage routes, arbitrary graphs, automatic activation and broader reusable/source-ready templates are not part of this slice. The advanced editor is read-only for protected Campaigns. If a snapshot becomes stale, retain it for history and prepare/review a new plan; do not remove the token, rewrite a receipt, or reinterpret uncertain provider delivery as failure.
+
+Lost finalization responses use the original UUID key and full canonical payload; a current writer may recover the same receipt even after later source changes. Browser storage is a recovery hint, never authority. Publish uses the exact expected version and is retry-safe. Activation is not idempotent: inspect existing runs after an uncertain response instead of automatically repeating it. New/retry dispatch rechecks live exact proof; succeeded/ambiguous/in-flight actions retain their historical recovery behavior. Full build, browser, native and cloud evidence is recorded only after checks in [Releases](RELEASES.md).
+
+## Historical 1.22 preparation
 
 Apply `0111_campaign_preparations.sql` before enabling the new preparation API. SHA-256: `c4c51566c1cbe394766c9f6d677e12a97f43171ea281e7bb8fa895e96a42323a`. Readiness now requires exactly 111 migrations and that latest filename. This additive migration introduces the completed-only retry receipt and lineage/immutable-update guard; no dependency upgrade, new secret, background worker or provider configuration is required. Prior 0110 coordinated-writer rollout still applies when upgrading from 1.20 or earlier.
 

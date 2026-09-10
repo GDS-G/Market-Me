@@ -23,6 +23,85 @@ const webhook =
 afterEach(() => vi.unstubAllGlobals());
 
 describe("CampaignExecutionRouter", () => {
+  it("propagates durable finalization proof into the request snapshot without trusting input or context overrides", async () => {
+    const fingerprint = `mm-preview-v1:sha256:${"a".repeat(64)}`;
+    const selected = { ...slackTarget(), campaignFinalizationId: "finalization-1", draftChannelPreviewFingerprint: fingerprint,
+      input: { ...slackTarget().input, campaignFinalizationId: "input-forgery", draftChannelPreviewFingerprint: "input-forgery" } };
+    const begin = vi.fn<PublishingRepository["beginPublicationAction"]>(async () => ({ created: true, action: action("dispatching") }));
+    const finish = vi.fn();
+    const request = vi.fn(async () => new Response("ok")); vi.stubGlobal("fetch", request);
+    const repository = { getCampaignExecutionTarget: vi.fn(async () => selected), beginPublicationAction: begin,
+      finishPublicationAction: finish } as unknown as PublishingRepository;
+    const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish",
+      context: { campaignFinalizationId: "context-forgery", draftChannelPreviewFingerprint: "context-forgery" } });
+    expect(result.status).toBe("succeeded");
+    expect(begin).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ target: selected,
+      requestSnapshot: expect.objectContaining({ campaignFinalizationId: "finalization-1", draftChannelPreviewFingerprint: fingerprint,
+        draftChannelPreviewId: "preview-slack", draftVersionId: "version-slack", content: selected.draftPreviewContent }) }));
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(finish).toHaveBeenCalledWith("action-1", expect.objectContaining({ status: "succeeded" }));
+  });
+
+  it("does not invent durable proof for legacy plans containing similarly named input fields", async () => {
+    const selected = { ...slackTarget(), input: { ...slackTarget().input,
+      campaignFinalizationId: "not-durable", draftChannelPreviewFingerprint: "not-durable" } };
+    const begin = vi.fn<PublishingRepository["beginPublicationAction"]>(async () => ({ created: true, action: action("dispatching") }));
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("ok")));
+    const repository = { getCampaignExecutionTarget: vi.fn(async () => selected), beginPublicationAction: begin,
+      finishPublicationAction: vi.fn() } as unknown as PublishingRepository;
+    expect((await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} })).status).toBe("succeeded");
+    expect(begin.mock.calls[0]![0].requestSnapshot).not.toHaveProperty("campaignFinalizationId");
+    expect(begin.mock.calls[0]![0].requestSnapshot).not.toHaveProperty("draftChannelPreviewFingerprint");
+  });
+
+  it.each([true, false])("passes pinned provenance to a failed retry and respects the winning claim (%s)", async (won) => {
+    const fingerprint = `mm-preview-v1:sha256:${"b".repeat(64)}`;
+    const selected = { ...slackTarget(), campaignFinalizationId: "finalization-1", draftChannelPreviewFingerprint: fingerprint };
+    const stored = { ...action("failed"), requestSnapshot: Object.freeze({ campaignFinalizationId: "finalization-1",
+      draftChannelPreviewFingerprint: fingerprint, content: selected.draftPreviewContent }) };
+    const retry = vi.fn(async () => won), begin = vi.fn(), finish = vi.fn();
+    const request = vi.fn(async () => new Response("ok")); vi.stubGlobal("fetch", request);
+    const repository = { getCampaignExecutionTarget: vi.fn(async () => selected),
+      getPublicationActionByIdempotencyKey: vi.fn(async () => stored), retryPublicationAction: retry,
+      beginPublicationAction: begin, finishPublicationAction: finish } as unknown as PublishingRepository;
+    const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} });
+    expect(retry).toHaveBeenCalledExactlyOnceWith("action-1", selected, { content: selected.draftPreviewContent, subject: undefined });
+    expect(begin).not.toHaveBeenCalled();
+    expect(stored.requestSnapshot).toEqual({ campaignFinalizationId: "finalization-1", draftChannelPreviewFingerprint: fingerprint, content: selected.draftPreviewContent });
+    expect(result.status).toBe(won ? "succeeded" : "manual_required");
+    expect(request).toHaveBeenCalledTimes(won ? 1 : 0);
+    expect(finish).toHaveBeenCalledTimes(won ? 1 : 0);
+  });
+
+  it("stops an ineligible finalized preview before any provider preflight or claim", async () => {
+    const selected = { ...slackTarget(), campaignFinalizationId: "finalization-1", draftChannelPreviewFingerprint: `mm-preview-v1:sha256:${"c".repeat(64)}`,
+      draftPreviewEligible: false };
+    const request = vi.fn(), begin = vi.fn(), retry = vi.fn(), record = vi.fn(); vi.stubGlobal("fetch", request);
+    const repository = { getCampaignExecutionTarget: vi.fn(async () => selected), beginPublicationAction: begin,
+      retryPublicationAction: retry, recordConnectionTest: record } as unknown as PublishingRepository;
+    expect(await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} }))
+      .toMatchObject({ status: "manual_required", reason: expect.stringContaining("stale") });
+    expect(request).not.toHaveBeenCalled(); expect(begin).not.toHaveBeenCalled();
+    expect(retry).not.toHaveBeenCalled(); expect(record).not.toHaveBeenCalled();
+  });
+
+  it.each(["succeeded", "dispatching", "ambiguous"] as const)("preserves old %s recovery without requiring newly introduced proof or current target eligibility", async (status) => {
+    const stored = Object.freeze({ ...action(status), requestSnapshot: Object.freeze({ content: "Historically accepted copy" }),
+      providerExternalId: "original-provider-id", providerUrl: "https://example.test/original-result" });
+    const recover = vi.fn(async () => stored), live = vi.fn(async () => { throw new Error("Current finalized preview was revoked"); });
+    const begin = vi.fn(), retry = vi.fn(), finish = vi.fn(), request = vi.fn(); vi.stubGlobal("fetch", request);
+    const repository = { getCampaignPublicationForRecovery: recover, getCampaignExecutionTarget: live,
+      beginPublicationAction: begin, retryPublicationAction: retry, finishPublicationAction: finish } as unknown as PublishingRepository;
+    const input = { workspaceId: "workspace-1", campaignId: "campaign-1", campaignVersionId: "version-1",
+      campaignStepRunId: "run-1", instanceId: "instance-1", stepKey: "publish", context: { draftChannelPreviewFingerprint: "new-proof-must-not-be-required" } };
+    const result = await new CampaignExecutionRouter(repository, undefined, undefined).recoverScheduledExecution(input);
+    expect(recover).toHaveBeenCalledExactlyOnceWith(input);
+    expect(result).toMatchObject(status === "succeeded" ? { status: "succeeded", output: { externalId: "original-provider-id", externalUrl: "https://example.test/original-result" } } : { status: "manual_required" });
+    expect(live).not.toHaveBeenCalled(); expect(begin).not.toHaveBeenCalled(); expect(retry).not.toHaveBeenCalled();
+    expect(finish).not.toHaveBeenCalled(); expect(request).not.toHaveBeenCalled();
+    expect(stored.requestSnapshot).not.toHaveProperty("campaignFinalizationId");
+  });
+
   it("does not publish when a late preflight health result loses its connection guard", async () => {
     const selected = target();
     const request = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ id: "webhook-1", channel_id: "channel-1" })));

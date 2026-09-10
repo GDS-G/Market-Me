@@ -1,6 +1,18 @@
 # Security and Integration Controls
 
-## Current implementation: 1.22 preparation boundaries
+## Current implementation: 1.23 exact-preview finalization boundaries
+
+Finalization is a current-writer, origin-checked authoring operation, not approval or sending. The selected display and token come from one scoped raw snapshot. The mutation independently locks membership, preparation/source/profile lineage and the current preview/account/link state, recomputes the exact fingerprint, and creates only a same-Campaign executable draft plus immutable receipt/audit. Client-supplied approval flags, raw content, arbitrary graph and account overrides are not accepted.
+
+The v1 token is domain-separated SHA-256 over canonical JSON, not a signature or credential. Raw JSONB must round-trip without JavaScript numeric loss; provider capability keys are not camelized into equivalence. SQL timestamps preserve six UTC fractional digits and reject unsupported eras/ranges. Raw account fields must have exact expected types; aliases that can change runtime identity fail closed. Only optional Discord guild absence treats null and missing alike; webhook/channel and actual guild identity remain strict. Canonical Unicode and URL spelling are unchanged.
+
+Protection is discovered from durable Campaign provenance, never the optional presence of a step token. Protected versions/steps/profile bindings and advanced replacement drafts are guarded. Activation and instance-pinned execution validation recheck current proof; new claims and failed retries share the locked publication boundary. Stored-preview admission locks its actual owned tracked link and rejects contradictory caller routing. Current approvals, exact provider preflight, credentials, schedule, role and existing media guards remain independent requirements.
+
+Migration 0112 requires a transaction-local `market_me.exact_preview_admission` marker for protected dispatch transitions and request rewrites; it binds finalization/version/step/instance/run/fingerprint. Old binaries cannot pass merely by retaining an old request token. LOCAL expires at commit/rollback, including pooled backend reuse. Outcome recording and unchanged historical observations remain possible without it, preserving uncertain/succeeded recovery. This is a compatibility fence, not a security principal: a privileged SQL client can forge settings or delete provenance. Receipt deletion has no application API; database role, retention and backup controls remain essential. No cross-network atomic delivery guarantee is claimed.
+
+No live provider calls or paid AI calls are needed to finalize. Preview/account/link changes require a newly reviewed plan for new dispatch but cannot erase accepted or ambiguous delivery evidence. Source-ready automation, production sign-in/deployment, signing/distribution and broader product acceptance remain separate work. See [Finalization contracts](CAMPAIGN_FINALIZATION.md) and [Developer Guide](DEVELOPMENT.md) for rollout/recovery.
+
+## Historical 1.22 preparation boundaries
 
 Preparation grants no publication authority. Its server-owned compiler rejects arbitrary steps, context, credentials, account overrides and approval flags; it emits only a `draft_only` review plan. The API checks the configured Origin and current writer membership; the database transaction independently rechecks and locks that membership before replay or mutation. Viewer/analyst/approver roles do not gain write access through preparation. Draft approval remains a separate permission.
 

@@ -14,6 +14,7 @@ import {
 } from "@market-me/domain";
 import type { DatabaseClient } from "./client";
 import { preferredWindowRouteIssue } from "./campaign-route-policy";
+import { assertFinalizedCampaignPreviewInTransaction, CampaignFinalizationProofError } from "./campaign-finalization-proof";
 import type {
   CampaignDraftWrite,
   CampaignWorkflowDefinition,
@@ -57,7 +58,7 @@ export class CampaignScheduleNotReadyError extends CampaignValidationError {
 }
 
 export class CampaignRepository {
-  constructor(private readonly sql: DatabaseClient) {}
+  constructor(private readonly sql: DatabaseClient, private readonly options: { appBaseUrl?: string } = {}) {}
 
   async listDestinations(workspaceId: string): Promise<StoredDestination[]> {
     return this.sql<StoredDestination[]>`
@@ -177,6 +178,53 @@ export class CampaignRepository {
     return { campaignId, campaignVersionId };
   }
 
+  /**
+   * Insert a distinct executable draft into the prepared Campaign; never replace
+   * its planning version or an editable draft. The caller owns writer/reference/
+   * preview locks and the finalization receipt in this same transaction. Repeated
+   * parent locks use the common Campaign -> preparation order. No nested begin,
+   * publish, instance/outbox creation, or post-commit lookup occurs here.
+   */
+  async insertPreparedExecutableDraftInTransaction(
+    transaction: TransactionSql,
+    input: { workspaceId: string; campaignId: string; preparationId: string; expectedPlanningVersionId: string; definition: CampaignDraftWrite },
+    actorUserId: string,
+  ): Promise<{ campaignVersionId: string; versionNumber: number }> {
+    const campaign = (await transaction<{ id: string; currentVersionId: string | null; status: string }[]>`
+      SELECT id, current_version_id, status FROM campaign
+      WHERE workspace_id = ${input.workspaceId} AND id = ${input.campaignId} FOR UPDATE
+    `)[0];
+    const preparation = (await transaction<{ planningVersionId: string }[]>`
+      SELECT planning_version_id FROM campaign_preparation
+      WHERE id = ${input.preparationId} AND workspace_id = ${input.workspaceId} AND campaign_id = ${input.campaignId} FOR SHARE
+    `)[0];
+    const planning = (await transaction<{ id: string }[]>`
+      SELECT id FROM campaign_version WHERE id = ${input.expectedPlanningVersionId}
+        AND campaign_id = ${input.campaignId} AND status = 'published' AND autonomy_mode = 'draft_only' FOR SHARE
+    `)[0];
+    if (!campaign || campaign.status === "archived" || !preparation || !planning
+      || campaign.currentVersionId !== input.expectedPlanningVersionId
+      || preparation.planningVersionId !== input.expectedPlanningVersionId
+      || input.definition.workspaceId !== input.workspaceId) {
+      throw new CampaignValidationError([{ code: "planning_version_conflict", message: "The original published planning version must still be current in this workspace." }]);
+    }
+    const finalized = await transaction<{ id: string }[]>`SELECT id FROM campaign_finalization WHERE campaign_id = ${input.campaignId}`;
+    if (finalized.length) throw new CampaignValidationError([{ code: "campaign_already_finalized", message: "This Campaign already has an immutable finalization receipt." }]);
+    const drafts = await transaction<{ id: string }[]>`SELECT id FROM campaign_version WHERE campaign_id = ${input.campaignId} AND status = 'draft' FOR UPDATE`;
+    if (drafts.length) throw new CampaignValidationError([{ code: "editable_draft_exists", message: "This Campaign already has an editable draft. Finalization never overwrites it." }]);
+    this.assertGraph(input.definition.steps);
+    const issues = validateCampaignExecution(input.definition.autonomyMode,
+      input.definition.steps.map((step) => ({ ...step, outputs: step.outputs ?? {} })), { allowBoundedScheduling: true });
+    if (issues.length) throw new CampaignValidationError(issues);
+    await this.validateReferences(transaction, input.definition);
+    const versionNumber = (await transaction<{ next: number }[]>`
+      SELECT COALESCE(max(version_number), 0)::integer + 1 AS next FROM campaign_version WHERE campaign_id = ${input.campaignId}
+    `)[0]!.next;
+    const campaignVersionId = randomUUID();
+    await this.insertVersion(transaction, input.campaignId, campaignVersionId, versionNumber, input.definition, actorUserId);
+    return { campaignVersionId, versionNumber };
+  }
+
   async saveCampaignDraft(
     campaignId: string,
     input: CampaignDraftWrite,
@@ -190,6 +238,9 @@ export class CampaignRepository {
         SELECT id, current_version_id FROM campaign WHERE id = ${campaignId} AND workspace_id = ${input.workspaceId} FOR UPDATE
       `;
       if (!campaigns[0]) return false;
+      if ((await transaction<{ id: string }[]>`SELECT id FROM campaign_finalization WHERE campaign_id = ${campaignId}`).length) {
+        throw new CampaignValidationError([{ code: "campaign_finalization_protected", message: "This finalized Campaign is read-only. Its reviewed definition cannot be changed in the advanced editor." }]);
+      }
       await this.validateReferences(transaction, input);
       const drafts = await transaction<{ id: string; versionNumber: number }[]>`
         SELECT id, version_number FROM campaign_version WHERE campaign_id = ${campaignId} AND status = 'draft' FOR UPDATE
@@ -237,15 +288,29 @@ export class CampaignRepository {
   async publishCampaign(
     workspaceId: string,
     campaignId: string,
+    options: { expectedVersionId?: string } = {},
   ): Promise<StoredCampaign | undefined> {
     const published = await this.sql.begin(async (transaction) => {
-      const rows = await transaction<{ id: string }[]>`
-        SELECT c.id FROM campaign c WHERE c.id = ${campaignId} AND c.workspace_id = ${workspaceId} FOR UPDATE
+      const rows = await transaction<{ id: string; currentVersionId: string | null }[]>`
+        SELECT c.id, c.current_version_id FROM campaign c WHERE c.id = ${campaignId} AND c.workspace_id = ${workspaceId} FOR UPDATE
       `;
       if (!rows[0]) return false;
       const drafts = await transaction<{ id: string }[]>`
         SELECT id FROM campaign_version WHERE campaign_id = ${campaignId} AND status = 'draft' FOR UPDATE
       `;
+      if (options.expectedVersionId) {
+        if (drafts[0]?.id === options.expectedVersionId) {
+          return this.publishExactCampaignDraftInTransaction(transaction, workspaceId, campaignId, options.expectedVersionId);
+        }
+        // An exact repeat after a lost publish response is harmless, but an
+        // unrelated editable draft must never be published or silently ignored.
+        if (!drafts[0] && rows[0].currentVersionId === options.expectedVersionId
+          && (await transaction<{ id: string }[]>`
+            SELECT id FROM campaign_version WHERE id = ${options.expectedVersionId}
+              AND campaign_id = ${campaignId} AND status = 'published'
+          `).length) return true;
+        throw new CampaignValidationError([{ code: "campaign_version_changed", message: "The reviewed Campaign version changed. Reload before publishing." }]);
+      }
       if (!drafts[0]) return false;
       return this.publishExactCampaignDraftInTransaction(transaction, workspaceId, campaignId, drafts[0].id);
     });
@@ -282,6 +347,7 @@ export class CampaignRepository {
     workspaceId: string;
     campaignId: string;
     actorUserId: string;
+    expectedVersionId?: string;
   }): Promise<StoredCampaignInstance | undefined> {
     const instanceId = randomUUID();
     const created = await this.sql.begin(async (transaction) => {
@@ -300,7 +366,25 @@ export class CampaignRepository {
         WHERE c.id = ${input.campaignId} AND c.workspace_id = ${input.workspaceId} AND cv.status = 'published'
         FOR UPDATE OF c
       `;
-      if (!rows[0]) return false;
+      if (!rows[0]) {
+        if (input.expectedVersionId && (await transaction<{ id: string }[]>`
+          SELECT id FROM campaign WHERE id = ${input.campaignId} AND workspace_id = ${input.workspaceId} FOR UPDATE
+        `).length) throw new CampaignValidationError([{ code: "campaign_version_changed", message: "The reviewed Campaign version is no longer published. Reload before activation." }]);
+        return false;
+      }
+      if (input.expectedVersionId && input.expectedVersionId !== rows[0].versionId) {
+        throw new CampaignValidationError([{ code: "campaign_version_changed", message: "The reviewed Campaign version changed. Reload before activation." }]);
+      }
+      // The immutable receipt, not an editable step input, decides whether proof
+      // is mandatory. Lock the exact content before creating any run or outbox.
+      try {
+        await assertFinalizedCampaignPreviewInTransaction(transaction, {
+          workspaceId: input.workspaceId, campaignId: input.campaignId, campaignVersionId: rows[0].versionId,
+        }, { ...this.options, lockPreview: true });
+      } catch (error) {
+        if (error instanceof CampaignFinalizationProofError) throw new CampaignValidationError([{ code: error.code, message: error.message }]);
+        throw error;
+      }
       const executionSteps = await transaction<CampaignStep[]>`
         SELECT step_key AS id, name, operation_type, desired_capability, depends_on, inputs, outputs,
           execution_methods, approval_required, schedule_type, scheduled_at, preferred_window_start,
@@ -753,6 +837,18 @@ export class CampaignRepository {
     if (!definition || !step) throw new CampaignValidationError([{ code: "execution_target_missing", message: "Campaign execution target is unavailable." }]);
     const issues = validateCampaignExecution(definition.autonomyMode, definition.steps, options);
     if (issues.length) throw new CampaignValidationError(issues);
+    // This read is an activity gate, not the transactional last-mile admission.
+    // Publishing rechecks under its locks; both derive protection from provenance.
+    // Keep it before the bounded-scheduling early return and legacy due checks.
+    try {
+      await assertFinalizedCampaignPreviewInTransaction(this.sql, {
+        workspaceId: definition.workspaceId, campaignId: definition.campaignId,
+        campaignVersionId: definition.campaignVersionId, stepKey,
+      }, { ...this.options, lockPreview: false });
+    } catch (error) {
+      if (error instanceof CampaignFinalizationProofError) throw new CampaignValidationError([{ code: error.code, stepId: stepKey, message: error.message }]);
+      throw error;
+    }
     const authority = await this.sql<{ active: boolean; stepRunning: boolean; campaignApproved: boolean; stepApproved: boolean; scheduleDue: boolean; dependenciesReady: boolean }[]>`
       SELECT (i.status = 'active' AND NOT EXISTS (
           SELECT 1 FROM campaign_step_run blocked JOIN campaign_step blocked_step ON blocked_step.id = blocked.campaign_step_id

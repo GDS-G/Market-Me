@@ -323,6 +323,10 @@ export class CampaignExecutionRouter {
           trackedLinkId,
           draftChannelPreviewId: draftPreviewId,
           draftVersionId: target.draftPreviewVersionId,
+          ...(target.campaignFinalizationId ? {
+            campaignFinalizationId: target.campaignFinalizationId,
+            draftChannelPreviewFingerprint: target.draftChannelPreviewFingerprint,
+          } : {}),
           providerPreflight: {
             checked: true,
             mode: target.connection.provider === "slack_webhook" ? "local_target_identity" : "provider_read",
