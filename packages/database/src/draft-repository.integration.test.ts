@@ -7,6 +7,7 @@ import { DraftRepository } from "./draft-repository";
 import { ProfileRepository } from "./profile-repository";
 import { PublishingRepository } from "./publishing-repository";
 import { MarketMeRepository } from "./repositories";
+import { packageGenerationPrecondition, packageReviewPrecondition } from "./test-support/package-review-fixture";
 
 const databaseUrl = process.env.DATABASE_URL;
 let sql: DatabaseClient | undefined;
@@ -98,11 +99,12 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
         conflicts: [],
       });
       const approved = await core.approveContentPackage({
+        ...await packageReviewPrecondition(sql, workspace.workspaceId, saved.id, user.id), idempotencyKey: randomUUID(),
         workspaceId: workspace.workspaceId,
         packageId: saved.id,
         actorUserId: user.id,
       });
-      expect(approved?.status).toBe("approved");
+      expect(approved.review?.status).toBe("approved");
       const originalAssetId = randomUUID();
       const derivativeAssetId = randomUUID();
       await sql`
@@ -171,6 +173,7 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
       }, user.id);
       await core.reviewAssetRights(
         {
+          ...await packageReviewPrecondition(sql, workspace.workspaceId, saved.id, user.id),
           workspaceId: workspace.workspaceId,
           packageId: saved.id,
           assetId: originalAssetId,
@@ -282,6 +285,7 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
       await campaigns.publishCampaign(workspace.workspaceId, campaign.id);
       const brandCleared = await core.reviewAssetRights(
         {
+          ...await packageReviewPrecondition(sql, workspace.workspaceId, saved.id, user.id),
           workspaceId: workspace.workspaceId,
           packageId: saved.id,
           assetId: originalAssetId,
@@ -303,14 +307,17 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
         user.id,
       );
       expect(
-        brandCleared?.assets.find((asset) => asset.id === originalAssetId),
+        brandCleared?.snapshot.assets.find((asset) => asset.id === originalAssetId)?.rights,
       ).toMatchObject({
-        rightsPermittedCampaignIds: [campaign.id],
-        rightsPermittedBrandProfileIds: [brand.id],
+        permittedCampaignIds: [campaign.id],
+        permittedBrandProfileIds: [brand.id],
       });
-
+      // Material rights changes invalidate the earlier text-only attestation.
+      await core.approveContentPackage({ ...await packageReviewPrecondition(sql, workspace.workspaceId, saved.id, user.id),
+        workspaceId: workspace.workspaceId, packageId: saved.id, actorUserId: user.id, idempotencyKey: randomUUID() });
       const generated = await drafts.generate(
         {
+          ...await packageGenerationPrecondition(sql, workspace.workspaceId, saved.id, user.id),
           workspaceId: workspace.workspaceId,
           campaignId: campaign.id,
           contentPackageId: saved.id,
@@ -1235,6 +1242,7 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
       await sql`UPDATE tracked_link SET status = 'active' WHERE id = ${trackedLinkId}`;
       await core.reviewAssetRights(
         {
+          ...await packageReviewPrecondition(sql, workspace.workspaceId, saved.id, user.id),
           workspaceId: workspace.workspaceId,
           packageId: saved.id,
           assetId: originalAssetId,

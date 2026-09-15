@@ -9,6 +9,7 @@ import { DraftChannelPreviews } from "@/components/draft-channel-previews";
 import { describeDraftClaimTrace } from "@/components/draft-claim-trace";
 import { DraftSubmitAction } from "@/components/draft-review-actions";
 import { DraftRevisionForm } from "@/components/draft-revision-form";
+import { DraftPackageApproval } from "@/components/draft-package-approval";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { getAuthenticatedUser } from "@/server/auth";
 import { defaultWorkspaceAiPolicy } from "@/server/ai-schema";
@@ -71,6 +72,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
       <Link className="back-link" href="/drafts"><ArrowLeft size={14} />Drafts</Link>
       <header className="resource-header"><div><p className="eyebrow">{draft.audienceName ?? "General audience"} · immutable v{version.versionNumber}</p><h1>{version.headline}</h1><p>{draft.campaignName} · {draft.packageTitle}</p></div><span className={`status-pill ${draft.status === "approved" ? "status-green" : draft.status === "pending_review" ? "status-amber" : "status-neutral"}`}>{draft.status.replaceAll("_", " ")}</span></header>
       <section className="draft-copy-card"><p>{version.body}</p>{version.callToAction && <strong>{version.callToAction}</strong>}{version.hashtags.length > 0 && <small>{version.hashtags.join(" ")}</small>}</section>
+      <DraftPackageApproval workspaceId={workspace.workspaceId} packageId={draft.generation.contentPackageId} approvalId={draft.generation.contentPackageApprovalId} />
       <section className="resource-panel draft-trace">
         <div className="resource-panel-head"><div><h2>Claim and evidence trace</h2><p>Recorded links to captured package evidence are shown below. Unavailable historical evidence is marked explicitly.</p></div></div>
         <div className="claim-list">{version.claims.map((claim) => {

@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { packageReviewPrecondition } from "./test-support/package-review-fixture";
 import type { JSONValue, TransactionSql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { CampaignPreparationRepository } from "./campaign-preparation-repository";
@@ -68,7 +69,10 @@ async function makeFixture() {
       ],
     };
     const contentPackage = await core.saveContentPackage(packageInput);
-    await core.approveContentPackage({ workspaceId: workspace.workspaceId, packageId: contentPackage.id, actorUserId: user.id });
+    const packageReview = await packageReviewPrecondition(sql, workspace.workspaceId, contentPackage.id, user.id);
+    await core.approveContentPackage({ workspaceId: workspace.workspaceId, packageId: contentPackage.id, actorUserId: user.id,
+      ...packageReview, idempotencyKey: randomUUID() });
+    const reviewOptions = { expectedReviewFingerprint: packageReview.expectedReviewFingerprint };
     const brand = await profiles.createBrandProfile(brandInput(workspace.workspaceId), user.id);
     const brandVersion = (await profiles.publishBrandProfile(workspace.workspaceId, brand.id, user.id))!.currentVersion!;
     const audienceA = await profiles.createAudienceProfile(audienceInput(workspace.workspaceId, "First audience"), user.id);
@@ -86,7 +90,7 @@ async function makeFixture() {
       destinationId: destination.id, informationDepth: "contextual", promotionalStrength: "informational",
     };
     return { core, profiles, campaigns, preparation, drafts, user, workspace, source, packageInput, contentPackage,
-      brand, brandVersion, audienceA, audienceB, audienceVersionA, audienceVersionB, destination, input, cleanup };
+      brand, brandVersion, audienceA, audienceB, audienceVersionA, audienceVersionB, destination, input, cleanup, packageReview, reviewOptions };
   } catch (error) { await cleanup(); throw error; }
 }
 type Fixture = Awaited<ReturnType<typeof makeFixture>>;
@@ -116,7 +120,7 @@ const zero = { receipts: 0, campaigns: 0, generations: 0, drafts: 0, instances: 
 const revocations = [
   { name: "membership", code: "access_denied", change: async (transaction: TransactionSql, f: Fixture) => transaction`
     UPDATE workspace_membership SET role = 'viewer' WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.user.id}` },
-  { name: "package", code: "package_not_approved", change: async (transaction: TransactionSql, f: Fixture) => transaction`
+  { name: "package", code: "approval_unavailable", change: async (transaction: TransactionSql, f: Fixture) => transaction`
     UPDATE content_package SET status = 'ready' WHERE id = ${f.contentPackage.id}` },
   { name: "brand", code: "brand_unavailable", change: async (transaction: TransactionSql, f: Fixture) => transaction`
     UPDATE brand_profile SET status = 'archived' WHERE id = ${f.brand.id}` },
@@ -139,7 +143,7 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
 
   it("atomically pins one planning campaign and generation, every ordered variant and exact receipt, without execution or approval", async () => withFixture(async (f) => {
     const key = randomUUID();
-    const result = await f.preparation.prepare(f.input, key, f.user.id);
+    const result = await f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions);
     const receipt = result.preparation;
     expect(result.replayed).toBe(false);
     expect(receipt).toMatchObject({ workspaceId: f.workspace.workspaceId, idempotencyKey: key,
@@ -152,6 +156,8 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
     expect(receipt.configurationHash).toBe(createHash("sha256").update(compiled.canonicalPayload).digest("hex"));
     expect(receipt.preparedDrafts).toHaveLength(2);
     expect(receipt.referenceSnapshot.audiences.map((audience) => audience.id)).toEqual(f.input.audienceProfileVersionIds);
+    expect(receipt.referenceSnapshot.contentPackage).toMatchObject({ reviewFingerprint: f.reviewOptions.expectedReviewFingerprint,
+      approvalId: expect.any(String) });
     expect(receipt.referenceSnapshot.brand).toMatchObject({ id: f.brandVersion.id, rootId: f.brand.id, name: f.brand.name, versionNumber: 1 });
     const campaign = (await f.campaigns.getCampaign(f.workspace.workspaceId, receipt.campaignId))!;
     expect(campaign.currentVersion).toMatchObject({ id: receipt.planningVersionId, autonomyMode: "draft_only", contentPackageIds: [f.contentPackage.id] });
@@ -172,16 +178,29 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
   }));
 
   it("creates a General audience without inferring optional references", async () => withFixture(async (f) => {
-    const result = await f.preparation.prepare({ workspaceId: f.workspace.workspaceId, contentPackageId: f.contentPackage.id, expectedPackageVersion: 1 }, randomUUID(), f.user.id);
+    const result = await f.preparation.prepare({ workspaceId: f.workspace.workspaceId, contentPackageId: f.contentPackage.id, expectedPackageVersion: 1 }, randomUUID(), f.user.id, f.reviewOptions);
     expect(result.preparation.preparedDrafts).toHaveLength(1);
     expect(result.preparation.referenceSnapshot).not.toHaveProperty("brand");
     expect(result.preparation.referenceSnapshot).not.toHaveProperty("destination");
     expect(result.preparation.referenceSnapshot.audiences).toEqual([]);
   }));
 
+  it("requires the displayed review token for new work without changing template-v1 canonical intent", async () => withFixture(async (f) => {
+    await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id)).rejects.toMatchObject({ code: "invalid_review_input" });
+    expect(await counts(f.workspace.workspaceId)).toEqual(zero);
+    const key = randomUUID();
+    const first = await f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions);
+    await expect(f.preparation.prepare(f.input, key, f.user.id)).rejects.toMatchObject({ code: "idempotency_conflict" });
+    await expect(f.preparation.prepare(f.input, key, f.user.id, {
+      expectedReviewFingerprint: `mm-package-review-v1:sha256:${"0".repeat(64)}`,
+    })).rejects.toMatchObject({ code: "idempotency_conflict" });
+    expect(await f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions)).toEqual({ ...first, replayed: true });
+    expect(first.preparation.configurationHash).toBe(createHash("sha256").update(compileGeneralAnnouncementPreparation(f.input).canonicalPayload).digest("hex"));
+  }));
+
   it("serializes concurrent identical attempts and replays after source, profile and destination changes", async () => withFixture(async (f) => {
     const key = randomUUID();
-    const results = await Promise.all(Array.from({ length: 5 }, () => f.preparation.prepare(f.input, key, f.user.id)));
+    const results = await Promise.all(Array.from({ length: 5 }, () => f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions)));
     expect(results.filter((result) => !result.replayed)).toHaveLength(1);
     expect(new Set(results.map((result) => result.preparation.id)).size).toBe(1);
     const original = results[0]!.preparation;
@@ -189,19 +208,19 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
     await sql`UPDATE brand_profile SET status = 'archived', name = 'Changed brand' WHERE id = ${f.brand.id}`;
     await sql`UPDATE audience_profile SET status = 'archived', name = 'Changed audience' WHERE id = ${f.audienceA.id}`;
     await sql`UPDATE destination SET title = 'Changed destination', canonical_url = 'https://example.test/changed', status = 'draft' WHERE id = ${f.destination.id}`;
-    const replay = await f.preparation.prepare(f.input, key.toUpperCase(), f.user.id);
+    const replay = await f.preparation.prepare(f.input, key.toUpperCase(), f.user.id, f.reviewOptions);
     expect(replay).toEqual({ preparation: original, replayed: true });
     expect((await counts(f.workspace.workspaceId)).campaigns).toBe(1);
     expect(original.referenceSnapshot.destination).toMatchObject({ title: "Reviewed landing page", canonicalUrl: "https://example.test/preparation", status: "published" });
-    await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id)).rejects.toMatchObject({ code: "package_version_mismatch" });
+    await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions)).rejects.toMatchObject({ code: "package_version_mismatch" });
   }));
 
   it("conflicts on changed canonical settings and permits an explicit separate attempt", async () => withFixture(async (f) => {
     const key = randomUUID();
-    const first = await f.preparation.prepare(f.input, key, f.user.id);
-    await expect(f.preparation.prepare({ ...f.input, name: "A different campaign" }, key, f.user.id))
+    const first = await f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions);
+    await expect(f.preparation.prepare({ ...f.input, name: "A different campaign" }, key, f.user.id, f.reviewOptions))
       .rejects.toMatchObject({ code: "idempotency_conflict", existingPreparationId: first.preparation.id });
-    const other = await f.preparation.prepare({ ...f.input, audienceProfileVersionIds: [...f.input.audienceProfileVersionIds!].reverse() }, randomUUID(), f.user.id);
+    const other = await f.preparation.prepare({ ...f.input, audienceProfileVersionIds: [...f.input.audienceProfileVersionIds!].reverse() }, randomUUID(), f.user.id, f.reviewOptions);
     expect(other.preparation.id).not.toBe(first.preparation.id);
     expect((await counts(f.workspace.workspaceId)).campaigns).toBe(2);
   }));
@@ -209,18 +228,18 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
   it.each(["owner", "admin", "editor", "approver", "analyst", "viewer"])("requires an authorized writer role (%s)", async (role) => withFixture(async (f) => {
     await sql`UPDATE workspace_membership SET role = ${role} WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.user.id}`;
     if (["owner", "admin", "editor"].includes(role)) {
-      expect((await f.preparation.prepare(f.input, randomUUID(), f.user.id)).replayed).toBe(false);
+      expect((await f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions)).replayed).toBe(false);
     } else {
-      await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id)).rejects.toMatchObject({ code: "access_denied" });
+      await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions)).rejects.toMatchObject({ code: "access_denied" });
       expect(await counts(f.workspace.workspaceId)).toEqual(zero);
     }
   }));
 
   it("requires current membership for replay and keeps receipt reads workspace scoped", async () => withFixture(async (f) => {
     const key = randomUUID();
-    const receipt = (await f.preparation.prepare(f.input, key, f.user.id)).preparation;
+    const receipt = (await f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions)).preparation;
     await sql`UPDATE workspace_membership SET role = 'viewer' WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.user.id}`;
-    await expect(f.preparation.prepare(f.input, key, f.user.id)).rejects.toMatchObject({ code: "access_denied" });
+    await expect(f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions)).rejects.toMatchObject({ code: "access_denied" });
     expect(await f.preparation.get(f.workspace.workspaceId, receipt.id, f.user.id)).toEqual(receipt);
     expect(await f.preparation.get(randomUUID(), receipt.id, f.user.id)).toBeUndefined();
     expect(await f.preparation.get(f.workspace.workspaceId, receipt.id, randomUUID())).toBeUndefined();
@@ -230,7 +249,7 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
     expect(await f.preparation.get(f.workspace.workspaceId, receipt.id, f.user.id)).toBeUndefined();
     expect(await f.preparation.getByKey(f.workspace.workspaceId, key, f.user.id)).toBeUndefined();
     expect(await f.preparation.listForWorkspace(f.workspace.workspaceId, f.user.id)).toEqual([]);
-    await expect(f.preparation.prepare(f.input, key, f.user.id)).rejects.toMatchObject({ code: "access_denied" });
+    await expect(f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions)).rejects.toMatchObject({ code: "access_denied" });
   }));
 
   it.each(["package", "brand", "audience", "destination", "workspace"])("rejects a foreign %s reference", async (kind) => withFixture(async (f) => withFixture(async (foreign) => {
@@ -238,7 +257,7 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
       : kind === "brand" ? { brandProfileVersionId: foreign.brandVersion.id }
       : kind === "audience" ? { audienceProfileVersionIds: [foreign.audienceVersionA.id] }
       : kind === "destination" ? { destinationId: foreign.destination.id } : { workspaceId: foreign.workspace.workspaceId };
-    await expect(f.preparation.prepare({ ...f.input, ...overrides }, randomUUID(), f.user.id))
+    await expect(f.preparation.prepare({ ...f.input, ...overrides }, randomUUID(), f.user.id, f.reviewOptions))
       .rejects.toMatchObject({ code: kind === "workspace" ? "access_denied" : `${kind}_unavailable` });
     expect(await counts(f.workspace.workspaceId)).toEqual(zero);
     expect(await counts(foreign.workspace.workspaceId)).toEqual(zero);
@@ -246,8 +265,8 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
 
   it.each(["version", "approval"])("rejects stale package %s without partial writes", async (kind) => withFixture(async (f) => {
     if (kind === "approval") await sql`UPDATE content_package SET status = 'ready' WHERE id = ${f.contentPackage.id}`;
-    await expect(f.preparation.prepare({ ...f.input, expectedPackageVersion: kind === "version" ? 2 : 1 }, randomUUID(), f.user.id))
-      .rejects.toMatchObject({ code: kind === "version" ? "package_version_mismatch" : "package_not_approved" });
+    await expect(f.preparation.prepare({ ...f.input, expectedPackageVersion: kind === "version" ? 2 : 1 }, randomUUID(), f.user.id, f.reviewOptions))
+      .rejects.toMatchObject({ code: kind === "version" ? "package_version_mismatch" : "approval_unavailable" });
     expect(await counts(f.workspace.workspaceId)).toEqual(zero);
   }));
 
@@ -256,10 +275,10 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
     const versionId = kind === "brand" ? f.brandVersion.id : f.audienceVersionA.id;
     const table = kind === "brand" ? "brand_profile" : "audience_profile";
     await sql.unsafe(`UPDATE ${table} SET status = 'archived' WHERE id = $1`, [rootId]);
-    await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id)).rejects.toMatchObject({ code: `${kind}_unavailable` });
+    await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions)).rejects.toMatchObject({ code: `${kind}_unavailable` });
     await sql.unsafe(`UPDATE ${table} SET status = 'published' WHERE id = $1`, [rootId]);
     await sql.unsafe(`UPDATE ${table}_version SET status = 'draft' WHERE id = $1`, [versionId]);
-    await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id)).rejects.toMatchObject({ code: `${kind}_unavailable` });
+    await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions)).rejects.toMatchObject({ code: `${kind}_unavailable` });
     await sql.unsafe(`UPDATE ${table}_version SET status = 'published' WHERE id = $1`, [versionId]);
     if (kind === "brand") {
       await f.profiles.saveBrandProfileDraft(rootId, { ...brandInput(f.workspace.workspaceId), name: "Updated brand" }, f.user.id);
@@ -268,7 +287,7 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
       await f.profiles.saveAudienceProfileDraft(rootId, audienceInput(f.workspace.workspaceId, "Updated audience"), f.user.id);
       await f.profiles.publishAudienceProfile(f.workspace.workspaceId, rootId, f.user.id);
     }
-    await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id)).rejects.toMatchObject({ code: `${kind}_unavailable` });
+    await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions)).rejects.toMatchObject({ code: `${kind}_unavailable` });
     expect(await counts(f.workspace.workspaceId)).toEqual(zero);
   }));
 
@@ -279,7 +298,7 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
     const expectedError = { name: "CampaignValidationError", issues: expect.arrayContaining([
       { code: kind === "information" ? "information_depth_ceiling" : "promotional_strength_ceiling", message: expect.any(String) },
     ]) };
-    await expect(f.preparation.prepare(input, randomUUID(), f.user.id)).rejects.toMatchObject(expectedError);
+    await expect(f.preparation.prepare(input, randomUUID(), f.user.id, f.reviewOptions)).rejects.toMatchObject(expectedError);
     // The beginner entry point and advanced Campaign authoring share the same
     // nullable profile-policy boundary; neither may bypass another profile's ceiling.
     await expect(f.campaigns.createCampaign(compileGeneralAnnouncementPreparation(input).campaign, f.user.id))
@@ -296,12 +315,12 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
       throw new Error("Controlled failure after generating all variants");
     });
     const key = randomUUID();
-    try { await expect(f.preparation.prepare(f.input, key, f.user.id)).rejects.toThrow("Controlled failure"); }
+    try { await expect(f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions)).rejects.toThrow("Controlled failure"); }
     finally { spy.mockRestore(); }
     expect(generatedBeforeFailure).toBe(2);
     expect(await counts(f.workspace.workspaceId)).toEqual(zero);
     expect(await f.preparation.getByKey(f.workspace.workspaceId, key, f.user.id)).toBeUndefined();
-    expect((await f.preparation.prepare(f.input, key, f.user.id)).replayed).toBe(false);
+    expect((await f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions)).replayed).toBe(false);
   }));
 
   it.each(revocations)("observes $name revocation committed ahead of preparation", async (revocation) => withFixture(async (f) => {
@@ -315,7 +334,7 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
       await release;
     });
     const holderPid = await locked;
-    const preparing = f.preparation.prepare(f.input, randomUUID(), f.user.id).then(
+    const preparing = f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions).then(
       (value) => ({ value }), (error: unknown) => ({ error }),
     );
     try { await assertBlockedOn(holderPid); }
@@ -335,7 +354,7 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
       await release;
       return original.call(this, transaction, input, actor);
     });
-    const preparing = f.preparation.prepare(f.input, randomUUID(), f.user.id).then(
+    const preparing = f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions).then(
       (value) => ({ value }), (error: unknown) => ({ error }),
     );
     let mutation: Promise<unknown> | undefined;
@@ -368,7 +387,7 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
       await release;
     });
     const holderPid = await locked;
-    const preparing = f.preparation.prepare(f.input, randomUUID(), f.user.id).then(
+    const preparing = f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions).then(
       (value) => ({ value }), (error: unknown) => ({ error }),
     );
     try { await assertBlockedOn(holderPid); }
@@ -379,8 +398,8 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
 
   it("uses consistent audience lock order even when concurrent attempts author opposite orders", async () => withFixture(async (f) => {
     const results = await Promise.all([
-      f.preparation.prepare(f.input, randomUUID(), f.user.id),
-      f.preparation.prepare({ ...f.input, audienceProfileVersionIds: [...f.input.audienceProfileVersionIds!].reverse() }, randomUUID(), f.user.id),
+      f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions),
+      f.preparation.prepare({ ...f.input, audienceProfileVersionIds: [...f.input.audienceProfileVersionIds!].reverse() }, randomUUID(), f.user.id, f.reviewOptions),
     ]);
     expect(results.every((result) => !result.replayed)).toBe(true);
     expect(results[0]!.preparation.referenceSnapshot.audiences.map((audience) => audience.id)).toEqual(f.input.audienceProfileVersionIds);
@@ -390,21 +409,21 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
 
   it("scopes the same retry key separately to each authorized workspace", async () => withFixture(async (f) => withFixture(async (other) => {
     const key = randomUUID();
-    const one = await f.preparation.prepare(f.input, key, f.user.id);
-    const two = await other.preparation.prepare(other.input, key, other.user.id);
+    const one = await f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions);
+    const two = await other.preparation.prepare(other.input, key, other.user.id, other.reviewOptions);
     expect(one.preparation.id).not.toBe(two.preparation.id);
     expect(await f.preparation.getByKey(f.workspace.workspaceId, key, other.user.id)).toBeUndefined();
   })));
 
   it("rejects malformed attempt keys without writing a partial preparation", async () => withFixture(async (f) => {
     for (const key of ["", "not-a-uuid", null, 1, {}, "00000000-0000-0000-0000-000000000000"]) {
-      await expect(f.preparation.prepare(f.input, key, f.user.id)).rejects.toMatchObject({ code: "invalid_idempotency_key" });
+      await expect(f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions)).rejects.toMatchObject({ code: "invalid_idempotency_key" });
     }
     expect(await counts(f.workspace.workspaceId)).toEqual(zero);
   }));
 
   it("rejects receipt mutation and malformed, partial, duplicate or foreign initial draft references", async () => withFixture(async (f) => {
-    const receipt = (await f.preparation.prepare(f.input, randomUUID(), f.user.id)).preparation;
+    const receipt = (await f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions)).preparation;
     await expect(sql`UPDATE campaign_preparation SET configuration_snapshot = '{}'::jsonb WHERE id = ${receipt.id}`)
       .rejects.toMatchObject({ code: "23514" });
     const invalidDrafts: JSONValue[] = [[], [receipt.preparedDrafts[0]!] as unknown as JSONValue,

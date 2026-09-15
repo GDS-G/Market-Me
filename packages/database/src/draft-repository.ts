@@ -21,6 +21,8 @@ import type {
 } from "@market-me/domain";
 import { DRAFT_FORMAT_CHARACTER_LIMITS } from "@market-me/generation";
 import type { DatabaseClient } from "./client";
+import { assertCurrentContentPackageApprovalInTransaction, assertPackageReviewAccessInTransaction } from "./content-package-review-repository";
+import { ContentPackageReviewError } from "./content-package-review-models";
 import type {
   StoredCampaignPreviewOption,
   StoredContentDraft,
@@ -41,6 +43,12 @@ export class DraftValidationError extends Error {
   }
 }
 
+function requirePackageReviewFingerprint(value: unknown): asserts value is string {
+  if (typeof value !== "string" || !/^mm-package-review-v1:sha256:[0-9a-f]{64}$/.test(value)) {
+    throw new DraftValidationError([{ code: "invalid_review_input", message: "Select the exact currently approved Content Package review before generating drafts." }]);
+  }
+}
+
 export class DraftRepository {
   constructor(private readonly sql: DatabaseClient) {}
 
@@ -49,11 +57,19 @@ export class DraftRepository {
       workspaceId: string;
       campaignId: string;
       contentPackageId: string;
+      expectedPackageVersion?: number;
+      expectedReviewFingerprint?: string;
       draftFormat?: DraftFormat;
     },
     actorUserId: string,
   ): Promise<readonly StoredContentDraft[]> {
+    requirePackageReviewFingerprint(input.expectedReviewFingerprint);
+    if (!Number.isInteger(input.expectedPackageVersion) || input.expectedPackageVersion! < 1
+      || input.expectedPackageVersion! > 2_147_483_647) {
+      throw new DraftValidationError([{ code: "invalid_package_version", message: "Select the exact reviewed Content Package revision before generating drafts." }]);
+    }
     const generated = await this.sql.begin(async (transaction) => {
+      await assertPackageReviewAccessInTransaction(transaction, { workspaceId: input.workspaceId, actorUserId }, "write");
       const current = await transaction<{ campaignVersionId: string; contentPackageIds: string[] }[]>`
         SELECT cv.id AS campaign_version_id, cv.content_package_ids
         FROM campaign c JOIN campaign_version cv ON cv.id = c.current_version_id
@@ -65,16 +81,9 @@ export class DraftRepository {
       if (!current[0].contentPackageIds.includes(input.contentPackageId)) throw new DraftValidationError([{
         code: "package_not_bound", message: "The Content Package is not bound to the published Campaign version.",
       }]);
-      const packages = await transaction<{ version: number; status: string }[]>`
-        SELECT id, title, version, status FROM content_package
-        WHERE id = ${input.contentPackageId} AND workspace_id = ${input.workspaceId} FOR SHARE
-      `;
-      if (packages[0]?.status !== "approved") throw new DraftValidationError([{
-        code: "package_not_approved", message: "An approved Content Package is required.",
-      }]);
       return this.generateDraftsInTransaction(transaction, {
         ...input, campaignVersionId: current[0].campaignVersionId,
-        expectedContentPackageVersion: packages[0].version,
+        expectedContentPackageVersion: input.expectedPackageVersion!,
       }, actorUserId);
     });
     const drafts = await this.list(input.workspaceId);
@@ -90,16 +99,21 @@ export class DraftRepository {
       campaignVersionId: string;
       contentPackageId: string;
       expectedContentPackageVersion: number;
+      expectedReviewFingerprint?: string;
       draftFormat?: DraftFormat;
     },
     actorUserId: string,
   ): Promise<{ generationId: string; drafts: readonly { draftId: string; versionId: string }[] }> {
+    requirePackageReviewFingerprint(input.expectedReviewFingerprint);
     if (!Number.isInteger(input.expectedContentPackageVersion) || input.expectedContentPackageVersion < 1
       || input.expectedContentPackageVersion > 2_147_483_647) {
       throw new DraftValidationError([{
         code: "invalid_package_version", message: "An exact positive Content Package revision within the database integer range is required.",
       }]);
     }
+    // A display token is an optimistic precondition, not writer authority.
+    // Preparation already owns these early locks; repeating them is safe.
+    await assertPackageReviewAccessInTransaction(transaction, { workspaceId: input.workspaceId, actorUserId }, "write");
     const campaigns = await transaction<
       {
         campaignVersionId: string;
@@ -131,31 +145,24 @@ export class DraftRepository {
             "The Content Package is not bound to the published Campaign version.",
         },
       ]);
-    const packages = await transaction<
-      { id: string; title: string; version: number; status: string }[]
-    >`
-      SELECT id, title, version, status FROM content_package WHERE id = ${input.contentPackageId} AND workspace_id = ${input.workspaceId}
-      FOR SHARE
-    `;
-    if (packages[0]?.status !== "approved")
-      throw new DraftValidationError([
-        {
-          code: "package_not_approved",
-          message: "An approved Content Package is required.",
-        },
-      ]);
-    if (packages[0].version !== input.expectedContentPackageVersion) {
-      throw new DraftValidationError([{
-        code: "package_version_mismatch", message: "The Content Package revision has changed. Review the current package before preparing drafts.",
-      }]);
-    }
-    const evidence = await transaction<EvidenceItem[]>`
-      SELECT id, fact_key, claim, provenance, source_references, confidence, context_pack_version_id, superseded_by_evidence_id
-      FROM evidence_item WHERE content_package_id = ${input.contentPackageId} AND superseded_by_evidence_id IS NULL ORDER BY created_at, id
-    `;
-    const usable = evidence.filter(
-      (item) => item.provenance !== "unresolved",
-    );
+    const approval = await assertCurrentContentPackageApprovalInTransaction(transaction, {
+      workspaceId: input.workspaceId, contentPackageId: input.contentPackageId,
+      expectedPackageVersion: input.expectedContentPackageVersion, expectedReviewFingerprint: input.expectedReviewFingerprint,
+    }).catch((error: unknown) => {
+      if (error instanceof ContentPackageReviewError) throw new DraftValidationError([{ code: error.code, message: error.message }]);
+      throw error;
+    });
+    // Effective facts come from the exact attestation, never all current live
+    // evidence. Keep the old generation snapshot order before generator ranking.
+    const effective = [...approval.effectiveEvidence].sort((left, right) =>
+      left.createdAtUtcMicros < right.createdAtUtcMicros ? -1 : left.createdAtUtcMicros > right.createdAtUtcMicros ? 1
+        : left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+    const usable: EvidenceItem[] = effective.map((item) => ({
+      id: item.id, claim: item.claim, provenance: item.provenance, sourceReferences: item.sourceReferences,
+      ...(item.factKey === null ? {} : { factKey: item.factKey }),
+      ...(item.confidence === null ? {} : { confidence: item.confidence }),
+      ...(item.contextPackVersionId === null ? {} : { contextPackVersionId: item.contextPackVersionId }),
+    }));
     if (!usable.length)
       throw new DraftValidationError([
         {
@@ -192,23 +199,23 @@ export class DraftRepository {
       undefined,
     );
     const generationId = randomUUID();
-    const evidenceSnapshot = usable.map(
+    const evidenceSnapshot = effective.map(
       ({ id, factKey, claim, provenance, sourceReferences, confidence }) => ({
         id,
-        ...(factKey ? { factKey } : {}),
+        ...(factKey === null ? {} : { factKey }),
         claim,
         provenance,
         sourceReferences,
-        ...(confidence !== undefined ? { confidence } : {}),
+        confidence,
       }),
     );
     await transaction`
       INSERT INTO draft_generation (id, workspace_id, campaign_version_id, content_package_id, content_package_version,
         brand_profile_version_id, information_depth, promotional_strength, evidence_snapshot,
-        generator_provider, generator_model, generator_version, prompt_version, draft_format, created_by)
-      VALUES (${generationId}, ${input.workspaceId}, ${campaign.campaignVersionId}, ${input.contentPackageId}, ${packages[0]!.version},
+        generator_provider, generator_model, generator_version, prompt_version, draft_format, created_by, content_package_approval_id)
+      VALUES (${generationId}, ${input.workspaceId}, ${campaign.campaignVersionId}, ${input.contentPackageId}, ${approval.snapshot.package.version},
         ${campaign.brandProfileVersionId ?? null}, ${campaign.informationDepth}, ${campaign.promotionalStrength},
-        ${transaction.json(evidenceSnapshot as JSONValue)}, ${GENERATOR_PROVIDER}, ${GENERATOR_MODEL}, ${GENERATOR_VERSION}, ${PROMPT_VERSION}, ${input.draftFormat ?? "channel_neutral"}, ${actorUserId})
+        ${transaction.json(evidenceSnapshot as JSONValue)}, ${GENERATOR_PROVIDER}, ${GENERATOR_MODEL}, ${GENERATOR_VERSION}, ${PROMPT_VERSION}, ${input.draftFormat ?? "channel_neutral"}, ${actorUserId}, ${approval.approvalId})
     `;
     const draftIds: string[] = [];
     const draftReferences: { draftId: string; versionId: string }[] = [];
@@ -216,7 +223,7 @@ export class DraftRepository {
       let generated;
       try {
         generated = generateGroundedDraft({
-          packageTitle: packages[0]!.title,
+          packageTitle: approval.snapshot.package.title,
           evidence: usable,
           informationDepth: campaign.informationDepth,
           promotionalStrength: campaign.promotionalStrength,
@@ -1093,7 +1100,7 @@ export class DraftRepository {
     ];
     const generations = await this.sql<
       StoredDraftGeneration[]
-    >`SELECT id, workspace_id, campaign_version_id, content_package_id, content_package_version, brand_profile_version_id, information_depth, promotional_strength, evidence_snapshot, generator_provider, generator_model, generator_version, prompt_version, draft_format, created_by, created_at FROM draft_generation WHERE id IN ${this.sql(generationIds)}`;
+    >`SELECT id, workspace_id, campaign_version_id, content_package_id, content_package_version, content_package_approval_id, brand_profile_version_id, information_depth, promotional_strength, evidence_snapshot, generator_provider, generator_model, generator_version, prompt_version, draft_format, created_by, created_at FROM draft_generation WHERE id IN ${this.sql(generationIds)}`;
     return rows.map((row) => {
       const version = versions.find(
         (item) => item.id === row.currentVersionId,

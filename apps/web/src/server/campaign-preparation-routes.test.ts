@@ -6,6 +6,7 @@ vi.mock("@/server/auth", () => ({ requireWorkspaceAccess: mocks.access }));
 vi.mock("@/server/database", () => ({ getCampaignPreparationRepository: () => ({ prepare: mocks.prepare, getByKey: mocks.lookup }) }));
 vi.mock("./api-response", () => ({ apiError: mocks.apiError }));
 vi.mock("@/server/campaign-preparation-api", () => import("./campaign-preparation-api"));
+vi.mock("@/components/content-package-review-request", () => import("../components/content-package-review-request"));
 import { GET, POST } from "../app/api/v1/campaign-preparations/route";
 import { preparationOriginAllowed } from "./campaign-preparation-api";
 
@@ -30,6 +31,22 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("preparation mutation authority", () => {
+  it("passes the displayed review fingerprint outside unchanged template1 canonical input", async () => {
+    const expectedReviewFingerprint = `mm-package-review-v1:sha256:${"a".repeat(64)}`;
+    expect((await POST(post({ input, idempotencyKey, expectedReviewFingerprint }))).status).toBe(201);
+    expect(mocks.prepare.mock.calls[0]?.[0]).not.toHaveProperty("expectedReviewFingerprint");
+    expect(mocks.prepare.mock.calls[0]?.[3]).toEqual({ expectedReviewFingerprint });
+    expect(mocks.prepare.mock.calls[0]?.[0]).toMatchObject({ ...input, templateVersion: 1 });
+  });
+  it("maps missing proof on new work to422 while retaining token-free completed legacy replay", async () => {
+    mocks.prepare.mockRejectedValue(new CampaignPreparationError("invalid_review_input", "Load exact review."));
+    expect((await POST(post())).status).toBe(422);
+    mocks.prepare.mockResolvedValue({ preparation: receipt, replayed: true });
+    expect((await POST(post())).status).toBe(200);
+  });
+  it("rejects invalid outer review tokens before repository authority lookup", async () => {
+    expect((await POST(post({ input, idempotencyKey, expectedReviewFingerprint: "unverified" }))).status).toBe(422); expect(mocks.access).not.toHaveBeenCalled();
+  });
   it.each([null, "", "null", "https://evil.example", "http://localhost:3119/path", "http://localhost:3119/", "http://user@localhost:3119"])("denies invalid or foreign Origin %s before any authority or storage lookup", async (origin) => {
     expect((await POST(post(undefined, origin))).status).toBe(403);
     expect(mocks.access).not.toHaveBeenCalled(); expect(mocks.prepare).not.toHaveBeenCalled();

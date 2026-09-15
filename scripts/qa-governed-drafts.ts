@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { DISCORD_WEBHOOK_CAPABILITIES } from "@market-me/connectors";
-import { CampaignRepository, createDatabaseClient, DraftRepository, MarketMeRepository, ProfileRepository, PublishingRepository } from "@market-me/database";
+import { CampaignRepository, createDatabaseClient, DraftRepository, MarketMeRepository, ProfileRepository, PublishingRepository, ContentPackageReviewRepository } from "@market-me/database";
 import { FileSystemObjectStore, sha256Hex } from "@market-me/media";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -36,7 +36,10 @@ try {
     const connection = (await sql<{ id: string }[]>`SELECT id FROM channel_connection WHERE workspace_id=${access.workspaceId} AND name=${names.connection}`)[0];
     const destination = (await campaigns.listDestinations(access.workspaceId)).find((item) => item.title === names.destination);
     if (!campaign || !contentPackage || !connection || !destination) throw new Error("Run seed before bridge");
-    const generated = await drafts.generate({ workspaceId: access.workspaceId, campaignId: campaign.id, contentPackageId: contentPackage.id, draftFormat: "social_standard" }, access.userId);
+    const review = await new ContentPackageReviewRepository(sql).getReview(access.workspaceId, contentPackage.id, access.userId);
+    if (!review?.currentApprovalValid) throw new Error("Complete the package's scan, rights and exact approval in the review UI before running bridge. Seed does not fabricate these attestations.");
+    const generated = await drafts.generate({ workspaceId: access.workspaceId, campaignId: campaign.id, contentPackageId: contentPackage.id,
+      expectedPackageVersion: review.version, expectedReviewFingerprint: review.reviewFingerprint, draftFormat: "social_standard" }, access.userId);
     await drafts.submit(access.workspaceId, generated[0]!.id, access.userId);
     const approval = (await drafts.listApprovals(access.workspaceId))[0]!;
     await drafts.decide({ workspaceId: access.workspaceId, approvalId: approval.id, decision: "approved", notes: "Release 0.18 approved tracked-preview acceptance", actorUserId: access.userId });
@@ -62,7 +65,8 @@ try {
       { id: randomUUID(), factKey: "event.price", claim: "Admission is free", provenance: "authoritative_context", sourceReferences: [`source-item:${item!.id}`], confidence: 1 },
       { id: randomUUID(), factKey: "event.time", claim: "Doors open at nine", provenance: "observed", sourceReferences: [`source-item:${item!.id}`], confidence: 0.96 },
     ], conflicts: [] });
-    await core.approveContentPackage({ workspaceId: access.workspaceId, packageId: saved.id, actorUserId: access.userId });
+    // Seed leaves material unapproved. Exact review occurs only after all assets,
+    // real scan results and rights scopes have been displayed to a reviewer.
     const imageBytes = new Uint8Array(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"));
     const digest = sha256Hex(imageBytes); const originalAssetId = randomUUID(); const derivativeAssetId = randomUUID();
     const store = new FileSystemObjectStore(process.env.MEDIA_STORAGE_ROOT ?? ".market-me/media");
@@ -81,7 +85,8 @@ try {
     await campaigns.publishCampaign(access.workspaceId, campaign.id);
     const connection = await publishing.saveChannelConnection({ workspaceId: access.workspaceId, provider: "discord_webhook", name: names.connection, encryptedCredentials: "qa-preview-no-delivery", capabilities: DISCORD_WEBHOOK_CAPABILITIES as unknown as Record<string, unknown> }, access.userId);
     const destination = await campaigns.saveDestination({ workspaceId: access.workspaceId, provider: "website", canonicalUrl: "https://example.com/qa-community-event", knownRedirects: [], title: names.destination, description: "Release 0.15 browser acceptance destination", contentType: "event", identifiers: {}, topics: ["community"], audiences: ["community"], geography: [], status: "published", tracking: {} }, access.userId);
-    console.log(JSON.stringify({ workspaceId: access.workspaceId, campaignId: campaign.id, packageId: saved.id, derivativeAssetId, audiences: audienceVersions.length, connectionId: connection.id, destinationId: destination.id }));
+    console.log(JSON.stringify({ workspaceId: access.workspaceId, campaignId: campaign.id, packageId: saved.id, derivativeAssetId, audiences: audienceVersions.length,
+      connectionId: connection.id, destinationId: destination.id, exactPackageReviewRequired: true }));
   }
 } finally {
   await sql.end();

@@ -1,10 +1,15 @@
 import { AuthenticationError, AuthorizationError } from "./auth";
 import { DatabaseUnavailableError } from "./database";
 import { IngestionConfigurationError, WebhookConfigurationError } from "./ingestion";
-import { AiPolicyValidationError, CampaignValidationError, DraftValidationError } from "@market-me/database";
+import { AiPolicyValidationError, CampaignValidationError, ContentPackageReviewError, DraftValidationError } from "@market-me/database";
 import { CompanionAuthenticationError } from "./companion-auth";
 
 export function apiError(error: unknown): Response {
+  if (error instanceof ContentPackageReviewError) {
+    const status = error.code === "access_denied" ? 403 : error.code === "package_unavailable" || error.code === "approval_unavailable" ? 404
+      : error.code === "invalid_review_input" || error.code === "review_snapshot_too_large" || error.code === "review_snapshot_lossy" ? 422 : 409;
+    return Response.json({ error: { code: error.code, message: error.message, blockers: error.blockers } }, { status, headers: { "Cache-Control": "no-store" } });
+  }
   if (error instanceof AuthenticationError) {
     return Response.json({ error: { code: "authentication_required", message: error.message } }, { status: 401 });
   }

@@ -8,6 +8,15 @@ const input: PreparationFormInput = { workspaceId: scope.workspaceId, contentPac
   audienceProfileVersionIds: [uuid(6), uuid(5)], informationDepth: "contextual", promotionalStrength: "informational", timezone: "America/Chicago" };
 
 describe("saved preparation attempts", () => {
+  it("preserves a new original review token outside template1 input across exact retry", () => {
+    const fingerprint = `mm-package-review-v1:sha256:${"a".repeat(64)}`;
+    const attempt = createPreparationAttempt(scope, input, uuid(4), fingerprint);
+    expect(attempt.version).toBe(2); expect(attempt.input).toEqual(input);
+    const request = preparationRequest(attempt), restored = restorePreparationAttempt(JSON.stringify(attempt), scope)!;
+    expect(preparationRequest(restored)).toBe(request);
+    expect(JSON.parse(request)).toEqual({ input, idempotencyKey: uuid(4), expectedReviewFingerprint: fingerprint });
+    expect(() => restorePreparationAttempt(JSON.stringify({ ...attempt, expectedReviewFingerprint: undefined }), scope)).toThrow();
+  });
   it("restores the byte-identical request body and key after reload without adopting changed package state", () => {
     const attempt = createPreparationAttempt(scope, input, uuid(4));
     const before = preparationRequest(attempt);

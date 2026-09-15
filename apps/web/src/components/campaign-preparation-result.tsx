@@ -3,6 +3,7 @@ import type { StoredCampaignPreparation } from "@market-me/database";
 import { PrepareAnotherCampaign } from "./prepare-another-campaign";
 import { finalizationFormPath } from "./campaign-finalization-request";
 import styles from "./campaign-preparation-form.module.css";
+import { packageApprovalResultPath, packageReviewFingerprint, reviewUuid } from "./content-package-review-request";
 
 /** Captured Destination values are displayed as text, never interpreted as executable links or settings. */
 export function CampaignPreparationResult({ preparation, userId, canWrite, availableDraftIds }: {
@@ -12,6 +13,8 @@ export function CampaignPreparationResult({ preparation, userId, canWrite, avail
   const input = preparation.configurationSnapshot;
   const destinationTitle = typeof snapshot.destination?.title === "string" ? snapshot.destination.title : "Captured Destination";
   const destinationUrl = typeof snapshot.destination?.canonicalUrl === "string" ? snapshot.destination.canonicalUrl : undefined;
+  const originalApproval = reviewUuid.safeParse(snapshot.contentPackage.approvalId);
+  const originalFingerprint = packageReviewFingerprint.safeParse(snapshot.contentPackage.reviewFingerprint);
   return <div className={styles.receipt}>
     <section className={styles.notice} aria-labelledby="preparation-result-heading">
       <h2 id="preparation-result-heading">Prepared—not activated</h2>
@@ -22,6 +25,8 @@ export function CampaignPreparationResult({ preparation, userId, canWrite, avail
       <dl>
         <dt>Template</dt><dd>General Announcement · v{preparation.templateVersion}</dd>
         <dt>Package</dt><dd>{snapshot.contentPackage.title} · v{preparation.contentPackageVersion}<small><Link href={`/content-packages/${preparation.contentPackageId}`}>Review current package separately</Link></small></dd>
+        <dt>Original package approval</dt><dd>{originalApproval.success && originalFingerprint.success ? <><Link href={packageApprovalResultPath(preparation.contentPackageId, originalApproval.data, preparation.workspaceId)}>Open captured approval receipt</Link><small style={{ overflowWrap: "anywhere" }}>{originalFingerprint.data}</small><small>This is the original source-review pin, not a claim about current eligibility.</small></>
+          : <>Historical approval unavailable. Existing copy and completed finalizations remain historical; a new finalization needs a new preparation with exact source-review proof.</>}</dd>
         <dt>Brand</dt><dd>{snapshot.brand ? `${snapshot.brand.name} · v${snapshot.brand.versionNumber}` : "No Brand Profile"}</dd>
         <dt>Audiences</dt><dd>{snapshot.audiences.length ? snapshot.audiences.map((audience) => `${audience.name} · v${audience.versionNumber}`).join("; ") : "General audience"}</dd>
         <dt>Destination</dt><dd>{snapshot.destination ? <>{destinationTitle}{destinationUrl && <small>{destinationUrl}</small>}<small>Unversioned historical context; not future availability or publishing authority.</small></> : "No Destination"}</dd>

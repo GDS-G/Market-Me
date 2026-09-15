@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { packageReviewPrecondition } from "./test-support/package-review-fixture";
 import type { TransactionSql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { CampaignRepository } from "./campaign-repository";
@@ -46,7 +47,7 @@ const finalized = { ...baseline, finalizations: 1, versions: 2, editableVersions
 const revocations = [
   { name: "membership", code: "access_denied", change: (tx: TransactionSql, f: Fixture) => tx`
     UPDATE workspace_membership SET role = 'viewer' WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.user.id}` },
-  { name: "package", code: "package_not_approved", change: (tx: TransactionSql, f: Fixture) => tx`
+  { name: "package", code: "approval_unavailable", change: (tx: TransactionSql, f: Fixture) => tx`
     UPDATE content_package SET status = 'ready' WHERE id = ${f.contentPackage.id}` },
   { name: "brand", code: "brand_unavailable", change: (tx: TransactionSql, f: Fixture) => tx`
     UPDATE brand_profile SET status = 'archived' WHERE id = ${f.brand.id}` },
@@ -197,7 +198,8 @@ describe.skipIf(!databaseUrl)("atomic exact-preview campaign finalization", () =
   })));
 
   it("rejects an approved same-campaign draft from a later generation outside the original prepared draft set", async () => withFixture(async (f) => {
-    const later = (await f.drafts.generate({ workspaceId: f.workspace.workspaceId, campaignId: f.receipt.campaignId, contentPackageId: f.contentPackage.id }, f.user.id))[0]!;
+    const later = (await f.drafts.generate({ workspaceId: f.workspace.workspaceId, campaignId: f.receipt.campaignId, contentPackageId: f.contentPackage.id,
+      expectedPackageVersion: f.contentPackage.version, ...f.reviewOptions }, f.user.id))[0]!;
     await f.drafts.submit(f.workspace.workspaceId, later.id, f.user.id);
     const approval = (await f.drafts.listApprovals(f.workspace.workspaceId)).find((row) => row.contentDraftId === later.id)!;
     await f.drafts.decide({ workspaceId: f.workspace.workspaceId, approvalId: approval.id, decision: "approved", actorUserId: f.user.id });
@@ -213,7 +215,7 @@ describe.skipIf(!databaseUrl)("atomic exact-preview campaign finalization", () =
   }));
 
   it("rejects a valid approved preview from a different preparation in the same authorized workspace", async () => withFixture(async (f) => {
-    const second = (await f.preparations.prepare(f.preparationInput, randomUUID(), f.user.id)).preparation;
+    const second = (await f.preparations.prepare(f.preparationInput, randomUUID(), f.user.id, f.reviewOptions)).preparation;
     expect(await f.finalizations.getPreviewSelection(f.workspace.workspaceId, second.id, f.preview.id, f.user.id)).toBeUndefined();
     const before = await counts(f.workspace.workspaceId);
     await expect(f.finalizations.finalize({ ...f.input, preparationId: second.id, expectedPlanningVersionId: second.planningVersionId }, f.key, f.user.id))
@@ -229,7 +231,7 @@ describe.skipIf(!databaseUrl)("atomic exact-preview campaign finalization", () =
 
   it("finalizes optional-default preparation without inferring profiles, audiences or a Destination", async () => withFixture(async (f) => {
     const preparation = (await f.preparations.prepare({ workspaceId: f.workspace.workspaceId,
-      contentPackageId: f.contentPackage.id, expectedPackageVersion: f.contentPackage.version }, randomUUID(), f.user.id)).preparation;
+      contentPackageId: f.contentPackage.id, expectedPackageVersion: f.contentPackage.version }, randomUUID(), f.user.id, f.reviewOptions)).preparation;
     const draft = preparation.preparedDrafts[0]!;
     expect(preparation.preparedDrafts).toHaveLength(1);
     await f.drafts.submit(f.workspace.workspaceId, draft.draftId, f.user.id);
@@ -258,9 +260,23 @@ describe.skipIf(!databaseUrl)("atomic exact-preview campaign finalization", () =
 
   it("rejects a changed package revision even when the replacement package was reapproved", async () => withFixture(async (f) => {
     await f.core.saveContentPackage({ ...f.packageInput, evidence: [{ id: randomUUID(), claim: "A replacement fact.", provenance: "observed", sourceReferences: ["revision:2"] }] });
-    await f.core.approveContentPackage({ workspaceId: f.workspace.workspaceId, packageId: f.contentPackage.id, actorUserId: f.user.id });
+    await f.core.approveContentPackage({ workspaceId: f.workspace.workspaceId, packageId: f.contentPackage.id, actorUserId: f.user.id,
+      ...await packageReviewPrecondition(sql, f.workspace.workspaceId, f.contentPackage.id, f.user.id), idempotencyKey: randomUUID() });
     await expect(f.finalizations.finalize(f.input, f.key, f.user.id)).rejects.toMatchObject({ code: "package_version_mismatch" });
     expect(await counts(f.workspace.workspaceId)).toEqual(baseline);
+  }));
+
+  it("accepts byte-identical reapproval without retargeting the original generation receipt", async () => withFixture(async (f) => {
+    const originalApprovalId = f.receipt.referenceSnapshot.contentPackage.approvalId!;
+    const reapproved = await f.core.approveContentPackage({ workspaceId: f.workspace.workspaceId, packageId: f.contentPackage.id,
+      actorUserId: f.user.id, ...f.packageReview, idempotencyKey: randomUUID() });
+    expect(reapproved.approval.id).not.toBe(originalApprovalId);
+    expect(reapproved.approval.reviewFingerprint).toBe(f.reviewOptions.expectedReviewFingerprint);
+    expect((await f.finalizations.finalize(f.input, f.key, f.user.id)).replayed).toBe(false);
+    const [generation] = await sql<{ approvalId: string }[]>`SELECT content_package_approval_id AS approval_id
+      FROM draft_generation WHERE id = ${f.receipt.generationId}`;
+    expect(generation?.approvalId).toBe(originalApprovalId);
+    expect(await counts(f.workspace.workspaceId)).toEqual(finalized);
   }));
 
   it.each(["brand", "audience"] as const)("requires the original %s pin to remain current and published", async (kind) => withFixture(async (f) => {

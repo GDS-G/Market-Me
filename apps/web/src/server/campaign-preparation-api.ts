@@ -22,7 +22,7 @@ export function preparationApiError(error: unknown): Response {
   }
   if (error instanceof CampaignPreparationError) {
     const status = error.code === "access_denied" ? 403
-      : error.code === "invalid_idempotency_key" ? 422
+      : error.code === "invalid_idempotency_key" || error.code === "invalid_review_input" || error.code === "review_snapshot_too_large" || error.code === "review_snapshot_lossy" ? 422
       : error.code === "package_unavailable" ? 404 : 409;
     return Response.json({ error: { code: error.code, message: error.message,
       ...(error.existingPreparationId ? { existingPreparationId: error.existingPreparationId } : {}) } }, { status });

@@ -4,6 +4,8 @@ import type { DatabaseClient } from "./client";
 import { CampaignRepository } from "./campaign-repository";
 import { DraftRepository } from "./draft-repository";
 import { compileGeneralAnnouncementPreparation, type NormalizedCampaignPreparationInput } from "./campaign-preparation-template";
+import { assertCurrentContentPackageApprovalInTransaction } from "./content-package-review-repository";
+import { ContentPackageReviewError, type ContentPackageReviewErrorCode } from "./content-package-review-models";
 
 export interface PreparationProfileSnapshot {
   id: string;
@@ -18,7 +20,7 @@ export interface PreparationProfileSnapshot {
 }
 
 export interface PreparationReferenceSnapshot {
-  contentPackage: { id: string; title: string; version: number };
+  contentPackage: { id: string; title: string; version: number; approvalId?: string; reviewFingerprint?: string };
   brand?: PreparationProfileSnapshot;
   audiences: readonly PreparationProfileSnapshot[];
   /** Destination is mutable and unversioned. This is historical context, not send authority. */
@@ -48,7 +50,8 @@ export interface StoredCampaignPreparation {
 type ReceiptRow = Omit<StoredCampaignPreparation, "createdAt"> & { canonicalPayload: string; createdAt: string | Date };
 export type CampaignPreparationErrorCode = "access_denied" | "invalid_idempotency_key" | "idempotency_conflict"
   | "package_unavailable" | "package_version_mismatch" | "package_not_approved"
-  | "brand_unavailable" | "audience_unavailable" | "destination_unavailable" | "planning_version_conflict";
+  | "brand_unavailable" | "audience_unavailable" | "destination_unavailable" | "planning_version_conflict"
+  | ContentPackageReviewErrorCode;
 
 export class CampaignPreparationError extends Error {
   constructor(readonly code: CampaignPreparationErrorCode, message: string, readonly existingPreparationId?: string) {
@@ -73,7 +76,8 @@ function publicReceipt({ canonicalPayload: _canonicalPayload, ...receipt }: Rece
 export class CampaignPreparationRepository {
   constructor(private readonly sql: DatabaseClient) {}
 
-  async prepare(input: unknown, idempotencyKey: unknown, actorUserId: string): Promise<{
+  async prepare(input: unknown, idempotencyKey: unknown, actorUserId: string,
+    options: { expectedReviewFingerprint?: string } = {}): Promise<{
     preparation: StoredCampaignPreparation; replayed: boolean;
   }> {
     const compiled = compileGeneralAnnouncementPreparation(input);
@@ -90,14 +94,20 @@ export class CampaignPreparationRepository {
         WHERE workspace_id = ${configuration.workspaceId} AND idempotency_key = ${attemptKey}
       `)[0];
       if (prior) {
-        if (prior.canonicalPayload !== compiled.canonicalPayload) {
+        const original = prior.referenceSnapshot.contentPackage;
+        if (prior.canonicalPayload !== compiled.canonicalPayload
+          || ((original.approvalId !== undefined || original.reviewFingerprint !== undefined)
+            && (!original.approvalId || !original.reviewFingerprint || original.reviewFingerprint !== options.expectedReviewFingerprint))) {
           throw new CampaignPreparationError("idempotency_conflict", "This attempt key already belongs to different preparation settings.", prior.id);
         }
         // A successful retry remains successful after source/profile changes. Current
         // writer authority is still required, but mutable eligibility is not rerun.
         return { preparation: publicReceipt(prior), replayed: true };
       }
-      const referenceSnapshot = await this.lockReferences(transaction, configuration);
+      if (typeof options.expectedReviewFingerprint !== "string" || !/^mm-package-review-v1:sha256:[0-9a-f]{64}$/.test(options.expectedReviewFingerprint)) {
+        throw new CampaignPreparationError("invalid_review_input", "Select the exact currently approved package review before preparing a Campaign.");
+      }
+      const referenceSnapshot = await this.lockReferences(transaction, configuration, options.expectedReviewFingerprint);
       const campaigns = new CampaignRepository(this.sql);
       // Existing graph/reference/communication-policy validation remains authoritative;
       // all stricter preparation references are now locked through receipt insertion.
@@ -108,7 +118,8 @@ export class CampaignPreparationRepository {
       const generated = await new DraftRepository(this.sql).generateDraftsInTransaction(transaction, {
         workspaceId: configuration.workspaceId, campaignId: created.campaignId,
         campaignVersionId: created.campaignVersionId, contentPackageId: configuration.contentPackageId,
-        expectedContentPackageVersion: configuration.expectedPackageVersion, draftFormat: "channel_neutral",
+        expectedContentPackageVersion: configuration.expectedPackageVersion,
+        expectedReviewFingerprint: options.expectedReviewFingerprint, draftFormat: "channel_neutral",
       }, actorUserId);
       const receipt = (await transaction<ReceiptRow[]>`
         INSERT INTO campaign_preparation (
@@ -177,18 +188,19 @@ export class CampaignPreparationRepository {
     }
   }
 
-  private async lockReferences(transaction: TransactionSql, configuration: NormalizedCampaignPreparationInput): Promise<PreparationReferenceSnapshot> {
-    const contentPackage = (await transaction<{ id: string; title: string; version: number; status: string }[]>`
-      SELECT id, title, version, status FROM content_package
-      WHERE id = ${configuration.contentPackageId} AND workspace_id = ${configuration.workspaceId} FOR SHARE
-    `)[0];
-    if (!contentPackage) throw new CampaignPreparationError("package_unavailable", "Choose a Content Package in this workspace.");
-    if (contentPackage.version !== configuration.expectedPackageVersion) {
-      throw new CampaignPreparationError("package_version_mismatch", "The Content Package changed. Review its current revision before preparing another campaign.");
-    }
-    if (contentPackage.status !== "approved") throw new CampaignPreparationError("package_not_approved", "Approve the Content Package before preparing a campaign.");
+  private async lockReferences(transaction: TransactionSql, configuration: NormalizedCampaignPreparationInput,
+    expectedReviewFingerprint: string): Promise<PreparationReferenceSnapshot> {
+    const approval = await assertCurrentContentPackageApprovalInTransaction(transaction, {
+      workspaceId: configuration.workspaceId, contentPackageId: configuration.contentPackageId,
+      expectedPackageVersion: configuration.expectedPackageVersion, expectedReviewFingerprint,
+    }).catch((error: unknown) => {
+      if (error instanceof ContentPackageReviewError) throw new CampaignPreparationError(error.code, error.message);
+      throw error;
+    });
+    const contentPackage = approval.snapshot.package;
     const snapshot: PreparationReferenceSnapshot = {
-      contentPackage: { id: contentPackage.id, title: contentPackage.title, version: contentPackage.version }, audiences: [],
+      contentPackage: { id: contentPackage.id, title: contentPackage.title, version: contentPackage.version,
+        approvalId: approval.approvalId, reviewFingerprint: approval.reviewFingerprint }, audiences: [],
     };
     if (configuration.brandProfileVersionId) {
       snapshot.brand = await this.lockProfile(transaction, "brand", configuration.workspaceId, configuration.brandProfileVersionId);

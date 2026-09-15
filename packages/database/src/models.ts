@@ -853,6 +853,8 @@ export interface StoredDraftGeneration {
   campaignVersionId: string;
   contentPackageId: string;
   contentPackageVersion: number;
+  /** NULL/absent denotes pre-contract history, never authority for new generation. */
+  contentPackageApprovalId?: string | null;
   brandProfileVersionId?: string;
   informationDepth: InformationDepth;
   promotionalStrength: PromotionalStrength;
@@ -983,7 +985,7 @@ export interface ContentPackageWrite {
   smartSourceId: string;
   rootSourceItemId: string;
   title: string;
-  status: ContentPackageStatus;
+  status: Exclude<ContentPackageStatus, "approved">;
   confidence?: number;
   contextPackVersionIds: readonly string[];
   assets: readonly (Omit<ContentAsset, "id" | "sourceAssetId"> & {
@@ -1035,6 +1037,8 @@ export interface StoredContentPackage {
 export interface ContentAssetRightsReviewWrite {
   workspaceId: string;
   packageId: string;
+  expectedVersion: number;
+  expectedReviewFingerprint: string;
   assetId: string;
   status: Extract<ContentAssetRightsStatus, "cleared" | "restricted">;
   owner: string;

@@ -7,6 +7,7 @@ import { canPrepareCampaign, preparationResultPath, preparationUuid } from "@/co
 import { getAuthenticatedUser } from "@/server/auth";
 import { getActiveWorkspace } from "@/server/active-workspace";
 import { getCampaignFinalizationRepository, getCampaignPreparationRepository, getDraftRepository } from "@/server/database";
+import { packageReviewFingerprint, reviewUuid } from "@/components/content-package-review-request";
 
 export default async function FinalizeCampaignPage({ params, searchParams }: {
   params: Promise<{ id: string }>; searchParams: Promise<{ workspaceId?: string | string[] }>;
@@ -21,12 +22,15 @@ export default async function FinalizeCampaignPage({ params, searchParams }: {
   const existing = await getCampaignFinalizationRepository().getForCampaign(workspace.workspaceId, preparation.campaignId, user.id);
   if (existing) redirect(finalizationResultPath(existing.id, workspace.workspaceId));
   const canWrite = canPrepareCampaign(workspace.role);
-  const options = canWrite ? await getDraftRepository().listCampaignPreviewOptions(workspace.workspaceId, preparation.campaignId) : [];
+  const originalPackage = preparation.referenceSnapshot.contentPackage;
+  const hasSourceProof = reviewUuid.safeParse(originalPackage?.approvalId).success && packageReviewFingerprint.safeParse(originalPackage?.reviewFingerprint).success;
+  const options = canWrite && hasSourceProof ? await getDraftRepository().listCampaignPreviewOptions(workspace.workspaceId, preparation.campaignId) : [];
   return <WorkspaceShell activePath="/campaigns" workspaceName={workspace.workspaceName} userName={user.displayName}>
     <div className="resource-page form-page"><Link className="back-link" href={preparationResultPath(preparation.id, workspace.workspaceId)}>Original preparation</Link>
       <header className="resource-header"><div><p className="eyebrow">Exact-preview finalization</p><h1>Create an executable draft</h1><p>{preparation.configurationSnapshot.name} · same campaign, one approved text preview, separate activation.</p></div></header>
       <section className="form-section"><div><h2>Review prepared drafts first</h2><p>Approve the desired copy, then create its channel preview. A current preview will appear below after refreshing this page.</p></div><ul>{preparation.preparedDrafts.map((draft, index) => <li key={draft.draftId}><Link href={`/drafts/${draft.draftId}`}>Review {preparation.referenceSnapshot.audiences[index]?.name ?? "General audience"} draft</Link></li>)}</ul></section>
-      {canWrite ? <CampaignFinalizationForm userId={user.id} workspaceId={workspace.workspaceId} preparationId={preparation.id} planningVersionId={preparation.planningVersionId} generationId={preparation.generationId}
+      {canWrite && !hasSourceProof ? <section className="resource-panel"><div className="empty-inline"><h2>Original source approval unavailable</h2><p>This historical preparation has no exact original package-review proof. Existing copy remains accessible, but a new finalization requires a new preparation from a currently approved exact review.</p><Link href="/campaigns/prepare">Prepare a new reviewed campaign</Link></div></section>
+        : canWrite ? <CampaignFinalizationForm userId={user.id} workspaceId={workspace.workspaceId} preparationId={preparation.id} planningVersionId={preparation.planningVersionId} generationId={preparation.generationId}
         choices={finalizationPreviewChoices(options, preparation.planningVersionId, preparation.preparedDrafts.map((draft) => draft.draftId))} />
         : <section className="resource-panel"><h2>Writer access required</h2><p>Owners, admins, and editors can finalize campaigns. Draft approval is a separate permission.</p></section>}
     </div>

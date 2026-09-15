@@ -9,13 +9,14 @@ import { DraftRepository } from "./draft-repository";
 import { PublishingRepository } from "./publishing-repository";
 import { MarketMeRepository } from "./repositories";
 import { loadExactTextPreviewInTransaction, lockExactTextPreviewInTransaction } from "./exact-preview-repository";
+import { packageGenerationPrecondition, packageReviewPrecondition } from "./test-support/package-review-fixture";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (databaseUrl) {
   const target = new URL(databaseUrl);
   const name = decodeURIComponent(target.pathname.slice(1));
-  if (!["market_me_qa_122_preparation", "market_me_qa_123_finalization", "market_me_ci"].includes(name)) {
-    throw new Error("Exact-preview repository tests require the explicitly isolated QA122, QA123, or CI database.");
+  if (!["market_me_qa_124_review", "market_me_ci"].includes(name)) {
+    throw new Error("Exact-preview repository tests require the explicitly isolated QA124 or CI database.");
   }
 }
 let sql: DatabaseClient;
@@ -50,14 +51,16 @@ async function makeFixture(provider: Provider = "discord_webhook", mode: Mode = 
     const contentPackage = await core.saveContentPackage({ workspaceId: workspace.workspaceId, smartSourceId: source.id,
       rootSourceItemId: sourceItem.id, title: "Café 🚀 announcement", status: "ready", contextPackVersionIds: [], assets: [], conflicts: [],
       evidence: [{ id: randomUUID(), claim: "Admission is free — café 🚀.", provenance: "authoritative_context", sourceReferences: ["QA original captured evidence"], confidence: 1 }] });
-    await core.approveContentPackage({ workspaceId: workspace.workspaceId, packageId: contentPackage.id, actorUserId: user.id });
+    await core.approveContentPackage({ workspaceId: workspace.workspaceId, packageId: contentPackage.id, actorUserId: user.id,
+      idempotencyKey: randomUUID(), ...await packageReviewPrecondition(sql, workspace.workspaceId, contentPackage.id, user.id) });
     const destination = mode === "none" ? undefined : await campaigns.saveDestination({ workspaceId: workspace.workspaceId,
       provider: "manual", canonicalUrl: "https://example.test/announcement?keep=a%2Fb", knownRedirects: [], title: "Original destination label",
       description: "Synthetic unversioned destination", contentType: "web_page", identifiers: {}, topics: [], audiences: [], geography: [], status: "published", tracking: {} }, user.id);
     const campaign = await campaigns.createCampaign(compileGeneralAnnouncementPreparation({ workspaceId: workspace.workspaceId,
       contentPackageId: contentPackage.id, expectedPackageVersion: 1, ...(destination ? { destinationId: destination.id } : {}) }).campaign, user.id);
     await campaigns.publishCampaign(workspace.workspaceId, campaign.id);
-    const generated = (await drafts.generate({ workspaceId: workspace.workspaceId, campaignId: campaign.id, contentPackageId: contentPackage.id }, user.id))[0]!;
+    const generated = (await drafts.generate({ workspaceId: workspace.workspaceId, campaignId: campaign.id, contentPackageId: contentPackage.id,
+      ...await packageGenerationPrecondition(sql, workspace.workspaceId, contentPackage.id, user.id) }, user.id))[0]!;
     await drafts.submit(workspace.workspaceId, generated.id, user.id);
     const approval = (await drafts.listApprovals(workspace.workspaceId))[0]!;
     await drafts.decide({ workspaceId: workspace.workspaceId, approvalId: approval.id, decision: "approved", actorUserId: user.id, notes: "Synthetic exact version review" });
@@ -220,7 +223,8 @@ describe.skipIf(!databaseUrl)("exact raw text-preview repository", () => {
   }));
 
   it("requires the approved decision to name the same draft, not merely its version ID", async () => withFixture(async (f) => {
-    const other = (await f.drafts.generate({ workspaceId: f.workspace.workspaceId, campaignId: f.campaign.id, contentPackageId: f.contentPackage.id }, f.user.id))[0]!;
+    const other = (await f.drafts.generate({ workspaceId: f.workspace.workspaceId, campaignId: f.campaign.id, contentPackageId: f.contentPackage.id,
+      ...await packageGenerationPrecondition(sql, f.workspace.workspaceId, f.contentPackage.id, f.user.id) }, f.user.id))[0]!;
     await sql`UPDATE content_draft_approval SET content_draft_id=${other.id} WHERE id=${f.approval.id}`;
     await expect(load(f)).rejects.toThrow();
   }));

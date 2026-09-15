@@ -3,6 +3,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { AiRepository } from "./ai-repository";
 import { createDatabaseClient, type DatabaseClient } from "./client";
 import { MarketMeRepository } from "./repositories";
+import { packageReviewPrecondition } from "./test-support/package-review-fixture";
 
 const databaseUrl = process.env.DATABASE_URL;
 let sql: DatabaseClient | undefined;
@@ -632,7 +633,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
           title, status
         ) VALUES (${proposalPackageId}, ${owner.workspace.workspaceId},
           ${proposalSmartSourceId}, ${proposalSourceItemId},
-          'AI proposal package', 'approved')
+          'AI proposal package', 'ready')
       `;
       await sql`
         INSERT INTO evidence_item (
@@ -660,16 +661,20 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
       `;
       await sql`UPDATE campaign SET current_version_id = ${proposalCampaignVersionId} WHERE id = ${proposalCampaignId}`;
       const proposalEvidenceSnapshot = [{
-        id: proposalEvidenceId, claim: "Existing evidence-backed copy", provenance: "observed", sourceReferences: ["proposal.txt"], confidence: 1,
+        id: proposalEvidenceId, factKey: "governed-proposal-fact", claim: "Existing evidence-backed copy", provenance: "observed", sourceReferences: ["proposal.txt"], confidence: 1,
       }];
+      const proposalPackageApproval = await new MarketMeRepository(sql).approveContentPackage({
+        ...await packageReviewPrecondition(sql, owner.workspace.workspaceId, proposalPackageId, owner.user.id),
+        workspaceId: owner.workspace.workspaceId, packageId: proposalPackageId, actorUserId: owner.user.id, idempotencyKey: randomUUID(),
+      });
       await sql`
         INSERT INTO draft_generation (
           id, workspace_id, campaign_version_id, content_package_id,
-          content_package_version, information_depth, promotional_strength,
+          content_package_version, content_package_approval_id, information_depth, promotional_strength,
           evidence_snapshot, generator_provider, generator_model,
           generator_version, prompt_version, draft_format, created_by
         ) VALUES (${proposalGenerationId}, ${owner.workspace.workspaceId},
-          ${proposalCampaignVersionId}, ${proposalPackageId}, 1, 'minimal',
+          ${proposalCampaignVersionId}, ${proposalPackageId}, 1, ${proposalPackageApproval.approval.id}, 'minimal',
           'informational', ${sql.json(proposalEvidenceSnapshot)}, 'fixture', 'fixture', 'fixture-v1',
           'fixture-v1', 'channel_neutral', ${owner.user.id})
       `;

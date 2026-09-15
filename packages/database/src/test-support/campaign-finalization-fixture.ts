@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { packageReviewPrecondition } from "./package-review-fixture";
 import { DISCORD_WEBHOOK_CAPABILITIES, SLACK_WEBHOOK_CAPABILITIES, mastodonCapabilities } from "@market-me/connectors";
 import type { PromotionalStrength } from "@market-me/domain";
 import { CampaignFinalizationRepository } from "../campaign-finalization-repository";
@@ -73,7 +74,10 @@ export async function makeCampaignFinalizationFixture(sql: DatabaseClient, optio
         { id: randomUUID(), claim: "The event begins at noon.", provenance: "observed", sourceReferences: [`source-item:${sourceItem.id}`], confidence: 1 },
       ] };
     const contentPackage = await core.saveContentPackage(packageInput);
-    await core.approveContentPackage({ workspaceId: workspace.workspaceId, packageId: contentPackage.id, actorUserId: user.id });
+    const packageReview = await packageReviewPrecondition(sql, workspace.workspaceId, contentPackage.id, user.id);
+    await core.approveContentPackage({ workspaceId: workspace.workspaceId, packageId: contentPackage.id, actorUserId: user.id,
+      ...packageReview, idempotencyKey: randomUUID() });
+    const reviewOptions = { expectedReviewFingerprint: packageReview.expectedReviewFingerprint };
     const brand = await profiles.createBrandProfile(finalizationBrandInput(workspace.workspaceId), user.id);
     const brandVersion = (await profiles.publishBrandProfile(workspace.workspaceId, brand.id, user.id))!.currentVersion!;
     const audienceA = await profiles.createAudienceProfile(finalizationAudienceInput(workspace.workspaceId, "First audience"), user.id);
@@ -87,7 +91,7 @@ export async function makeCampaignFinalizationFixture(sql: DatabaseClient, optio
       expectedPackageVersion: contentPackage.version, brandProfileVersionId: brandVersion.id,
       audienceProfileVersionIds: [audienceVersionB.id, audienceVersionA.id], destinationId: destination.id,
       informationDepth: "contextual", promotionalStrength: options.promotionalStrength ?? "informational" };
-    const receipt = (await preparations.prepare(preparationInput, randomUUID(), user.id)).preparation;
+    const receipt = (await preparations.prepare(preparationInput, randomUUID(), user.id, reviewOptions)).preparation;
     // Select a strict subset of generated variants, not the first audience by accident.
     const selected = receipt.preparedDrafts[1]!;
     if (options.revise !== false) {
@@ -117,7 +121,7 @@ export async function makeCampaignFinalizationFixture(sql: DatabaseClient, optio
       expectedPlanningVersionId: receipt.planningVersionId, draftId: selected.draftId, expectedDraftVersionId: approvedDraft.currentVersion.id,
       previewId: preview.id, expectedPreviewFingerprint: exact.token, timing: { type: "immediate" } };
     return { core, campaigns, publishing, profiles, preparations, finalizations, drafts, receipt, approvedDraft, preview, exact, input,
-      key: randomUUID(), user, workspace, cleanup, appBaseUrl, source, sourceItem, packageInput, contentPackage, preparationInput,
+      key: randomUUID(), user, workspace, cleanup, appBaseUrl, source, sourceItem, packageInput, contentPackage, preparationInput, packageReview, reviewOptions,
       brand, brandVersion, audienceA, audienceB, audienceVersionA, audienceVersionB, destination, connection, approval, previewInput };
   } catch (error) { await cleanup(); throw error; }
 }

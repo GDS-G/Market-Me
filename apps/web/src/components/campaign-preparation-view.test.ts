@@ -33,6 +33,15 @@ describe("plain-language preparation fields", () => {
   });
 });
 describe("immutable preparation result", () => {
+  it("shows exact original approval provenance or an honest legacy warning, never a current replacement", () => {
+    const fingerprint = `mm-package-review-v1:sha256:${"a".repeat(64)}`;
+    const exact = { ...preparation, referenceSnapshot: { ...preparation.referenceSnapshot, contentPackage: { ...preparation.referenceSnapshot.contentPackage, approvalId: uuid(9), reviewFingerprint: fingerprint } } };
+    const html = renderToStaticMarkup(createElement(CampaignPreparationResult, { preparation: exact, userId: props.userId, canWrite: false, availableDraftIds: [] }));
+    expect(html).toContain("Open captured approval receipt"); expect(html).toContain(fingerprint); expect(html).toContain("not a claim about current eligibility");
+    expect(html).toContain(`/content-packages/${preparation.contentPackageId}/approvals/${uuid(9)}?workspaceId=${props.workspaceId}`);
+    const legacy = renderToStaticMarkup(createElement(CampaignPreparationResult, { preparation, userId: props.userId, canWrite: false, availableDraftIds: [] }));
+    expect(legacy).toContain("Historical approval unavailable"); expect(legacy).not.toContain("Open captured approval receipt");
+  });
   it("renders every initial variant, captured names and exact IDs, ISO time and no external publishing claim", () => {
     const html = renderToStaticMarkup(createElement(CampaignPreparationResult, { preparation, userId: props.userId, canWrite: true, availableDraftIds: preparation.preparedDrafts.map((draft) => draft.draftId) }));
     expect(html).toContain("Prepared—not activated");

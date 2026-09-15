@@ -5,6 +5,7 @@ import { CampaignRepository } from "./campaign-repository";
 import { createDatabaseClient, type DatabaseClient } from "./client";
 import { DraftRepository } from "./draft-repository";
 import { MarketMeRepository } from "./repositories";
+import { packageGenerationPrecondition, packageReviewPrecondition } from "./test-support/package-review-fixture";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (databaseUrl) {
@@ -84,8 +85,9 @@ describe.skipIf(!databaseUrl)("immutable draft evidence after source refresh", (
         ],
       });
       expect((await core.approveContentPackage({
+        ...await packageReviewPrecondition(sql, workspace.workspaceId, originalPackage.id, user.id), idempotencyKey: randomUUID(),
         workspaceId: workspace.workspaceId, packageId: originalPackage.id, actorUserId: user.id,
-      }))?.status).toBe("approved");
+      })).review?.status).toBe("approved");
 
       const campaign = await campaigns.createCampaign({
         workspaceId: workspace.workspaceId,
@@ -107,6 +109,7 @@ describe.skipIf(!databaseUrl)("immutable draft evidence after source refresh", (
       }, user.id);
       await campaigns.publishCampaign(workspace.workspaceId, campaign.id);
       const generationInput = {
+        ...await packageGenerationPrecondition(sql, workspace.workspaceId, originalPackage.id, user.id),
         workspaceId: workspace.workspaceId, campaignId: campaign.id, contentPackageId: originalPackage.id,
       };
       const generated = await drafts.generate(generationInput, user.id);
@@ -146,7 +149,7 @@ describe.skipIf(!databaseUrl)("immutable draft evidence after source refresh", (
       expect(refreshedPackage.status).toBe("ready");
       expect(refreshedPackage.evidence.map((entry) => entry.id)).toEqual([refreshedEvidenceId]);
       await expect(drafts.generate(generationInput, user.id)).rejects.toMatchObject({
-        name: "DraftValidationError", issues: [{ code: "package_not_approved" }],
+        name: "DraftValidationError", issues: [{ code: "package_version_mismatch" }],
       });
 
       const historical = (await drafts.get(workspace.workspaceId, originalDraft.id))!;
@@ -222,6 +225,12 @@ describe.skipIf(!databaseUrl)("immutable draft evidence after source refresh", (
         `],
       ];
       for (const [reason, tamper] of proofTampering) {
+        if (["duplicate snapshot identity with conflicting text", "non-array generation snapshot", "same identity but changed snapshot claim"].includes(reason)) {
+          // New proof-bearing generations are immutable at the write boundary;
+          // legacy whole-version per-claim checks remain exercised below.
+          await expect(sql.begin(tamper), reason).rejects.toMatchObject({ code: "23514" });
+          continue;
+        }
         const rollback = new Error(`Rollback owned proof fixture: ${reason}`);
         try {
           await sql.begin(async (transaction) => {
@@ -245,8 +254,10 @@ describe.skipIf(!databaseUrl)("immutable draft evidence after source refresh", (
       expect((await drafts.get(workspace.workspaceId, originalDraft.id))!.currentVersion.claims).toEqual(originalClaims);
 
       await core.approveContentPackage({
+        ...await packageReviewPrecondition(sql, workspace.workspaceId, refreshedPackage.id, user.id), idempotencyKey: randomUUID(),
         workspaceId: workspace.workspaceId, packageId: refreshedPackage.id, actorUserId: user.id,
       });
+      Object.assign(generationInput, await packageGenerationPrecondition(sql, workspace.workspaceId, refreshedPackage.id, user.id));
       const freshDraft = (await drafts.generate(generationInput, user.id))[0]!;
       expect(freshDraft.id).not.toBe(originalDraft.id);
       expect(freshDraft.status).toBe("working");
@@ -276,7 +287,7 @@ describe.skipIf(!databaseUrl)("immutable draft evidence after source refresh", (
         await transaction`SELECT id FROM content_package WHERE id = ${originalPackage.id} FOR UPDATE`;
         reportLock((await transaction<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid);
         await release;
-        await transaction`UPDATE content_package SET status = 'ready', version = version + 1 WHERE id = ${originalPackage.id}`;
+        await transaction`UPDATE content_package SET status = 'ready', current_approval_id=NULL, version = version + 1 WHERE id = ${originalPackage.id}`;
       });
       const holderPid = await locked;
       const concurrentGeneration = drafts.generate(generationInput, user.id).then(
@@ -294,7 +305,7 @@ describe.skipIf(!databaseUrl)("immutable draft evidence after source refresh", (
         await refresh;
       }
       expect(await concurrentGeneration).toMatchObject({
-        succeeded: false, error: { name: "DraftValidationError", issues: [{ code: "package_not_approved" }] },
+        succeeded: false, error: { name: "DraftValidationError", issues: [{ code: "package_version_mismatch" }] },
       });
       // A current live row reusing an old UUID still cannot replace historical snapshot content.
       await core.saveContentPackage({

@@ -6,6 +6,12 @@ import type {
   ContextPackVersion,
 } from "@market-me/domain";
 import type { DatabaseClient } from "./client";
+import { ContentPackageReviewRepository, assertPackageReviewUuid } from "./content-package-review-repository";
+import { ContentPackageReviewError, type ContentPackageApprovalInput, type ContentPackageApprovalResult, type ContentPackageReview } from "./content-package-review-models";
+import {
+  updatePackageAssetAccessibility, reviewPackageAssetRights, resolvePackageEvidenceConflict, resolvePackageUnresolvedEvidence,
+  type PackageAssetAccessibilityInput, type PackageEvidenceConflictInput, type PackageUnresolvedEvidenceInput,
+} from "./content-package-review-mutations";
 import type {
   AuthenticatedUser,
   SmartSourceTestResult,
@@ -1477,32 +1483,67 @@ export class MarketMeRepository {
   async saveContentPackage(
     input: ContentPackageWrite,
   ): Promise<StoredContentPackage> {
+    // Worker ingestion can replace source material, but cannot attest to a
+    // human approval. Runtime check also fences old/untyped callers.
+    if ((input.status as string) === "approved") throw new ContentPackageReviewError("invalid_review_input", "Ingestion cannot create an approved Content Package.");
+    for (const id of [input.workspaceId, input.smartSourceId, input.rootSourceItemId]) assertPackageReviewUuid(id);
+    const preparedAssets = input.assets.map((asset) => ({
+      asset,
+      clientKey: asset.clientKey ?? randomUUID(),
+    }));
+    const assetsByClientKey = new Map(preparedAssets.map((entry) => [entry.clientKey, entry]));
+    if (assetsByClientKey.size !== preparedAssets.length) {
+      throw new ContentPackageReviewError("invalid_review_input", "Package asset client keys must be unique within one ingestion.");
+    }
+    for (const entry of preparedAssets) {
+      if (entry.asset.role === "derivative") {
+        const source = entry.asset.sourceAssetClientKey
+          ? assetsByClientKey.get(entry.asset.sourceAssetClientKey)
+          : undefined;
+        if (!source || source === entry || source.asset.role !== "original" || source.asset.sourceAssetClientKey) {
+          throw new ContentPackageReviewError("invalid_review_input", "Every derivative must reference one distinct original asset in this ingestion.");
+        }
+      } else if (entry.asset.sourceAssetClientKey) {
+        throw new ContentPackageReviewError("invalid_review_input", "Only derivative assets may reference a source asset client key.");
+      }
+    }
     const packageId = await this.sql.begin(async (transaction) => {
-      const existing = await transaction<{ id: string }[]>`
-        SELECT id FROM content_package
-        WHERE smart_source_id = ${input.smartSourceId} AND root_source_item_id = ${input.rootSourceItemId}
-        FOR UPDATE
+      // Preserve ancestor-first deletion/FK order, then serialize first-create
+      // attempts using the upsert's actual RETURNING id (not a losing UUID).
+      await transaction`SELECT id FROM organization WHERE id=(SELECT organization_id FROM workspace WHERE id=${input.workspaceId}) FOR KEY SHARE`;
+      await transaction`SELECT id FROM workspace WHERE id=${input.workspaceId} FOR KEY SHARE`;
+      const sources = await transaction`
+        SELECT id FROM smart_source WHERE id=${input.smartSourceId} AND workspace_id=${input.workspaceId} FOR KEY SHARE
       `;
-      const id = existing[0]?.id ?? randomUUID();
-      await transaction`
+      const sourceIds = [...new Set([input.rootSourceItemId, ...input.assets.flatMap((asset) => asset.sourceItemId ? [asset.sourceItemId] : [])])].sort();
+      const items = await transaction`SELECT id FROM source_item WHERE workspace_id=${input.workspaceId}
+        AND smart_source_id=${input.smartSourceId} AND id IN ${transaction(sourceIds)} ORDER BY id FOR KEY SHARE`;
+      if (!sources[0] || items.length !== sourceIds.length) throw new ContentPackageReviewError("invalid_review_input", "Package source items must belong to the same workspace and Smart Source.");
+      const contextIds = [...new Set([...input.contextPackVersionIds, ...input.evidence.flatMap((row) => row.contextPackVersionId ? [row.contextPackVersionId] : [])])].sort();
+      if (contextIds.length) {
+        const contexts = await transaction`SELECT v.id FROM context_pack_version v JOIN context_pack p ON p.id=v.context_pack_id
+          WHERE p.workspace_id=${input.workspaceId} AND v.id IN ${transaction(contextIds)} ORDER BY v.id FOR KEY SHARE OF v,p`;
+        if (contexts.length !== contextIds.length) throw new ContentPackageReviewError("invalid_review_input", "Package Context Pack versions must belong to this workspace.");
+      }
+      const saved = await transaction<{ id: string }[]>`
         INSERT INTO content_package (
           id, workspace_id, smart_source_id, root_source_item_id, title, status,
           confidence, context_pack_version_ids
         ) VALUES (
-          ${id}, ${input.workspaceId}, ${input.smartSourceId}, ${input.rootSourceItemId},
+          ${randomUUID()}, ${input.workspaceId}, ${input.smartSourceId}, ${input.rootSourceItemId},
           ${input.title}, ${input.status}, ${input.confidence ?? null}, ${[...input.contextPackVersionIds]}
         ) ON CONFLICT (smart_source_id, root_source_item_id) DO UPDATE SET
           title = EXCLUDED.title, status = EXCLUDED.status, confidence = EXCLUDED.confidence,
           context_pack_version_ids = EXCLUDED.context_pack_version_ids,
-          version = content_package.version + 1, updated_at = now()
+          version = content_package.version + 1, current_approval_id = NULL, updated_at = now()
+        WHERE content_package.workspace_id=EXCLUDED.workspace_id
+        RETURNING id
       `;
+      const id = saved[0]?.id;
+      if (!id) throw new ContentPackageReviewError("invalid_review_input", "Package source lineage does not match this workspace.");
       await transaction`DELETE FROM content_asset WHERE content_package_id = ${id}`;
       await transaction`DELETE FROM evidence_conflict WHERE content_package_id = ${id}`;
       await transaction`DELETE FROM evidence_item WHERE content_package_id = ${id}`;
-      const preparedAssets = input.assets.map((asset) => ({
-        asset,
-        clientKey: asset.clientKey ?? randomUUID(),
-      }));
       const assetIds = new Map(
         preparedAssets.map(({ clientKey }) => [clientKey, randomUUID()]),
       );
@@ -1575,380 +1616,24 @@ export class MarketMeRepository {
     return rows[0];
   }
 
-  async updateAssetAccessibility(input: {
-    workspaceId: string;
-    packageId: string;
-    assetId: string;
-    altText?: string;
-    decorative: boolean;
-    notes?: string;
-    actorUserId: string;
-  }): Promise<StoredContentPackage | undefined> {
-    const altText = input.altText?.trim();
-    if (!input.decorative && !altText)
-      throw new Error("Informative images require reviewed alternative text");
-    const rows = await this.sql<{ id: string }[]>`
-      UPDATE content_asset a SET
-        alt_text = ${input.decorative ? null : altText!},
-        alt_text_status = ${input.decorative ? "decorative" : "approved"},
-        accessibility_notes = ${input.notes?.trim() || null}
-      FROM content_package p
-      WHERE a.id = ${input.assetId} AND a.content_package_id = p.id
-        AND p.id = ${input.packageId} AND p.workspace_id = ${input.workspaceId}
-        AND a.role = 'original' AND a.mime_type LIKE 'image/%'
-      RETURNING a.id
-    `;
-    if (!rows[0]) return undefined;
-    await this.sql`
-      INSERT INTO audit_event (id, workspace_id, actor_user_id, event_type, subject_type, subject_id, data)
-      VALUES (${randomUUID()}, ${input.workspaceId}, ${input.actorUserId}, 'content_asset.accessibility_updated',
-        'content_asset', ${input.assetId}, ${this.sql.json({ decorative: input.decorative, altTextLength: altText?.length ?? 0 } as JSONValue)})
-    `;
-    return this.getContentPackage(input.workspaceId, input.packageId);
+  async updateAssetAccessibility(input: PackageAssetAccessibilityInput): Promise<ContentPackageReview | undefined> {
+    return updatePackageAssetAccessibility(this.sql, input);
   }
 
-  async reviewAssetRights(
-    input: ContentAssetRightsReviewWrite,
-    actorUserId: string,
-  ): Promise<StoredContentPackage | undefined> {
-    const owner = input.owner.trim();
-    const sourceReference = input.sourceReference.trim();
-    const proofReference = input.proofReference.trim();
-    const reviewNote = input.reviewNote.trim();
-    const attributionRequirement =
-      input.attributionRequirement?.trim() || undefined;
-    const watermarkRequirement =
-      input.watermarkRequirement?.trim() || undefined;
-    const disclaimerRequirement =
-      input.disclaimerRequirement?.trim() || undefined;
-    const permittedChannels = [...new Set(input.permittedChannels)];
-    const permittedChannelConnectionIds = [
-      ...new Set(input.permittedChannelConnectionIds),
-    ];
-    const permittedCampaignIds = [...new Set(input.permittedCampaignIds)];
-    const permittedBrandProfileIds = [
-      ...new Set(input.permittedBrandProfileIds),
-    ];
-    const validFrom = input.validFrom ? new Date(input.validFrom) : undefined;
-    const expiresAt = input.expiresAt ? new Date(input.expiresAt) : undefined;
-    const now = new Date();
-    if (
-      !owner ||
-      sourceReference.length < 3 ||
-      proofReference.length < 3 ||
-      reviewNote.length < 3
-    )
-      throw new Error("Asset rights review evidence is incomplete");
-    if (validFrom && Number.isNaN(validFrom.getTime()))
-      throw new Error("Asset rights valid-from time is invalid");
-    if (expiresAt && Number.isNaN(expiresAt.getTime()))
-      throw new Error("Asset rights expiration time is invalid");
-    if (validFrom && expiresAt && expiresAt <= validFrom)
-      throw new Error(
-        "Asset rights expiration must follow its valid-from time",
-      );
-    if (
-      input.status === "cleared" &&
-      (!input.commercialUseAllowed ||
-        !input.derivativeUseAllowed ||
-        !input.worldwideUseAllowed ||
-        !permittedChannels.includes("discord_webhook") ||
-        permittedChannelConnectionIds.length === 0 ||
-        attributionRequirement ||
-        watermarkRequirement ||
-        disclaimerRequirement ||
-        (validFrom && validFrom > now) ||
-        (expiresAt && expiresAt <= now))
-    )
-      throw new Error(
-        "Cleared rights require current worldwide commercial and derivative permission for at least one exact Discord Channel Connection with no unsatisfied attribution, watermark, or disclaimer requirement",
-      );
-
-    const updated = await this.sql.begin(async (transaction) => {
-      const permittedConnections = permittedChannelConnectionIds.length
-        ? await transaction<{ id: string }[]>`
-            SELECT id FROM channel_connection
-            WHERE workspace_id = ${input.workspaceId}
-              AND id IN ${transaction(permittedChannelConnectionIds)}
-              AND provider = ANY(${permittedChannels})
-          `
-        : [];
-      if (permittedConnections.length !== permittedChannelConnectionIds.length)
-        throw new Error(
-          "Every permitted Channel Connection must belong to this workspace and match a permitted provider",
-        );
-      const permittedCampaigns = permittedCampaignIds.length
-        ? await transaction<{ id: string }[]>`
-            SELECT id FROM campaign
-            WHERE workspace_id = ${input.workspaceId}
-              AND id IN ${transaction(permittedCampaignIds)}
-          `
-        : [];
-      if (permittedCampaigns.length !== permittedCampaignIds.length)
-        throw new Error(
-          "Every permitted Campaign must belong to this workspace",
-        );
-      const permittedBrandProfiles = permittedBrandProfileIds.length
-        ? await transaction<{ id: string }[]>`
-            SELECT id FROM brand_profile
-            WHERE workspace_id = ${input.workspaceId}
-              AND id IN ${transaction(permittedBrandProfileIds)}
-          `
-        : [];
-      if (permittedBrandProfiles.length !== permittedBrandProfileIds.length)
-        throw new Error(
-          "Every permitted Brand Profile must belong to this workspace",
-        );
-      const rows = await transaction<{ id: string; rightsRevision: number }[]>`
-        UPDATE content_asset asset SET
-          rights_status = ${input.status},
-          rights_owner = ${owner},
-          rights_license_owner = ${input.licenseOwner?.trim() || null},
-          rights_source_reference = ${sourceReference},
-          rights_proof_reference = ${proofReference},
-          rights_commercial_use_allowed = ${input.commercialUseAllowed},
-          rights_derivative_use_allowed = ${input.derivativeUseAllowed},
-          rights_worldwide_use_allowed = ${input.worldwideUseAllowed},
-          rights_permitted_channels = ${permittedChannels},
-          rights_valid_from = ${validFrom ?? null},
-          rights_expires_at = ${expiresAt ?? null},
-          rights_attribution_requirement = ${attributionRequirement ?? null},
-          rights_watermark_requirement = ${watermarkRequirement ?? null},
-          rights_disclaimer_requirement = ${disclaimerRequirement ?? null},
-          rights_review_note = ${reviewNote},
-          rights_reviewed_by = ${actorUserId},
-          rights_reviewed_at = now(),
-          rights_revision = asset.rights_revision + 1
-        FROM content_package package, workspace_membership membership
-        WHERE asset.id = ${input.assetId}
-          AND asset.content_package_id = package.id
-          AND package.id = ${input.packageId}
-          AND package.workspace_id = ${input.workspaceId}
-          AND membership.workspace_id = package.workspace_id
-          AND membership.user_id = ${actorUserId}
-          AND membership.role IN ('owner', 'admin', 'editor')
-          AND asset.role = 'original'
-          AND asset.mime_type LIKE 'image/%'
-        RETURNING asset.id, asset.rights_revision
-      `;
-      if (!rows[0]) return undefined;
-      await transaction`
-        DELETE FROM content_asset_rights_channel_connection
-        WHERE content_asset_id = ${input.assetId}
-      `;
-      for (const channelConnectionId of permittedChannelConnectionIds) {
-        await transaction`
-          INSERT INTO content_asset_rights_channel_connection (
-            content_asset_id, channel_connection_id
-          ) VALUES (${input.assetId}, ${channelConnectionId})
-        `;
-      }
-      await transaction`
-        DELETE FROM content_asset_rights_campaign
-        WHERE content_asset_id = ${input.assetId}
-      `;
-      for (const campaignId of permittedCampaignIds) {
-        await transaction`
-          INSERT INTO content_asset_rights_campaign (content_asset_id, campaign_id)
-          VALUES (${input.assetId}, ${campaignId})
-        `;
-      }
-      await transaction`
-        DELETE FROM content_asset_rights_brand_profile
-        WHERE content_asset_id = ${input.assetId}
-      `;
-      for (const brandProfileId of permittedBrandProfileIds) {
-        await transaction`
-          INSERT INTO content_asset_rights_brand_profile (
-            content_asset_id, brand_profile_id
-          ) VALUES (${input.assetId}, ${brandProfileId})
-        `;
-      }
-      await transaction`
-        INSERT INTO audit_event (
-          id, workspace_id, actor_user_id, event_type, subject_type, subject_id, data
-        ) VALUES (
-          ${randomUUID()}, ${input.workspaceId}, ${actorUserId},
-          'content_asset.rights_reviewed', 'content_asset', ${input.assetId},
-          ${transaction.json({
-            status: input.status,
-            rightsRevision: rows[0].rightsRevision,
-            commercialUseAllowed: input.commercialUseAllowed,
-            derivativeUseAllowed: input.derivativeUseAllowed,
-            worldwideUseAllowed: input.worldwideUseAllowed,
-            permittedChannelCount: permittedChannels.length,
-            permittedChannelConnectionCount:
-              permittedChannelConnectionIds.length,
-            permittedCampaignCount: permittedCampaignIds.length,
-            permittedBrandProfileCount: permittedBrandProfileIds.length,
-            hasExpiration: Boolean(expiresAt),
-            hasOutstandingRequirements: Boolean(
-              attributionRequirement ||
-              watermarkRequirement ||
-              disclaimerRequirement,
-            ),
-          } as JSONValue)}
-        )
-      `;
-      return rows[0].id;
-    });
-    return updated
-      ? this.getContentPackage(input.workspaceId, input.packageId)
-      : undefined;
+  async reviewAssetRights(input: ContentAssetRightsReviewWrite, actorUserId: string): Promise<ContentPackageReview | undefined> {
+    return reviewPackageAssetRights(this.sql, input, actorUserId);
   }
 
-  async resolveEvidenceConflict(input: {
-    workspaceId: string;
-    packageId: string;
-    conflictId: string;
-    evidenceId: string;
-    note?: string;
-    actorUserId: string;
-  }): Promise<StoredContentPackage | undefined> {
-    const resolved = await this.sql.begin(async (transaction) => {
-      const rows = await transaction<
-        { conflictId: string; evidenceId: string }[]
-      >`
-        SELECT c.id AS conflict_id, e.id AS evidence_id
-        FROM evidence_conflict c
-        JOIN content_package p ON p.id = c.content_package_id
-        JOIN evidence_item e ON e.content_package_id = p.id AND e.id = ${input.evidenceId}
-        WHERE c.id = ${input.conflictId} AND p.id = ${input.packageId}
-          AND p.workspace_id = ${input.workspaceId}
-          AND ${input.evidenceId} = ANY(c.candidate_evidence_ids)
-        FOR UPDATE OF c, p
-      `;
-      if (!rows[0]) return false;
-      await transaction`
-        UPDATE evidence_conflict SET status = 'resolved', resolution_evidence_id = ${input.evidenceId},
-          resolution_note = ${input.note ?? null}, resolved_at = now()
-        WHERE id = ${input.conflictId}
-      `;
-      await transaction`
-        INSERT INTO learning_review (
-          id, workspace_id, content_package_id, evidence_item_id, actor_user_id,
-          action, notes
-        ) VALUES (
-          ${randomUUID()}, ${input.workspaceId}, ${input.packageId}, ${input.evidenceId},
-          ${input.actorUserId}, 'conflict_resolved', ${input.note ?? null}
-        )
-      `;
-      const open = await transaction<{ count: number }[]>`
-        SELECT count(*)::integer AS count FROM evidence_conflict
-        WHERE content_package_id = ${input.packageId} AND status = 'open'
-      `;
-      const unresolved = await transaction<{ count: number }[]>`
-        SELECT count(*)::integer AS count FROM evidence_item
-        WHERE content_package_id = ${input.packageId} AND provenance = 'unresolved'
-          AND superseded_by_evidence_id IS NULL
-      `;
-      if (open[0].count === 0 && unresolved[0].count === 0) {
-        await transaction`UPDATE content_package SET status = 'ready', updated_at = now() WHERE id = ${input.packageId}`;
-      }
-      return true;
-    });
-    return resolved
-      ? this.getContentPackage(input.workspaceId, input.packageId)
-      : undefined;
+  async resolveEvidenceConflict(input: PackageEvidenceConflictInput): Promise<ContentPackageReview | undefined> {
+    return resolvePackageEvidenceConflict(this.sql, input);
   }
 
-  async approveContentPackage(input: {
-    workspaceId: string;
-    packageId: string;
-    actorUserId: string;
-  }): Promise<StoredContentPackage | undefined> {
-    const rows = await this.sql<{ id: string }[]>`
-      UPDATE content_package p SET status = 'approved', updated_at = now()
-      WHERE p.id = ${input.packageId} AND p.workspace_id = ${input.workspaceId}
-        AND p.status IN ('ready', 'needs_review')
-        AND NOT EXISTS (SELECT 1 FROM evidence_conflict c WHERE c.content_package_id = p.id AND c.status = 'open')
-        AND NOT EXISTS (SELECT 1 FROM evidence_item e WHERE e.content_package_id = p.id AND e.provenance = 'unresolved' AND e.superseded_by_evidence_id IS NULL)
-        AND NOT EXISTS (SELECT 1 FROM content_asset a WHERE a.content_package_id = p.id AND a.alt_text_status = 'needs_review')
-        AND NOT EXISTS (
-          SELECT 1 FROM content_asset asset
-          WHERE asset.content_package_id = p.id
-            AND asset.role = 'original'
-            AND asset.mime_type LIKE 'image/%'
-            AND (asset.scan_status <> 'clean' OR asset.scan_engine IS NULL OR asset.scan_scanned_at IS NULL OR asset.scan_revision < 1)
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM content_asset asset
-          WHERE asset.content_package_id = p.id
-            AND asset.role = 'original'
-            AND asset.mime_type LIKE 'image/%'
-            AND (
-              asset.rights_status <> 'cleared'
-              OR NOT EXISTS (
-                SELECT 1 FROM content_asset_rights_channel_connection scope
-                WHERE scope.content_asset_id = asset.id
-              )
-              OR (asset.rights_valid_from IS NOT NULL AND asset.rights_valid_from > now())
-              OR (asset.rights_expires_at IS NOT NULL AND asset.rights_expires_at <= now())
-            )
-        )
-      RETURNING id
-    `;
-    if (!rows[0]) return undefined;
-    await this.sql`
-      INSERT INTO learning_review (
-        id, workspace_id, content_package_id, actor_user_id, action
-      ) VALUES (${randomUUID()}, ${input.workspaceId}, ${input.packageId}, ${input.actorUserId}, 'package_approved')
-    `;
-    return this.getContentPackage(input.workspaceId, input.packageId);
+  async approveContentPackage(input: ContentPackageApprovalInput): Promise<ContentPackageApprovalResult> {
+    return new ContentPackageReviewRepository(this.sql).approve(input);
   }
 
-  async resolveUnresolvedEvidence(input: {
-    workspaceId: string;
-    packageId: string;
-    evidenceId: string;
-    correctedClaim: string;
-    note?: string;
-    actorUserId: string;
-  }): Promise<StoredContentPackage | undefined> {
-    const correctedId = randomUUID();
-    const reviewId = randomUUID();
-    const resolved = await this.sql.begin(async (transaction) => {
-      const rows = await transaction<{ claim: string; factKey?: string }[]>`
-        SELECT e.claim, e.fact_key FROM evidence_item e
-        JOIN content_package p ON p.id = e.content_package_id
-        WHERE e.id = ${input.evidenceId} AND p.id = ${input.packageId}
-          AND p.workspace_id = ${input.workspaceId} AND e.provenance = 'unresolved'
-          AND e.superseded_by_evidence_id IS NULL
-        FOR UPDATE OF e, p
-      `;
-      if (!rows[0]) return false;
-      await transaction`
-        INSERT INTO evidence_item (
-          id, content_package_id, fact_key, claim, provenance, source_references, confidence
-        ) VALUES (
-          ${correctedId}, ${input.packageId}, ${rows[0].factKey ?? null}, ${input.correctedClaim},
-          'authoritative_context', ${[`learning-review:${reviewId}`]}, 1
-        )
-      `;
-      await transaction`UPDATE evidence_item SET superseded_by_evidence_id = ${correctedId} WHERE id = ${input.evidenceId}`;
-      await transaction`
-        INSERT INTO learning_review (
-          id, workspace_id, content_package_id, evidence_item_id, actor_user_id,
-          action, original_claim, corrected_claim, notes
-        ) VALUES (
-          ${reviewId}, ${input.workspaceId}, ${input.packageId}, ${input.evidenceId},
-          ${input.actorUserId}, 'corrected', ${rows[0].claim}, ${input.correctedClaim}, ${input.note ?? null}
-        )
-      `;
-      const blockers = await transaction<{ count: number }[]>`
-        SELECT
-          (SELECT count(*) FROM evidence_conflict WHERE content_package_id = ${input.packageId} AND status = 'open') +
-          (SELECT count(*) FROM evidence_item WHERE content_package_id = ${input.packageId} AND provenance = 'unresolved' AND superseded_by_evidence_id IS NULL)
-          AS count
-      `;
-      if (Number(blockers[0].count) === 0) {
-        await transaction`UPDATE content_package SET status = 'ready', updated_at = now() WHERE id = ${input.packageId}`;
-      }
-      return true;
-    });
-    return resolved
-      ? this.getContentPackage(input.workspaceId, input.packageId)
-      : undefined;
+  async resolveUnresolvedEvidence(input: PackageUnresolvedEvidenceInput): Promise<ContentPackageReview | undefined> {
+    return resolvePackageUnresolvedEvidence(this.sql, input);
   }
 
   private async replaceContextVersionContent(

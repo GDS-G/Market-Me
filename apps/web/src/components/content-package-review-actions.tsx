@@ -1,738 +1,138 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import type { StoredContentPackage } from "@market-me/database";
+import Link from "next/link";
+import { useRef, useState, useSyncExternalStore } from "react";
+import type { ContentPackageApprovalSummary, ContentPackageReview, StoredContentPackageApproval } from "@market-me/database";
+import { PackageReviewSnapshot, PackageReviewState, type CapturedAssetPreview } from "./content-package-review-display";
+import { PackageReviewMaterialForms, type PackageRightsChoices } from "./content-package-review-material-forms";
+import { canApprovePackage, canEditPackageAssets, createPackageApprovalAttempt, packageApprovalResultPath, packageApprovalStorageKey,
+  packageReviewFingerprint, packageReviewVersion, restorePackageApprovalAttempt, reviewUuid, sendPackageApprovalAttempt,
+  type PackageApprovalAttempt, type PackageReviewScope } from "./content-package-review-request";
+import styles from "./content-package-review.module.css";
 
-interface RightsDraft {
-  status: "cleared" | "restricted";
-  owner: string;
-  licenseOwner: string;
-  sourceReference: string;
-  proofReference: string;
-  commercialUseAllowed: boolean;
-  derivativeUseAllowed: boolean;
-  worldwideUseAllowed: boolean;
-  discordAllowed: boolean;
-  mastodonAllowed: boolean;
-  permittedChannelConnectionIds: string[];
-  permittedCampaignIds: string[];
-  permittedBrandProfileIds: string[];
-  validFrom: string;
-  expiresAt: string;
-  attributionRequirement: string;
-  watermarkRequirement: string;
-  disclaimerRequirement: string;
-  reviewNote: string;
+export interface PackageReviewProps extends PackageReviewScope, PackageRightsChoices {
+  initialReview: ContentPackageReview; role: string; approvals: readonly ContentPackageApprovalSummary[]; assetPreviews: readonly CapturedAssetPreview[];
 }
-
-interface RightsChannelConnection {
-  id: string;
-  name: string;
-  provider: "discord_webhook" | "mastodon_account";
-  status: "active" | "error" | "revoked";
+const subscribe = () => () => {};
+const browser = () => true, server = () => false;
+export function ContentPackageReviewActions(props: PackageReviewProps) {
+  const hydrated = useSyncExternalStore(subscribe, browser, server);
+  return hydrated ? <PackageReviewEditor key={`${props.userId}:${props.workspaceId}:${props.packageId}:${props.initialReview.reviewFingerprint}:${props.initialReview.evaluatedAt}`} {...props} />
+    : <><ReviewHeader review={props.initialReview} /><PackageReviewState review={props.initialReview} /><PackageReviewSnapshot snapshot={props.initialReview.snapshot}
+      effectiveEvidenceIds={props.initialReview.effectiveEvidenceIds} excludedEvidenceIds={props.initialReview.excludedEvidenceIds} assetPreviews={props.assetPreviews} /><p role="status">Loading review controls and saved approval attempt…</p></>;
 }
-
-interface RightsCampaign {
-  id: string;
-  name: string;
-  status: string;
+export function isScopedPackageReview(value: unknown, scope: PackageReviewScope): value is ContentPackageReview {
+  const review = value as ContentPackageReview | null;
+  return Boolean(review && review.snapshot?.package?.workspaceId === scope.workspaceId && review.snapshot.package.id === scope.packageId
+    && review.snapshot.package.version === review.version && packageReviewVersion.safeParse(review.version).success
+    && packageReviewFingerprint.safeParse(review.reviewFingerprint).success && typeof review.evaluatedAt === "string"
+    && Array.isArray(review.snapshot.assets) && Array.isArray(review.snapshot.evidence) && Array.isArray(review.snapshot.conflicts)
+    && Array.isArray(review.blockers) && Array.isArray(review.effectiveEvidenceIds) && Array.isArray(review.excludedEvidenceIds));
 }
-
-interface RightsBrandProfile {
-  id: string;
-  name: string;
-  status: string;
+function ReviewHeader({ review }: { review: ContentPackageReview }) {
+  return <header className="resource-header"><div><p className="eyebrow">Exact Content Package review · source revision {review.version}</p><h1>{review.snapshot.package.title}</h1>
+    <p>Review captured evidence, conflicts, assets, and permissions together. Approval does not publish or activate anything.</p></div></header>;
 }
-
-export function ContentPackageReviewActions({
-  workspaceId,
-  item,
-  channelConnections,
-  campaigns,
-  brandProfiles,
-}: {
-  workspaceId: string;
-  item: StoredContentPackage;
-  channelConnections: readonly RightsChannelConnection[];
-  campaigns: readonly RightsCampaign[];
-  brandProfiles: readonly RightsBrandProfile[];
-}) {
-  const router = useRouter();
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
-  const [corrections, setCorrections] = useState<Record<string, string>>({});
-  const [altText, setAltText] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      item.assets.map((asset) => [asset.id, asset.altText ?? ""]),
-    ),
-  );
-  const [decorative, setDecorative] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(
-      item.assets.map((asset) => [
-        asset.id,
-        asset.altTextStatus === "decorative",
-      ]),
-    ),
-  );
-  const [rights, setRights] = useState<Record<string, RightsDraft>>(() =>
-    Object.fromEntries(
-      item.assets.map((asset) => [
-        asset.id,
-        {
-          status: asset.rightsStatus === "cleared" ? "cleared" : "restricted",
-          owner: asset.rightsOwner ?? "",
-          licenseOwner: asset.rightsLicenseOwner ?? "",
-          sourceReference: asset.rightsSourceReference ?? "",
-          proofReference: asset.rightsProofReference ?? "",
-          commercialUseAllowed: asset.rightsCommercialUseAllowed ?? false,
-          derivativeUseAllowed: asset.rightsDerivativeUseAllowed ?? false,
-          worldwideUseAllowed: asset.rightsWorldwideUseAllowed ?? false,
-          discordAllowed:
-            asset.rightsPermittedChannels?.includes("discord_webhook") ?? false,
-          mastodonAllowed:
-            asset.rightsPermittedChannels?.includes("mastodon_account") ?? false,
-          permittedChannelConnectionIds: [
-            ...(asset.rightsPermittedChannelConnectionIds ?? []),
-          ],
-          permittedCampaignIds: [...(asset.rightsPermittedCampaignIds ?? [])],
-          permittedBrandProfileIds: [
-            ...(asset.rightsPermittedBrandProfileIds ?? []),
-          ],
-          validFrom: localDateTime(asset.rightsValidFrom),
-          expiresAt: localDateTime(asset.rightsExpiresAt),
-          attributionRequirement: asset.rightsAttributionRequirement ?? "",
-          watermarkRequirement: asset.rightsWatermarkRequirement ?? "",
-          disclaimerRequirement: asset.rightsDisclaimerRequirement ?? "",
-          reviewNote: asset.rightsReviewNote ?? "",
-        },
-      ]),
-    ),
-  );
-
-  async function post(url: string, body: Record<string, unknown>) {
-    setPending(true);
-    setError("");
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok)
-      setError(payload?.error?.message ?? "Review action failed.");
-    setPending(false);
-    router.refresh();
+function PackageReviewEditor(props: PackageReviewProps) {
+  const [review, setReview] = useState(props.initialReview);
+  const storageKey = packageApprovalStorageKey(props);
+  const [restored] = useState(() => {
+    try { return { attempt: restorePackageApprovalAttempt(sessionStorage.getItem(storageKey), props), error: "" }; }
+    catch { return { attempt: undefined, error: "The saved approval attempt could not be read safely. Check approval history before explicitly clearing it; an earlier request may have completed." }; }
+  });
+  const [attempt, setAttempt] = useState<PackageApprovalAttempt | undefined>(restored.attempt);
+  const [storageError, setStorageError] = useState(restored.error);
+  const [pending, setPending] = useState(false), [needsRefresh, setNeedsRefresh] = useState(false);
+  const [error, setError] = useState(""), [message, setMessage] = useState("");
+  const [confirmed, setConfirmed] = useState(false), [resetConfirmed, setResetConfirmed] = useState(false);
+  const [approval, setApproval] = useState<StoredContentPackageApproval>();
+  const [approvals, setApprovals] = useState(props.approvals);
+  const inFlight = useRef(false);
+  const canApprove = canApprovePackage(props.role), canEdit = canEditPackageAssets(props.role);
+  const frozen = Boolean(attempt || storageError);
+  function start() { if (inFlight.current) return false; inFlight.current = true; setPending(true); setError(""); setMessage(""); return true; }
+  function finish() { inFlight.current = false; setPending(false); }
+  function replaceReview(next: unknown) {
+    if (!isScopedPackageReview(next, props)) throw new Error("Invalid coherent response");
+    setReview(next); setConfirmed(false); setNeedsRefresh(false);
   }
-
-  async function patchAccessibility(assetId: string) {
-    setPending(true);
-    setError("");
-    const response = await fetch(
-      `/api/v1/content-packages/${item.id}/assets/${assetId}`,
-      {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          workspaceId,
-          altText: altText[assetId],
-          decorative: decorative[assetId] ?? false,
-        }),
-      },
-    );
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok)
-      setError(payload?.error?.message ?? "Accessibility update failed.");
-    setPending(false);
-    router.refresh();
+  async function refresh() {
+    if (!start()) return;
+    try {
+      const response = await fetch(`/api/v1/content-packages/${props.packageId}?workspaceId=${encodeURIComponent(props.workspaceId)}`, { cache: "no-store" });
+      const payload = await response.json().catch(() => undefined);
+      if (!response.ok) { setError(payload?.error?.message ?? "The current review is unavailable."); setNeedsRefresh(true); return; }
+      replaceReview(payload?.data); setMessage("Loaded one current coherent review. All edit fields and confirmation were reset; inspect the content before a new action.");
+    } catch { setError("The current review could not be loaded. No mutation was sent."); setNeedsRefresh(true); }
+    finally { finish(); }
   }
-
-  function setRight<K extends keyof RightsDraft>(
-    assetId: string,
-    key: K,
-    value: RightsDraft[K],
-  ) {
-    setRights((current) => ({
-      ...current,
-      [assetId]: { ...current[assetId]!, [key]: value },
-    }));
+  async function mutate(path: string, method: "POST" | "PATCH" | "PUT", changes: Record<string, unknown>) {
+    if (frozen || needsRefresh || !start()) return;
+    try {
+      const response = await fetch(`/api/v1/content-packages/${props.packageId}/${path}`, { method, headers: { "content-type": "application/json" }, body: JSON.stringify({ ...changes,
+        workspaceId: props.workspaceId, expectedVersion: review.version, expectedReviewFingerprint: review.reviewFingerprint }) });
+      const payload = await response.json().catch(() => undefined);
+      if (!response.ok) { setError(payload?.error?.message ?? "Review change was not confirmed."); setNeedsRefresh(true); return; }
+      replaceReview(payload?.data); setMessage("Change saved. The returned review is shown in full; previous approval and unsaved edit fields are no longer current. Review again before approving.");
+    } catch { setError("The change may have completed, but its response was not confirmed. Load the current review before deciding whether another edit is needed. This action will not retry automatically."); setNeedsRefresh(true); }
+    finally { finish(); }
   }
-
-  function togglePermittedConnection(
-    assetId: string,
-    connectionId: string,
-    checked: boolean,
-  ) {
-    const selected = rights[assetId]?.permittedChannelConnectionIds ?? [];
-    setRight(
-      assetId,
-      "permittedChannelConnectionIds",
-      checked
-        ? [...new Set([...selected, connectionId])]
-        : selected.filter((id) => id !== connectionId),
-    );
+  async function approve(checkOnly: boolean) {
+    if (storageError || (!checkOnly && !canApprove) || (!attempt && (!confirmed || needsRefresh || review.blockers.length > 0)) || !start()) return;
+    let exact = attempt;
+    try {
+      if (!exact) {
+        if (checkOnly) return;
+        exact = createPackageApprovalAttempt(props, { workspaceId: props.workspaceId, packageId: props.packageId, expectedVersion: review.version, expectedReviewFingerprint: review.reviewFingerprint }, crypto.randomUUID());
+        try { sessionStorage.setItem(storageKey, JSON.stringify(exact)); }
+        catch { setStorageError("Browser storage is unavailable. No approval request was sent. Restore storage before approving."); return; }
+        setAttempt(exact);
+      }
+      const response = checkOnly ? await fetch(`/api/v1/content-packages/${props.packageId}/approve?workspaceId=${encodeURIComponent(props.workspaceId)}&idempotencyKey=${encodeURIComponent(exact.idempotencyKey)}`, { cache: "no-store" })
+        : await sendPackageApprovalAttempt(exact, props, sessionStorage);
+      const payload = await response.json().catch(() => undefined);
+      const saved = payload?.data as StoredContentPackageApproval | undefined;
+      if (response.ok && saved?.workspaceId === props.workspaceId && saved.contentPackageId === props.packageId && saved.idempotencyKey === exact.idempotencyKey
+        && saved.contentPackageVersion === exact.input.expectedVersion && saved.reviewFingerprint === exact.input.expectedReviewFingerprint && reviewUuid.safeParse(saved.id).success) {
+        setApproval(saved); setApprovals((previous) => [saved, ...previous.filter((item) => item.id !== saved.id)].slice(0, 50));
+        if (payload.review) replaceReview(payload.review);
+        else setNeedsRefresh(true);
+        setMessage("The original approval receipt is available. A replay does not approve changed content. Open the receipt or load the current review to check today's eligibility.");
+        return;
+      }
+      if (checkOnly && response.status === 404) { setMessage("No completed approval was found yet. An earlier request may still finish. Check again or retry this same saved approval; do not start a new attempt to recover it."); return; }
+      setError(payload?.error?.message ?? "The approval result is uncertain. Check for the original receipt or retry the same saved approval.");
+    } catch { setError("The approval result is uncertain. Its exact key and reviewed precondition remain saved in this tab. Check the receipt or retry the same approval."); }
+    finally { finish(); }
   }
-
-  function togglePermittedCampaign(
-    assetId: string,
-    campaignId: string,
-    checked: boolean,
-  ) {
-    const selected = rights[assetId]?.permittedCampaignIds ?? [];
-    setRight(
-      assetId,
-      "permittedCampaignIds",
-      checked
-        ? [...new Set([...selected, campaignId])]
-        : selected.filter((id) => id !== campaignId),
-    );
+  function clearAttempt() {
+    if (!resetConfirmed || inFlight.current) return;
+    try { sessionStorage.removeItem(storageKey); setAttempt(undefined); setStorageError(""); setApproval(undefined); setConfirmed(false); setResetConfirmed(false); setNeedsRefresh(true); setError(""); setMessage("Recovery copy cleared. Load the current review before making a new decision. Existing server receipts were not deleted."); }
+    catch { setStorageError("The saved recovery copy could not be cleared. No new action was sent."); }
   }
-
-  function togglePermittedBrandProfile(
-    assetId: string,
-    brandProfileId: string,
-    checked: boolean,
-  ) {
-    const selected = rights[assetId]?.permittedBrandProfileIds ?? [];
-    setRight(
-      assetId,
-      "permittedBrandProfileIds",
-      checked
-        ? [...new Set([...selected, brandProfileId])]
-        : selected.filter((id) => id !== brandProfileId),
-    );
-  }
-
-  async function putRights(assetId: string) {
-    const value = rights[assetId]!;
-    setPending(true);
-    setError("");
-    const response = await fetch(
-      `/api/v1/content-packages/${item.id}/assets/${assetId}`,
-      {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          workspaceId,
-          status: value.status,
-          owner: value.owner,
-          licenseOwner: value.licenseOwner || undefined,
-          sourceReference: value.sourceReference,
-          proofReference: value.proofReference,
-          commercialUseAllowed: value.commercialUseAllowed,
-          derivativeUseAllowed: value.derivativeUseAllowed,
-          worldwideUseAllowed: value.worldwideUseAllowed,
-          permittedChannels: [
-            ...(value.discordAllowed ? ["discord_webhook" as const] : []),
-            ...(value.mastodonAllowed ? ["mastodon_account" as const] : []),
-          ],
-          permittedChannelConnectionIds: value.permittedChannelConnectionIds,
-          permittedCampaignIds: value.permittedCampaignIds,
-          permittedBrandProfileIds: value.permittedBrandProfileIds,
-          validFrom: value.validFrom
-            ? new Date(value.validFrom).toISOString()
-            : undefined,
-          expiresAt: value.expiresAt
-            ? new Date(value.expiresAt).toISOString()
-            : undefined,
-          attributionRequirement: value.attributionRequirement || undefined,
-          watermarkRequirement: value.watermarkRequirement || undefined,
-          disclaimerRequirement: value.disclaimerRequirement || undefined,
-          reviewNote: value.reviewNote,
-        }),
-      },
-    );
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok)
-      setError(payload?.error?.message ?? "Rights review failed.");
-    setPending(false);
-    router.refresh();
-  }
-
-  return (
-    <div className="review-actions">
-      {item.assets
-        .filter(
-          (asset) =>
-            asset.role === "original" && asset.mimeType.startsWith("image/"),
-        )
-        .map((asset) => (
-          <div className="accessibility-editor" key={asset.id}>
-            <span>Alternative text for {asset.fileName}</span>
-            <textarea
-              disabled={decorative[asset.id]}
-              value={altText[asset.id] ?? ""}
-              onChange={(event) =>
-                setAltText((current) => ({
-                  ...current,
-                  [asset.id]: event.target.value,
-                }))
-              }
-              placeholder="Describe the informative content of this image"
-            />
-            <label className="check-row">
-              <input
-                type="checkbox"
-                checked={decorative[asset.id] ?? false}
-                onChange={(event) =>
-                  setDecorative((current) => ({
-                    ...current,
-                    [asset.id]: event.target.checked,
-                  }))
-                }
-              />
-              This image is decorative
-            </label>
-            <button
-              className="button-secondary"
-              disabled={
-                pending || (!decorative[asset.id] && !altText[asset.id]?.trim())
-              }
-              type="button"
-              onClick={() => patchAccessibility(asset.id)}
-            >
-              Save accessibility review
-            </button>
-          </div>
-        ))}
-      {item.assets
-        .filter(
-          (asset) =>
-            asset.role === "original" && asset.mimeType.startsWith("image/"),
-        )
-        .map((asset) => {
-          const value = rights[asset.id]!;
-          const coreComplete =
-            Boolean(value.owner.trim()) &&
-            value.sourceReference.trim().length >= 3 &&
-            value.proofReference.trim().length >= 3 &&
-            value.reviewNote.trim().length >= 3 &&
-            (value.status !== "cleared" ||
-              ((value.discordAllowed || value.mastodonAllowed) &&
-                value.permittedChannelConnectionIds.length > 0));
-          return (
-            <div className="rights-editor" key={`rights:${asset.id}`}>
-              <div>
-                <strong>Publication rights for {asset.fileName}</strong>
-                <small>
-                  Revision {asset.rightsRevision ?? 0} · effective state{" "}
-                  {asset.rightsStatus ?? "unchecked"}
-                  {asset.rightsReviewedByDisplayName
-                    ? ` · reviewed by ${asset.rightsReviewedByDisplayName}`
-                    : ""}
-                </small>
-              </div>
-              <div className="rights-checks">
-                {brandProfiles.map((profile) => (
-                  <label className="check-row" key={profile.id}>
-                    <input
-                      type="checkbox"
-                      checked={value.permittedBrandProfileIds.includes(
-                        profile.id,
-                      )}
-                      onChange={(event) =>
-                        togglePermittedBrandProfile(
-                          asset.id,
-                          profile.id,
-                          event.target.checked,
-                        )
-                      }
-                    />
-                    {profile.name} ({profile.status})
-                  </label>
-                ))}
-                {brandProfiles.length === 0 && (
-                  <p>
-                    No published Brand Profile exists. Governed image
-                    attachments require a Campaign with an exact permitted Brand
-                    Profile.
-                  </p>
-                )}
-              </div>
-              <div className="rights-checks">
-                {campaigns.map((campaign) => (
-                  <label className="check-row" key={campaign.id}>
-                    <input
-                      type="checkbox"
-                      checked={value.permittedCampaignIds.includes(campaign.id)}
-                      onChange={(event) =>
-                        togglePermittedCampaign(
-                          asset.id,
-                          campaign.id,
-                          event.target.checked,
-                        )
-                      }
-                    />
-                    {campaign.name} ({campaign.status})
-                  </label>
-                ))}
-                {campaigns.length === 0 && (
-                  <p>
-                    No Campaign exists yet. Approve the package, create a
-                    Campaign, then return here to grant outbound attachment use.
-                  </p>
-                )}
-              </div>
-              <div className="field-grid">
-                <label className="field">
-                  <span>Review outcome</span>
-                  <select
-                    value={value.status}
-                    onChange={(event) =>
-                      setRight(
-                        asset.id,
-                        "status",
-                        event.target.value as RightsDraft["status"],
-                      )
-                    }
-                  >
-                    <option value="restricted">Restricted</option>
-                    <option value="cleared">Cleared</option>
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Rights owner</span>
-                  <input
-                    maxLength={200}
-                    value={value.owner}
-                    onChange={(event) =>
-                      setRight(asset.id, "owner", event.target.value)
-                    }
-                  />
-                </label>
-                <label className="field">
-                  <span>Licensed owner (optional)</span>
-                  <input
-                    maxLength={200}
-                    value={value.licenseOwner}
-                    onChange={(event) =>
-                      setRight(asset.id, "licenseOwner", event.target.value)
-                    }
-                  />
-                </label>
-                <label className="field field-wide">
-                  <span>Source reference</span>
-                  <input
-                    maxLength={1000}
-                    value={value.sourceReference}
-                    onChange={(event) =>
-                      setRight(asset.id, "sourceReference", event.target.value)
-                    }
-                    placeholder="Controlled source or canonical reference"
-                  />
-                </label>
-                <label className="field field-wide">
-                  <span>Permission proof reference</span>
-                  <input
-                    maxLength={1000}
-                    value={value.proofReference}
-                    onChange={(event) =>
-                      setRight(asset.id, "proofReference", event.target.value)
-                    }
-                    placeholder="Contract, release, license, or stored evidence reference"
-                  />
-                </label>
-                <label className="field">
-                  <span>Valid from (optional)</span>
-                  <input
-                    type="datetime-local"
-                    value={value.validFrom}
-                    onChange={(event) =>
-                      setRight(asset.id, "validFrom", event.target.value)
-                    }
-                  />
-                </label>
-                <label className="field">
-                  <span>Expires (optional)</span>
-                  <input
-                    type="datetime-local"
-                    value={value.expiresAt}
-                    onChange={(event) =>
-                      setRight(asset.id, "expiresAt", event.target.value)
-                    }
-                  />
-                </label>
-              </div>
-              <div className="rights-checks">
-                <label className="check-row">
-                  <input
-                    type="checkbox"
-                    checked={value.commercialUseAllowed}
-                    onChange={(event) =>
-                      setRight(
-                        asset.id,
-                        "commercialUseAllowed",
-                        event.target.checked,
-                      )
-                    }
-                  />
-                  Commercial use allowed
-                </label>
-                <label className="check-row">
-                  <input
-                    type="checkbox"
-                    checked={value.derivativeUseAllowed}
-                    onChange={(event) =>
-                      setRight(
-                        asset.id,
-                        "derivativeUseAllowed",
-                        event.target.checked,
-                      )
-                    }
-                  />
-                  Derivative use allowed
-                </label>
-                <label className="check-row">
-                  <input
-                    type="checkbox"
-                    checked={value.worldwideUseAllowed}
-                    onChange={(event) =>
-                      setRight(
-                        asset.id,
-                        "worldwideUseAllowed",
-                        event.target.checked,
-                      )
-                    }
-                  />
-                  Worldwide use allowed
-                </label>
-                <label className="check-row">
-                  <input
-                    type="checkbox"
-                    checked={value.discordAllowed}
-                    onChange={(event) =>
-                      setRight(asset.id, "discordAllowed", event.target.checked)
-                    }
-                  />
-                  Discord publishing allowed
-                </label>
-                <label className="check-row">
-                  <input
-                    type="checkbox"
-                    checked={value.mastodonAllowed}
-                    onChange={(event) =>
-                      setRight(asset.id, "mastodonAllowed", event.target.checked)
-                    }
-                  />
-                  Mastodon publishing allowed
-                </label>
-              </div>
-              <div className="rights-checks">
-                {channelConnections.map((connection) => (
-                  <label className="check-row" key={connection.id}>
-                    <input
-                      type="checkbox"
-                      disabled={
-                        connection.status === "revoked" &&
-                        !value.permittedChannelConnectionIds.includes(
-                          connection.id,
-                        )
-                      }
-                      checked={value.permittedChannelConnectionIds.includes(
-                        connection.id,
-                      )}
-                      onChange={(event) =>
-                        togglePermittedConnection(
-                          asset.id,
-                          connection.id,
-                          event.target.checked,
-                        )
-                      }
-                    />
-                    {connection.name} ({connection.provider.replaceAll("_", " ")} · {connection.status})
-                  </label>
-                ))}
-                {channelConnections.length === 0 && (
-                  <p>
-                    No Channel Connections are configured. Add one in
-                    Integrations before recording a cleared right.
-                  </p>
-                )}
-              </div>
-              <div className="field-grid">
-                <label className="field field-wide">
-                  <span>
-                    Attribution requirement (restricted until supported)
-                  </span>
-                  <input
-                    maxLength={1000}
-                    value={value.attributionRequirement}
-                    onChange={(event) =>
-                      setRight(
-                        asset.id,
-                        "attributionRequirement",
-                        event.target.value,
-                      )
-                    }
-                  />
-                </label>
-                <label className="field field-wide">
-                  <span>
-                    Watermark requirement (restricted until supported)
-                  </span>
-                  <input
-                    maxLength={1000}
-                    value={value.watermarkRequirement}
-                    onChange={(event) =>
-                      setRight(
-                        asset.id,
-                        "watermarkRequirement",
-                        event.target.value,
-                      )
-                    }
-                  />
-                </label>
-                <label className="field field-wide">
-                  <span>
-                    Disclaimer requirement (restricted until supported)
-                  </span>
-                  <input
-                    maxLength={1000}
-                    value={value.disclaimerRequirement}
-                    onChange={(event) =>
-                      setRight(
-                        asset.id,
-                        "disclaimerRequirement",
-                        event.target.value,
-                      )
-                    }
-                  />
-                </label>
-                <label className="field field-wide">
-                  <span>Required review note</span>
-                  <textarea
-                    maxLength={2000}
-                    value={value.reviewNote}
-                    onChange={(event) =>
-                      setRight(asset.id, "reviewNote", event.target.value)
-                    }
-                  />
-                </label>
-              </div>
-              <p>
-                Cleared requires current worldwide commercial and derivative
-                permission for each selected channel, at least one exact publishing account,
-                and no unverified obligation. Package approval may precede
-                Campaign creation, but attachments cannot preview or publish
-                until an exact Campaign and the Campaign&apos;s exact Brand Profile
-                are selected here. Unbranded Campaigns cannot publish governed
-                image attachments.
-              </p>
-              <button
-                className="button-secondary"
-                disabled={pending || !coreComplete}
-                type="button"
-                onClick={() => putRights(asset.id)}
-              >
-                Save rights review
-              </button>
-            </div>
-          );
-        })}
-      {item.conflicts
-        .filter((conflict) => conflict.status === "open")
-        .map((conflict) => (
-          <div key={conflict.id}>
-            <span>Resolve {conflict.factKey}</span>
-            {conflict.candidateEvidenceIds.map((evidenceId) => {
-              const evidence = item.evidence.find(
-                (candidate) => candidate.id === evidenceId,
-              );
-              return (
-                <button
-                  className="button-secondary"
-                  disabled={pending}
-                  type="button"
-                  key={evidenceId}
-                  onClick={() =>
-                    post(
-                      `/api/v1/content-packages/${item.id}/conflicts/${conflict.id}/resolve`,
-                      { workspaceId, evidenceId },
-                    )
-                  }
-                >
-                  Use {evidence?.claim ?? evidenceId}
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      {item.evidence
-        .filter(
-          (evidence) =>
-            evidence.provenance === "unresolved" &&
-            !evidence.supersededByEvidenceId,
-        )
-        .map((evidence) => (
-          <div key={evidence.id}>
-            <span>Resolve {evidence.factKey ?? "unresolved claim"}</span>
-            <input
-              value={corrections[evidence.id] ?? ""}
-              onChange={(event) =>
-                setCorrections((current) => ({
-                  ...current,
-                  [evidence.id]: event.target.value,
-                }))
-              }
-              placeholder="Enter the reviewed correction"
-            />
-            <button
-              className="button-secondary"
-              disabled={pending || !corrections[evidence.id]?.trim()}
-              type="button"
-              onClick={() =>
-                post(
-                  `/api/v1/content-packages/${item.id}/evidence/${evidence.id}/resolve`,
-                  { workspaceId, correctedClaim: corrections[evidence.id] },
-                )
-              }
-            >
-              Record correction
-            </button>
-          </div>
-        ))}
-      <button
-        className="button-primary"
-        disabled={
-          pending ||
-          item.conflicts.some((conflict) => conflict.status === "open") ||
-          item.evidence.some(
-            (evidence) =>
-              evidence.provenance === "unresolved" &&
-              !evidence.supersededByEvidenceId,
-          ) ||
-          item.assets.some((asset) => asset.altTextStatus === "needs_review") ||
-          item.assets.some(
-            (asset) =>
-              asset.role === "original" &&
-              asset.mimeType.startsWith("image/") &&
-              (asset.scanStatus !== "clean" ||
-                (asset.scanRevision ?? 0) < 1 ||
-                !asset.scanScannedAt ||
-                asset.rightsStatus !== "cleared" ||
-                !asset.rightsPermittedChannelConnectionIds?.length),
-          ) ||
-          item.status === "approved"
-        }
-        type="button"
-        onClick={() =>
-          post(`/api/v1/content-packages/${item.id}/approve`, { workspaceId })
-        }
-      >
-        {item.status === "approved" ? "Approved" : "Approve package"}
-      </button>
-      {error && (
-        <p className="form-error" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function localDateTime(value?: string) {
-  if (!value) return "";
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  return <div className={styles.sections}>
+    <ReviewHeader review={review} /><PackageReviewState review={review} />
+    <div className="form-actions"><button className="button-secondary" disabled={pending} onClick={() => void refresh()}>Load current review</button>
+      {canEdit && review.currentApprovalValid && !needsRefresh && <Link href={`/campaigns/prepare?contentPackageId=${props.packageId}`}>Prepare campaign from approved review</Link>}</div>
+    <PackageReviewSnapshot snapshot={review.snapshot} effectiveEvidenceIds={review.effectiveEvidenceIds} excludedEvidenceIds={review.excludedEvidenceIds} assetPreviews={props.assetPreviews} />
+    <section className={styles.notice}><h2>Immutable approval history</h2><p>Latest {approvals.length} of up to 50 receipts. These describe their original captured content, not current eligibility.</p>
+      {approvals.length ? <ul>{approvals.map((item) => <li key={item.id}><Link href={packageApprovalResultPath(props.packageId, item.id, props.workspaceId)}>Source revision {item.contentPackageVersion} · {item.createdAt}</Link></li>)}</ul> : <p>No exact approval receipts are recorded yet.</p>}</section>
+    {frozen && <section className={styles.notice}><h2>Saved approval attempt</h2><p>This recovery attempt is separate from the current review above. Retrying reuses its original key and precondition; it never approves newer content.</p>
+      {attempt && <><p>Saved source revision {attempt.input.expectedVersion}</p><p className={styles.break}>Saved fingerprint <code>{attempt.input.expectedReviewFingerprint}</code></p>
+        <div className="form-actions"><button className="button-secondary" disabled={pending} onClick={() => void approve(true)}>Check original approval result</button>
+          {canApprove && <button className="button-secondary" disabled={pending} onClick={() => void approve(false)}>Retry same approval</button>}</div></>}
+      <label className="check-row"><input type="checkbox" checked={resetConfirmed} disabled={pending} onChange={(event) => setResetConfirmed(event.target.checked)} />I checked approval history and understand clearing this copy does not cancel an earlier request.</label>
+      <div className="form-actions"><button className="button-secondary" disabled={pending || !resetConfirmed} onClick={clearAttempt}>Clear saved attempt and review current content</button></div>
+    </section>}
+    {(canEdit || canApprove) && <PackageReviewMaterialForms key={`${review.reviewFingerprint}:${review.evaluatedAt}`} snapshot={review.snapshot} canEdit={canEdit} canApprove={canApprove}
+      disabled={pending || frozen || needsRefresh} mutate={mutate} channelConnections={props.channelConnections} campaigns={props.campaigns} brandProfiles={props.brandProfiles} />}
+    {!canEdit && !canApprove && <p>Read-only access. Owners, admins, and approvers can approve facts; owners, admins, and editors can edit asset reviews.</p>}
+    {canApprove && !frozen && <section className={styles.notice}><h2>Approve this exact review</h2><p>This attests to the captured content and usable fact set. It does not approve drafts, grant extra media permissions, activate a campaign, or send content.</p>
+      <label className="check-row"><input type="checkbox" checked={confirmed} disabled={pending || needsRefresh || review.blockers.length > 0} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed the captured facts, exclusions, assets, permissions, and blockers shown above.</label>
+      <div className="form-actions"><button className="button-primary" disabled={pending || needsRefresh || !confirmed || review.blockers.length > 0} onClick={() => void approve(false)}>{review.currentApprovalValid ? "Record another explicit approval" : "Approve exact package review"}</button></div></section>}
+    {approval && <p role="status"><Link href={packageApprovalResultPath(props.packageId, approval.id, props.workspaceId)}>Open original approval receipt</Link></p>}
+    {storageError && <p className="form-error" role="alert">{storageError}</p>}{error && <p className="form-error" role="alert">{error}</p>}
+    {message && <p role="status">{message}</p>}{needsRefresh && <p role="status">Load the current review before a new mutation. Pending approval recovery retains its original precondition.</p>}
+    {pending && <p role="status">Checking the exact review request…</p>}
+  </div>;
 }

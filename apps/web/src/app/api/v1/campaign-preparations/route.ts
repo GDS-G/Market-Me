@@ -3,10 +3,12 @@ import { compileGeneralAnnouncementPreparation } from "@market-me/database";
 import { requireWorkspaceAccess } from "@/server/auth";
 import { getCampaignPreparationRepository } from "@/server/database";
 import { preparationApiError, preparationOriginAllowed } from "@/server/campaign-preparation-api";
+import { packageReviewFingerprint } from "@/components/content-package-review-request";
 
 const uuid = z.string().trim().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i).transform((value) => value.toLowerCase());
 // Transport envelope: template input cannot carry actor or idempotency authority.
-const envelope = z.object({ input: z.unknown(), idempotencyKey: uuid }).strict();
+// Omission is accepted only to recover completed legacy receipts; new work requires the proof in the repository.
+const envelope = z.object({ input: z.unknown(), idempotencyKey: uuid, expectedReviewFingerprint: packageReviewFingerprint.optional() }).strict();
 const lookup = z.object({ workspaceId: uuid, idempotencyKey: uuid }).strict();
 
 export async function POST(request: Request) {
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
     const { user, workspace } = await requireWorkspaceAccess(compiled.normalizedInput.workspaceId, "write");
     const result = await getCampaignPreparationRepository().prepare(
       { ...compiled.normalizedInput, workspaceId: workspace.workspaceId }, parsed.data.idempotencyKey, user.id,
+      ...(parsed.data.expectedReviewFingerprint ? [{ expectedReviewFingerprint: parsed.data.expectedReviewFingerprint }] : []),
     );
     return Response.json({ data: result.preparation, meta: { replayed: result.replayed } }, {
       status: result.replayed ? 200 : 201, headers: { "Cache-Control": "no-store" },

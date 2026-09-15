@@ -9,6 +9,7 @@ import {
   restorePreparationAttempt, type PreparationAttempt, type PreparationFormInput, type PreparationScope,
 } from "./campaign-preparation-request";
 import styles from "./campaign-preparation-form.module.css";
+import { ApprovedPackageReviewPicker } from "./approved-package-review-picker";
 
 export interface PreparationPackageChoice { id: string; title: string; version: number }
 export interface PreparationProfileChoice { id: string; name: string; versionNumber: number }
@@ -49,6 +50,7 @@ function PreparationEditor(props: PreparationFormProps) {
   const [values, setValues] = useState<PreparationFormInput>(() => restored.attempt?.input
     ?? initialPreparationInput(props.workspaceId, props.packages.find((item) => item.id === props.selectedPackageId)));
   const [storageError, setStorageError] = useState(restored.error);
+  const [reviewFingerprint, setReviewFingerprint] = useState(restored.attempt?.version === 2 ? restored.attempt.expectedReviewFingerprint : "");
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<string[]>([]);
   const [message, setMessage] = useState("");
@@ -64,6 +66,7 @@ function PreparationEditor(props: PreparationFormProps) {
       setAttempt(undefined); setStorageError(""); setError(""); setFieldErrors([]); setExistingId(undefined);
       setMessage("Ready for a new attempt. Review the package revision and choices before preparing.");
       setResetConfirmed(false);
+      setReviewFingerprint("");
       const selected = props.packages.find((item) => item.id === values.contentPackageId);
       setValues((previous) => ({ ...previous, contentPackageId: selected?.id ?? "", expectedPackageVersion: selected?.version ?? 1 }));
     } catch { setStorageError("Browser storage is unavailable. No new request was sent; restore storage access before preparing."); }
@@ -76,7 +79,8 @@ function PreparationEditor(props: PreparationFormProps) {
     try {
       if (!exact) {
         if (checkOnly) return;
-        exact = createPreparationAttempt(props, values, crypto.randomUUID());
+        if (!reviewFingerprint) { setError("Load and inspect the exact approved package review before preparing new work."); return; }
+        exact = createPreparationAttempt(props, values, crypto.randomUUID(), reviewFingerprint);
         // A failed persistence write must never be followed by a POST that cannot be recovered.
         try { sessionStorage.setItem(storageKey, JSON.stringify(exact)); }
         catch { setStorageError("Browser storage is unavailable. No request was sent; restore storage access before preparing."); return; }
@@ -114,6 +118,8 @@ function PreparationEditor(props: PreparationFormProps) {
     {(attempt || storageError) && <section className={styles.notice} aria-labelledby="saved-preparation-heading">
       <h2 id="saved-preparation-heading">Saved preparation attempt</h2>
       <p>The choices below are frozen for this attempt, including package revision {attempt?.input.expectedPackageVersion ?? "unknown"}. Retrying reuses the same key and settings; it does not request another campaign.</p>
+      {attempt?.version === 2 ? <p style={{ overflowWrap: "anywhere" }}>Saved original package review fingerprint: <code>{attempt.expectedReviewFingerprint}</code></p>
+        : <p>This legacy attempt has no original review fingerprint. Only an already completed legacy receipt can be recovered; creating new work requires a new exact approved review.</p>}
       {attempt && <p><small>Attempt {attempt.idempotencyKey}</small></p>}
       <div className={styles.actions}>
         <button type="button" disabled={pending || Boolean(storageError)} onClick={() => void run(true)}>Check saved result</button>
@@ -125,10 +131,12 @@ function PreparationEditor(props: PreparationFormProps) {
     </section>}
     <fieldset className={styles.fieldset} disabled={pending || Boolean(attempt) || Boolean(storageError)}>
       <legend className="sr-only">Campaign preparation settings</legend>
-      <PreparationFields {...props} values={values} onChange={setValues} />
+      <PreparationFields {...props} values={values} onChange={(next) => { if (next.contentPackageId !== values.contentPackageId) setReviewFingerprint(""); setValues(next); }} />
     </fieldset>
+    {!attempt && !storageError && <ApprovedPackageReviewPicker key={`${props.workspaceId}:${values.contentPackageId}`} workspaceId={props.workspaceId} packageId={values.contentPackageId} disabled={pending}
+      onReview={(review) => { setReviewFingerprint(review?.reviewFingerprint ?? ""); if (review) setValues((previous) => ({ ...previous, expectedPackageVersion: review.version })); }} />}
     <div className="form-actions">
-      <button type="submit" className="button-primary" disabled={pending || Boolean(storageError) || (!attempt && !props.packages.some((item) => item.id === values.contentPackageId))}>
+      <button type="submit" className="button-primary" disabled={pending || Boolean(storageError) || (!attempt && (!reviewFingerprint || !props.packages.some((item) => item.id === values.contentPackageId)))}>
         {pending ? "Checking preparation…" : attempt ? "Retry same preparation" : "Prepare campaign and drafts"}
       </button>
       <Link href="/content-packages">Review packages</Link>

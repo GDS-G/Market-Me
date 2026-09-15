@@ -12,6 +12,9 @@ import {
 import { ExactPreviewReadError, loadExactTextPreviewInTransaction, lockExactTextPreviewInTransaction, type ExactTextPreviewSelection } from "./exact-preview-repository";
 import type { ExactPreviewSnapshotV1 } from "./exact-preview-fingerprint";
 import type { CampaignDraftWrite } from "./models";
+import { assertCurrentContentPackageApprovalInTransaction } from "./content-package-review-repository";
+import { createContentPackageReviewFingerprint } from "./content-package-review-fingerprint";
+import { ContentPackageReviewError, type ContentPackageReviewErrorCode } from "./content-package-review-models";
 
 /** Immutable completed result. Canonical intent is private; snapshots retain raw JSON key spelling. */
 export interface StoredCampaignFinalization {
@@ -41,6 +44,7 @@ type FinalizationRow = Omit<StoredCampaignFinalization, "canonicalPreviewSnapsho
   createdAtIso: string;
 };
 type LockedPreparation = CampaignFinalizationTrustedContext["preparation"];
+type OriginalPackageApproval = { approvalId: string; reviewFingerprint: string; canonicalReviewSnapshot: string };
 type PreparationRow = Omit<LockedPreparation, "configurationSnapshot" | "preparedDrafts"> & {
   templateKey: string;
   templateVersion: number;
@@ -53,7 +57,8 @@ type PreparationRow = Omit<LockedPreparation, "configurationSnapshot" | "prepare
 export type CampaignFinalizationErrorCode = "access_denied" | "invalid_idempotency_key" | "idempotency_conflict"
   | "preparation_unavailable" | "preparation_invalid" | "already_finalized" | "campaign_changed"
   | "package_unavailable" | "package_version_mismatch" | "package_not_approved"
-  | "brand_unavailable" | "audience_unavailable" | "preview_changed" | "window_expired";
+  | "brand_unavailable" | "audience_unavailable" | "preview_changed" | "window_expired"
+  | ContentPackageReviewErrorCode;
 
 export class CampaignFinalizationError extends Error {
   constructor(readonly code: CampaignFinalizationErrorCode, message: string, readonly existingFinalizationId?: string) {
@@ -170,8 +175,8 @@ export class CampaignFinalizationRepository {
       }
       const editable = await transaction`SELECT id FROM campaign_version WHERE campaign_id = ${campaign.id} AND status = 'draft' LIMIT 1`;
       if (editable[0]) throw new CampaignFinalizationError("campaign_changed", "This Campaign already has an editable draft. Finalization cannot overwrite it.");
-      await this.lockPlanningLineage(transaction, preparation);
-      await this.lockReferences(transaction, preparation.configurationSnapshot);
+      const originalApproval = await this.lockPlanningLineage(transaction, preparation);
+      await this.lockReferences(transaction, preparation.configurationSnapshot, originalApproval);
       // Do not lock Destination in lockReferences: publication's content lock
       // order reaches it AFTER connection -> approval -> draft/version -> preview.
       await lockExactTextPreviewInTransaction(transaction, { workspaceId: selected.workspaceId, previewId: selected.previewId });
@@ -291,31 +296,47 @@ export class CampaignFinalizationRepository {
       configurationSnapshot: original.normalizedInput, preparedDrafts };
   }
 
-  private async lockPlanningLineage(transaction: TransactionSql, preparation: LockedPreparation): Promise<void> {
+  private async lockPlanningLineage(transaction: TransactionSql, preparation: LockedPreparation): Promise<OriginalPackageApproval> {
     const version = (await transaction<{ status: string; autonomyMode: string; contentPackageIds: string[] }[]>`
       SELECT status, autonomy_mode, content_package_ids FROM campaign_version
       WHERE id = ${preparation.planningVersionId} AND campaign_id = ${preparation.campaignId} FOR SHARE
     `)[0];
-    const generation = (await transaction<{ campaignVersionId: string; contentPackageId: string; contentPackageVersion: number }[]>`
-      SELECT campaign_version_id, content_package_id, content_package_version FROM draft_generation
-      WHERE id = ${preparation.generationId} AND workspace_id = ${preparation.workspaceId} FOR SHARE
+    const generation = (await transaction<{ campaignVersionId: string; contentPackageId: string; contentPackageVersion: number;
+      approvalId: string | null; reviewFingerprint: string | null; canonicalReviewSnapshot: string | null }[]>`
+      SELECT generation.campaign_version_id, generation.content_package_id, generation.content_package_version,
+        approval.id AS approval_id, approval.review_fingerprint, approval.canonical_review_snapshot
+      FROM draft_generation generation LEFT JOIN content_package_approval approval
+        ON approval.id = generation.content_package_approval_id AND approval.workspace_id = generation.workspace_id
+          AND approval.content_package_id = generation.content_package_id
+          AND approval.content_package_version = generation.content_package_version
+      WHERE generation.id = ${preparation.generationId} AND generation.workspace_id = ${preparation.workspaceId} FOR SHARE OF generation
     `)[0];
     if (!version || version.status !== "published" || version.autonomyMode !== "draft_only"
       || version.contentPackageIds.length !== 1 || version.contentPackageIds[0] !== preparation.contentPackageId
       || !generation || generation.campaignVersionId !== preparation.planningVersionId
       || generation.contentPackageId !== preparation.contentPackageId || generation.contentPackageVersion !== preparation.contentPackageVersion) invalidPreparation();
+    if (!generation.approvalId || !generation.reviewFingerprint || !generation.canonicalReviewSnapshot) {
+      throw new CampaignFinalizationError("historical_approval_unavailable", "This preparation predates exact package approval. Review the current package and prepare a new Campaign; the original draft history is retained.");
+    }
+    return { approvalId: generation.approvalId, reviewFingerprint: generation.reviewFingerprint,
+      canonicalReviewSnapshot: generation.canonicalReviewSnapshot };
   }
 
-  private async lockReferences(transaction: TransactionSql, configuration: NormalizedCampaignPreparationInput): Promise<void> {
-    const contentPackage = (await transaction<{ version: number; status: string }[]>`
-      SELECT version, status FROM content_package
-      WHERE id = ${configuration.contentPackageId} AND workspace_id = ${configuration.workspaceId} FOR SHARE
-    `)[0];
-    if (!contentPackage) throw new CampaignFinalizationError("package_unavailable", "The original Content Package is unavailable in this workspace.");
-    if (contentPackage.version !== configuration.expectedPackageVersion) {
-      throw new CampaignFinalizationError("package_version_mismatch", "The original Content Package changed. Review it and prepare a new Campaign.");
+  private async lockReferences(transaction: TransactionSql, configuration: NormalizedCampaignPreparationInput,
+    originalApproval: OriginalPackageApproval): Promise<void> {
+    const current = await assertCurrentContentPackageApprovalInTransaction(transaction, {
+      workspaceId: configuration.workspaceId, contentPackageId: configuration.contentPackageId,
+      expectedPackageVersion: configuration.expectedPackageVersion, expectedReviewFingerprint: originalApproval.reviewFingerprint,
+    }).catch((error: unknown) => {
+      if (error instanceof ContentPackageReviewError) throw new CampaignFinalizationError(error.code, error.message);
+      throw error;
+    });
+    // Reattestation of identical bytes can name a different receipt. Keep the
+    // generation's original provenance while requiring identical current facts.
+    const captured = createContentPackageReviewFingerprint(current.snapshot);
+    if (captured.token !== originalApproval.reviewFingerprint || captured.canonicalSnapshot !== originalApproval.canonicalReviewSnapshot) {
+      throw new CampaignFinalizationError("review_changed", "The original package review changed. Review it and prepare a new Campaign.");
     }
-    if (contentPackage.status !== "approved") throw new CampaignFinalizationError("package_not_approved", "The original Content Package must still be approved.");
     if (configuration.brandProfileVersionId) await this.lockProfile(transaction, "brand", configuration.workspaceId, configuration.brandProfileVersionId);
     if (configuration.audienceProfileVersionIds.length) {
       // All roots before versions, deterministic root order regardless of the

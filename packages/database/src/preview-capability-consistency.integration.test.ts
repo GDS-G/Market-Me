@@ -8,12 +8,13 @@ import { createDatabaseClient, type DatabaseClient } from "./client";
 import { DraftRepository } from "./draft-repository";
 import { PublishingRepository } from "./publishing-repository";
 import { MarketMeRepository } from "./repositories";
+import { packageGenerationPrecondition, packageReviewPrecondition } from "./test-support/package-review-fixture";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (databaseUrl) {
   const databaseName = decodeURIComponent(new URL(databaseUrl).pathname.slice(1));
-  if (!databaseName.startsWith("market_me_qa_") && databaseName !== "market_me_ci") {
-    throw new Error("Preview consistency integration tests require an isolated market_me_qa_* or market_me_ci database.");
+  if (!["market_me_qa_124_review", "market_me_ci"].includes(databaseName)) {
+    throw new Error("Preview consistency integration tests require the explicitly isolated QA124 or CI database.");
   }
 }
 let sql: DatabaseClient;
@@ -54,13 +55,15 @@ async function makeFixture() {
       evidence: [{ id: randomUUID(), claim: "Admission to the community event is free.",
         provenance: "observed", sourceReferences: [`source-item:${item.id}`], confidence: 1 }],
     });
-    await core.approveContentPackage({ workspaceId: workspace.workspaceId, packageId: contentPackage.id, actorUserId: user.id });
+    await core.approveContentPackage({ workspaceId: workspace.workspaceId, packageId: contentPackage.id, actorUserId: user.id,
+      idempotencyKey: randomUUID(), ...await packageReviewPrecondition(sql, workspace.workspaceId, contentPackage.id, user.id) });
     const planning = compileGeneralAnnouncementPreparation({ workspaceId: workspace.workspaceId,
       contentPackageId: contentPackage.id, expectedPackageVersion: contentPackage.version }).campaign;
     const campaign = await campaigns.createCampaign(planning, user.id);
     await campaigns.publishCampaign(workspace.workspaceId, campaign.id);
     const generated = (await drafts.generate({ workspaceId: workspace.workspaceId,
-      campaignId: campaign.id, contentPackageId: contentPackage.id }, user.id))[0]!;
+      campaignId: campaign.id, contentPackageId: contentPackage.id,
+      ...await packageGenerationPrecondition(sql, workspace.workspaceId, contentPackage.id, user.id) }, user.id))[0]!;
     await drafts.submit(workspace.workspaceId, generated.id, user.id);
     const approval = (await drafts.listApprovals(workspace.workspaceId))[0]!;
     await drafts.decide({ workspaceId: workspace.workspaceId, approvalId: approval.id,

@@ -7,6 +7,7 @@ import { PublishingRepository } from "./publishing-repository";
 import { MarketMeRepository } from "./repositories";
 import { CampaignRepository } from "./campaign-repository";
 import { DraftRepository } from "./draft-repository";
+import { packageReviewPrecondition } from "./test-support/package-review-fixture";
 
 const databaseUrl = process.env.DATABASE_URL;
 let sql: DatabaseClient | undefined;
@@ -416,11 +417,18 @@ async function attachApprovedPreview(fixture: Awaited<ReturnType<typeof failedPu
     upserts: [{ workspaceId: workspace.workspaceId, smartSourceId: source.id, providerItemId: "fixture", name: "facts.txt", displayPath: "C:\\fixture\\facts.txt", mimeType: "text/plain", isFolder: false, contentHash: "sha256:admission-fixture" }] });
   const item = (await core.getSourceItemByProviderId(source.id, "fixture"))!;
   const content = await core.saveContentPackage({ workspaceId: workspace.workspaceId, smartSourceId: source.id, rootSourceItemId: item.id,
-    title: "Admission fixture", status: "approved", contextPackVersionIds: [], assets: [], evidence: [], conflicts: [] });
+    title: "Admission fixture", status: "ready", contextPackVersionIds: [], assets: [],
+    evidence: [{ id: randomUUID(), claim: "Reviewed preview content", provenance: "observed", sourceReferences: ["fixture:admission"] }], conflicts: [] });
+  const packageApproval = await core.approveContentPackage({ ...await packageReviewPrecondition(sql!, workspace.workspaceId, content.id, user.id),
+    workspaceId: workspace.workspaceId, packageId: content.id, actorUserId: user.id, idempotencyKey: randomUUID() });
   const generationId = randomUUID(), draftId = randomUUID(), versionId = randomUUID(), draftApprovalId = randomUUID();
   await sql!.begin(async (transaction) => {
-    await transaction`INSERT INTO draft_generation (id, workspace_id, campaign_version_id, content_package_id, content_package_version, information_depth, promotional_strength, evidence_snapshot, generator_provider, generator_model, generator_version, prompt_version, created_by)
-      VALUES (${generationId}, ${workspace.workspaceId}, ${instance.campaignVersionId}, ${content.id}, 1, 'contextual', 'light', '{}', 'fixture', 'fixture', '1', '1', ${user.id})`;
+    await transaction`UPDATE campaign_version SET content_package_ids=${[content.id]} WHERE id=${instance.campaignVersionId}`;
+    await transaction`INSERT INTO draft_generation (id, workspace_id, campaign_version_id, content_package_id, content_package_version,
+      content_package_approval_id, information_depth, promotional_strength, evidence_snapshot, generator_provider, generator_model, generator_version, prompt_version, created_by)
+      SELECT ${generationId},${workspace.workspaceId},${instance.campaignVersionId},${content.id},1,approval.id,'contextual','light',
+        content_package_approval_generation_evidence(approval.canonical_review_snapshot::jsonb,approval.effective_evidence_ids),
+        'fixture','fixture','1','1',${user.id} FROM content_package_approval approval WHERE approval.id=${packageApproval.approval.id}`;
     await transaction`INSERT INTO content_draft (id, workspace_id, draft_generation_id, status, created_by) VALUES (${draftId}, ${workspace.workspaceId}, ${generationId}, 'approved', ${user.id})`;
     await transaction`INSERT INTO content_draft_version (id, content_draft_id, version_number, status, headline, body, rationale, created_by) VALUES (${versionId}, ${draftId}, 1, 'approved', 'Approved headline', 'Reviewed preview content', 'Fixture', ${user.id})`;
     await transaction`UPDATE content_draft SET current_version_id = ${versionId} WHERE id = ${draftId}`;

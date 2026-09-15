@@ -18,6 +18,7 @@ vi.mock("@/server/database", () => ({
 vi.mock("@/components/workspace-shell", () => ({ WorkspaceShell: ({ children }: { children: ReactNode }) => createElement("main", {}, children) }));
 vi.mock("@/components/campaign-preparation-request", () => import("../components/campaign-preparation-request"));
 vi.mock("@/components/campaign-finalization-request", () => import("../components/campaign-finalization-request"));
+vi.mock("@/components/content-package-review-request", () => import("../components/content-package-review-request"));
 vi.mock("@/components/campaign-finalization-form", () => ({ CampaignFinalizationForm: (props: Record<string, unknown>) => createElement("form", { "data-finalizer": true }, JSON.stringify(props)) }));
 vi.mock("@/components/campaign-finalization-result", () => ({ CampaignFinalizationResult: (props: { canWrite: boolean }) => createElement("section", { "data-protected": true, "data-can-write": props.canWrite }, "Protected receipt") }));
 vi.mock("@/components/campaign-form", () => ({ CampaignForm: () => createElement("form", { "data-advanced": true }, "Advanced editor") }));
@@ -29,7 +30,7 @@ import EditPage from "../app/campaigns/[id]/edit/page";
 const uuid = (n: number) => `${String(n).repeat(8)}-${String(n).repeat(4)}-4${String(n).repeat(3)}-8${String(n).repeat(3)}-${String(n).repeat(12)}`;
 const workspaceId = uuid(1), userId = uuid(2), preparationId = uuid(3), campaignId = uuid(4), versionId = uuid(5), draftId = uuid(6), finalizationId = uuid(7);
 const preparation = { id: preparationId, workspaceId, campaignId, planningVersionId: versionId, generationId: uuid(9),
-  configurationSnapshot: { name: "Prepared café 🚀" }, referenceSnapshot: { audiences: [{ name: "Original audience" }] }, preparedDrafts: [{ draftId, versionId: uuid(8) }] };
+  configurationSnapshot: { name: "Prepared café 🚀" }, referenceSnapshot: { contentPackage: { approvalId: uuid(8), reviewFingerprint: `mm-package-review-v1:sha256:${"a".repeat(64)}` }, audiences: [{ name: "Original audience" }] }, preparedDrafts: [{ draftId, versionId: uuid(8) }] };
 const receipt = { id: finalizationId, workspaceId, campaignId, compiledDefinition: { name: "Protected café 🚀" } };
 const pageInput = (id = preparationId, selectedWorkspace: string | string[] | undefined = workspaceId) => ({ params: Promise.resolve({ id }), searchParams: Promise.resolve({ workspaceId: selectedWorkspace }) });
 beforeEach(() => {
@@ -40,6 +41,13 @@ beforeEach(() => {
 });
 
 describe("scoped finalizer pages", () => {
+  it("does not offer new finalization for an unproved legacy preparation, but preserves completed recovery", async () => {
+    mocks.preparation.mockResolvedValue({ ...preparation, referenceSnapshot: { audiences: [] } });
+    const html = renderToStaticMarkup(await FinalizePage(pageInput()));
+    expect(html).toContain("Original source approval unavailable"); expect(html).not.toContain("data-finalizer"); expect(mocks.options).not.toHaveBeenCalled();
+    mocks.forCampaign.mockResolvedValue(receipt);
+    await expect(FinalizePage(pageInput())).rejects.toThrow(`redirect:/campaigns/finalizations/${finalizationId}?workspaceId=${workspaceId}`);
+  });
   it.each(["owner", "admin", "editor"])("shows %s an explicit empty picker and prepared draft links without publishing", async (role) => {
     mocks.workspace.mockResolvedValue({ workspaceId, workspaceName: "QA", role });
     const html = renderToStaticMarkup(await FinalizePage(pageInput()));

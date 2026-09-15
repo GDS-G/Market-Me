@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { INFORMATION_DEPTHS, PROMOTIONAL_STRENGTHS } from "@market-me/domain";
 import type { CampaignPreparationTemplateInput } from "@market-me/database";
+import { packageReviewFingerprint } from "./content-package-review-request";
 
 export const preparationUuid = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 
@@ -14,8 +15,11 @@ const storedInput = z.object({
   destinationId: preparationUuid.optional(), informationDepth: z.enum(INFORMATION_DEPTHS),
   promotionalStrength: z.enum(PROMOTIONAL_STRENGTHS), timezone: z.string().min(1).max(100),
 }).strict();
-const storedAttempt = z.object({ version: z.literal(1), userId: preparationUuid,
+const legacyAttempt = z.object({ version: z.literal(1), userId: preparationUuid,
   idempotencyKey: preparationUuid, input: storedInput }).strict();
+const exactAttempt = z.object({ version: z.literal(2), userId: preparationUuid,
+  idempotencyKey: preparationUuid, input: storedInput, expectedReviewFingerprint: packageReviewFingerprint }).strict();
+const storedAttempt = z.discriminatedUnion("version", [legacyAttempt, exactAttempt]);
 
 export type PreparationFormInput = z.infer<typeof storedInput>;
 export type PreparationAttempt = z.infer<typeof storedAttempt>;
@@ -25,8 +29,9 @@ export function preparationStorageKey(scope: PreparationScope): string {
   return `market-me:campaign-preparation:v1:${scope.userId}:${scope.workspaceId}`;
 }
 
-export function createPreparationAttempt(scope: PreparationScope, input: CampaignPreparationTemplateInput, idempotencyKey: string): PreparationAttempt {
-  const attempt = storedAttempt.parse({ version: 1, userId: scope.userId, input, idempotencyKey });
+export function createPreparationAttempt(scope: PreparationScope, input: CampaignPreparationTemplateInput, idempotencyKey: string, expectedReviewFingerprint?: string): PreparationAttempt {
+  const attempt = storedAttempt.parse(expectedReviewFingerprint === undefined ? { version: 1, userId: scope.userId, input, idempotencyKey }
+    : { version: 2, userId: scope.userId, input, idempotencyKey, expectedReviewFingerprint });
   if (attempt.input.workspaceId !== scope.workspaceId) throw new Error("Preparation belongs to a different workspace.");
   return attempt;
 }
@@ -42,7 +47,8 @@ export function restorePreparationAttempt(serialized: string | null, scope: Prep
 
 /** Keep this exact body and key for every retry, including after a page reload. */
 export function preparationRequest(attempt: PreparationAttempt): string {
-  return JSON.stringify({ input: attempt.input, idempotencyKey: attempt.idempotencyKey });
+  return JSON.stringify({ input: attempt.input, idempotencyKey: attempt.idempotencyKey,
+    ...(attempt.version === 2 ? { expectedReviewFingerprint: attempt.expectedReviewFingerprint } : {}) });
 }
 
 export function preparationResultPath(id: string, workspaceId: string): string {

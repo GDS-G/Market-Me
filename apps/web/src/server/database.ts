@@ -3,6 +3,7 @@ import {
   CampaignRepository,
   CampaignPreparationRepository,
   CampaignFinalizationRepository,
+  ContentPackageReviewRepository,
   CompanionRepository,
   ConversationAssistantRepository,
   ConversationComposerRepository,
@@ -23,6 +24,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
     campaigns: CampaignRepository;
     preparations: CampaignPreparationRepository;
     finalizations: CampaignFinalizationRepository;
+    packageReviews: ContentPackageReviewRepository;
     publishing: PublishingRepository;
     companion: CompanionRepository;
     profiles: ProfileRepository;
@@ -58,6 +60,10 @@ export function getCampaignPreparationRepository(): CampaignPreparationRepositor
 
 export function getCampaignFinalizationRepository(): CampaignFinalizationRepository {
   return getRepositories().finalizations;
+}
+
+export function getContentPackageReviewRepository(): ContentPackageReviewRepository {
+  return getRepositories().packageReviews;
 }
 
 export function getPublishingRepository(): PublishingRepository {
@@ -101,6 +107,7 @@ function getRepositories(): {
   campaigns: CampaignRepository;
   preparations: CampaignPreparationRepository;
   finalizations: CampaignFinalizationRepository;
+  packageReviews: ContentPackageReviewRepository;
   publishing: PublishingRepository;
   companion: CompanionRepository;
   profiles: ProfileRepository;
@@ -120,6 +127,7 @@ function getRepositories(): {
     campaigns: new CampaignRepository(sql, { appBaseUrl: process.env.APP_BASE_URL }),
     preparations: new CampaignPreparationRepository(sql),
     finalizations: new CampaignFinalizationRepository(sql, { appBaseUrl: process.env.APP_BASE_URL }),
+    packageReviews: new ContentPackageReviewRepository(sql),
     publishing: new PublishingRepository(sql, { appBaseUrl: process.env.APP_BASE_URL }),
     companion: new CompanionRepository(sql),
     profiles: new ProfileRepository(sql),
