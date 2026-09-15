@@ -6,8 +6,8 @@ import { PublishingRepository } from "./publishing-repository";
 import { makeCampaignFinalizationFixture, type CampaignFinalizationFixture, type FinalizationFixtureOptions } from "./test-support/campaign-finalization-fixture";
 
 const databaseUrl = process.env.DATABASE_URL;
-if (databaseUrl && !["market_me_qa_123_finalization", "market_me_ci"].includes(decodeURIComponent(new URL(databaseUrl).pathname.slice(1)))) {
-  throw new Error("Finalization admission tests require the isolated QA123 or CI database.");
+if (databaseUrl && !["market_me_qa_123_finalization", "market_me_qa_124_review", "market_me_ci"].includes(decodeURIComponent(new URL(databaseUrl).pathname.slice(1)))) {
+  throw new Error("Finalization admission tests require an isolated finalization/review QA or CI database.");
 }
 let sql: DatabaseClient;
 const network = vi.fn(() => { throw new Error("Provider I/O is forbidden in finalization admission tests."); });

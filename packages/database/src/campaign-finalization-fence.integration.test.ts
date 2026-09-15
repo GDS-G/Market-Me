@@ -9,8 +9,8 @@ import { makeCampaignFinalizationFixture, type CampaignFinalizationFixture } fro
 const databaseUrl = process.env.DATABASE_URL;
 if (databaseUrl) {
   const database = decodeURIComponent(new URL(databaseUrl).pathname.slice(1));
-  if (database !== "market_me_qa_123_finalization" && database !== "market_me_ci") {
-    throw new Error("Finalization fence tests require the explicitly isolated QA123 or CI database.");
+  if (!["market_me_qa_123_finalization", "market_me_qa_124_review", "market_me_ci"].includes(database)) {
+    throw new Error("Finalization fence tests require an explicitly isolated finalization/review QA or CI database.");
   }
 }
 let sql: DatabaseClient;

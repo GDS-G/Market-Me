@@ -722,24 +722,13 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         quoteId: draftRevisionQuote.id,
         idempotencyKey: randomUUID(),
       }, owner.user.id);
-      // A surviving link is not enough: duplicate snapshot identities cannot authorize an AI prompt.
-      await sql`UPDATE draft_generation SET evidence_snapshot = ${sql.json([
+      // A proof-bearing generation cannot be corrupted into duplicate or
+      // contradictory snapshot identities before an AI prompt is prepared.
+      await expect(sql`UPDATE draft_generation SET evidence_snapshot = ${sql.json([
         ...proposalEvidenceSnapshot, { ...proposalEvidenceSnapshot[0]!, claim: "Contradictory historical identity" },
-      ])} WHERE id = ${proposalGenerationId}`;
-      try {
-        await expect(ai.prepareWorkspaceDraftRevisionIntent({
-          workspaceId: owner.workspace.workspaceId, contentDraftId: proposalDraftId,
-          invocationBindingId: invocation.id, reservationId: draftRevisionReservation.id,
-          idempotencyKey: randomUUID(), goal: "clarity", maxOutputTokens: 512,
-        }, owner.user.id)).rejects.toMatchObject({
-          name: "AiPolicyValidationError",
-          issues: [{ message: expect.stringContaining("immutable evidence references for every factual") }],
-        });
-        expect(await sql`SELECT id FROM workspace_ai_text_invocation_intent WHERE source_content_draft_id = ${proposalDraftId}`)
-          .toHaveLength(0);
-      } finally {
-        await sql`UPDATE draft_generation SET evidence_snapshot = ${sql.json(proposalEvidenceSnapshot)} WHERE id = ${proposalGenerationId}`;
-      }
+      ])} WHERE id = ${proposalGenerationId}`).rejects.toMatchObject({ code: "23514" });
+      expect(await sql`SELECT id FROM workspace_ai_text_invocation_intent WHERE source_content_draft_id = ${proposalDraftId}`)
+        .toHaveLength(0);
       const draftRevision = await ai.prepareWorkspaceDraftRevisionIntent({
         workspaceId: owner.workspace.workspaceId,
         contentDraftId: proposalDraftId,

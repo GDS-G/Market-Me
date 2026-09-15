@@ -1291,7 +1291,7 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
       ).rejects.toMatchObject({
         name: "CampaignValidationError",
         issues: [
-          expect.objectContaining({ code: "draft_channel_preview_invalid" }),
+          expect.objectContaining({ code: "content_package_not_approved" }),
         ],
       });
       const events = await sql<
