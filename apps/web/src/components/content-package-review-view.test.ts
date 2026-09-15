@@ -21,6 +21,29 @@ describe("captured package review display", () => {
     expect(html).toContain("END OF COMPLETE CAPTURE"); expect(html).toContain("expandable, not truncated"); expect(html).toContain("9007199254740993");
     expect(html).toContain("2026-09-15T15:30:42.654321Z"); expect(html).toContain("raw_key"); expect(html).toContain("&lt;script&gt;never execute&lt;/script&gt;"); expect(html).not.toContain("<script>");
   });
+  it("uses the captured original's approved alt text for its derivative preview", () => {
+    const original = reviewTestSnapshot.assets[0]!;
+    const derivative = { ...original, id: reviewTestUuid(0), sourceItemId: null, sourceAssetId: original.id, role: "derivative" as const,
+      fileName: "filename-must-not-be-alt.webp", mimeType: "image/webp", contentHash: "sha256:derivative-approved",
+      accessibility: { altText: "Derivative-local text must not be used.", status: "not_applicable" as const, notes: null } };
+    const snapshot = { ...reviewTestSnapshot, assets: [original, derivative] };
+    const html = renderToStaticMarkup(createElement(PackageReviewSnapshot, { snapshot, effectiveEvidenceIds: [],
+      assetPreviews: [{ id: derivative.id, contentHash: derivative.contentHash, url: "/api/v1/media/approved-preview" }] }));
+    expect(html).toContain('alt="A blue dolphin."');
+    expect(html).not.toContain('alt="Derivative-local text must not be used."');
+    expect(html).not.toContain('alt="Captured derivative: filename-must-not-be-alt.webp"');
+  });
+  it("uses an empty alt for a derivative whose captured original is decorative", () => {
+    const original = { ...reviewTestSnapshot.assets[0]!, accessibility: { altText: null, status: "decorative" as const, notes: "Intentionally decorative." } };
+    const derivative = { ...original, id: reviewTestUuid(0), sourceItemId: null, sourceAssetId: original.id, role: "derivative" as const,
+      fileName: "decorative-filename-must-not-be-alt.webp", mimeType: "image/webp", contentHash: "sha256:derivative-decorative",
+      accessibility: { altText: null, status: "not_applicable" as const, notes: null } };
+    const snapshot = { ...reviewTestSnapshot, assets: [original, derivative] };
+    const html = renderToStaticMarkup(createElement(PackageReviewSnapshot, { snapshot, effectiveEvidenceIds: [],
+      assetPreviews: [{ id: derivative.id, contentHash: derivative.contentHash, url: "/api/v1/media/decorative-preview" }] }));
+    expect(html).toContain('alt=""');
+    expect(html).not.toContain('alt="Captured derivative: decorative-filename-must-not-be-alt.webp"');
+  });
   it("shows blockers against the captured token, with no approved-status shortcut", () => {
     const html = renderToStaticMarkup(createElement(PackageReviewState, { review: { ...reviewTestReview, status: "approved", historicalApproval: true } }));
     expect(html).toContain("Historical approval is unverified"); expect(html).toContain("no verifiable original review receipt"); expect(html).toContain(reviewTestReview.reviewFingerprint);

@@ -25,6 +25,7 @@ export function PackageReviewSnapshot({ snapshot, effectiveEvidenceIds, excluded
   assetPreviews?: readonly CapturedAssetPreview[];
 }) {
   const winners = new Set(snapshot.conflicts.filter((item) => item.status === "resolved").map((item) => item.resolutionEvidenceId));
+  const assetsById = new Map(snapshot.assets.map((asset) => [asset.id, asset]));
   return <div className={styles.sections}>
     <section className="resource-panel"><div className="resource-panel-head"><div><h2>Captured package</h2><p>Source revision {snapshot.package.version}; no fields below are reloaded from live child records.</p></div></div>
       <dl className={styles.facts}><dt>Package</dt><dd>{snapshot.package.id}</dd><dt>Smart Source</dt><dd>{snapshot.package.smartSourceId}</dd>
@@ -57,9 +58,13 @@ export function PackageReviewSnapshot({ snapshot, effectiveEvidenceIds, excluded
       {!snapshot.assets.length && <p className={styles.padding}>No assets were captured.</p>}
       {snapshot.assets.map((asset) => {
         const preview = assetPreviews.find((item) => item.id === asset.id && item.contentHash === asset.contentHash);
+        const source = asset.role === "derivative" && asset.sourceAssetId ? assetsById.get(asset.sourceAssetId) : undefined;
+        const previewAlt = source?.role === "original" && source.accessibility.status === "decorative" ? ""
+          : source?.role === "original" && source.accessibility.status === "approved" && source.accessibility.altText?.trim()
+            ? source.accessibility.altText : undefined;
         return <article key={asset.id} id={`asset-${asset.id}`} className={styles.item}>
           <h3>{asset.fileName}</h3><p>{asset.role} · {asset.mimeType} · {asset.byteSizeDecimal ?? "unknown"} bytes</p>
-          {preview && <figure><Image src={preview.url} width={640} height={480} className={styles.preview} unoptimized alt={asset.accessibility.altText ?? `Captured derivative: ${asset.fileName}`} /><figcaption>Derivative preview; captured content hash {asset.contentHash}.</figcaption></figure>}
+          {preview && previewAlt !== undefined && <figure><Image src={preview.url} width={640} height={480} className={styles.preview} unoptimized alt={previewAlt} /><figcaption>Derivative preview; captured content hash {asset.contentHash}.</figcaption></figure>}
           <dl className={styles.facts}><dt>Asset ID / content hash</dt><dd>{asset.id}<br />{asset.contentHash}</dd><dt>Inherited source asset</dt><dd>{asset.sourceAssetId ?? "None"}</dd>
             <dt>Media / extraction</dt><dd>{asset.mediaStatus} / {asset.extraction.status}</dd><dt>Malware scan</dt><dd>{asset.scan.status} · revision {asset.scan.revision} · {asset.scan.engine ?? "no engine"} · {asset.scan.scannedAtUtcMicros ?? "not scanned"}</dd>
             <dt>Accessibility</dt><dd>{asset.accessibility.status} · {asset.accessibility.altText ?? "no alternative text"}<br />{asset.accessibility.notes}</dd>
