@@ -1,6 +1,6 @@
 # Exact Content Package review and approval
 
-Status: implemented and verified on the Release 1.24 candidate branch. Migration 0113 is frozen at SHA-256 `2431cf89e54705443eca1ca390aa082f6ecb51e0a6a5509769c1a4944e2c924f`; additive migration 0114 is frozen at SHA-256 `36886f10b715a2ef0797a7d4dcdd19e1075b8f5c36ddeb51c41c23f23b31e320`. The committed-1.23 upgrade rehearsal, isolated live application/rerun through 0114, final full local workspace/browser/native candidate gates, Google development-document readback and Linux cloud CI passed. Publication to `main` remains pending. This document describes the current source contract, not a production-readiness or full-product-completion claim.
+Status: implemented, verified and published on `main` for Release 1.24. Migration 0113 is frozen at SHA-256 `2431cf89e54705443eca1ca390aa082f6ecb51e0a6a5509769c1a4944e2c924f`; additive migration 0114 is frozen at SHA-256 `36886f10b715a2ef0797a7d4dcdd19e1075b8f5c36ddeb51c41c23f23b31e320`. The committed-1.23 upgrade rehearsal, isolated live application/rerun through 0114, final full local workspace/browser/native gates, Google development-document readback and exact feature/main Linux cloud runs passed. Reviewed release commit `6ed85fb7d922d7f51b7d3304c4c536a28c7ebc7e` was fast-forwarded to `main`. This document describes the current source contract, not a production-readiness or full-product-completion claim.
 
 ## Purpose and boundaries
 
