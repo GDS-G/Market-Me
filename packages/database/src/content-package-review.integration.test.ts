@@ -11,6 +11,55 @@ if (databaseUrl) {
   if (!name.startsWith("market_me_qa_") && name !== "market_me_ci") throw new Error("Package review integration requires an isolated QA database.");
 }
 let sql: DatabaseClient;
+
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
+}
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: Deferred<T>["resolve"];
+  let reject!: Deferred<T>["reject"];
+  const promise = new Promise<T>((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  return { promise, resolve, reject };
+}
+
+async function taggedClient(tag: string): Promise<DatabaseClient> {
+  const client = createDatabaseClient(databaseUrl!, { max: 1 });
+  try {
+    await client`
+      SELECT set_config('application_name',${tag},false),
+        set_config('lock_timeout','8s',false),
+        set_config('statement_timeout','15s',false)
+    `;
+    return client;
+  } catch (error) {
+    await client.end().catch(() => undefined);
+    throw error;
+  }
+}
+
+async function waitUntilBlockedBy(tag: string, blockerPid: number): Promise<number> {
+  const deadline = Date.now() + 5_000;
+  let observed: { pid: number; blockingPids: number[] }[] = [];
+  while (Date.now() < deadline) {
+    observed = await sql<{ pid: number; blockingPids: number[] }[]>`
+      SELECT pid,pg_blocking_pids(pid) AS blocking_pids
+      FROM pg_stat_activity
+      WHERE datname=current_database() AND application_name=${tag}
+        AND wait_event_type='Lock'
+    `;
+    const blocked = observed.find((row) => row.blockingPids.map(Number).includes(blockerPid));
+    if (blocked) return Number(blocked.pid);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  throw new Error(`Backend ${tag} did not queue behind ${blockerPid}; observed ${JSON.stringify(observed)}`);
+}
+
 async function fixture() {
   const core = new MarketMeRepository(sql); const reviews = new ContentPackageReviewRepository(sql);
   const { user, workspace } = await core.bootstrapDevelopmentWorkspace({ email: `package-review-${randomUUID()}@market-me.local`, displayName: "Exact Review QA" });
@@ -163,6 +212,170 @@ describe.skipIf(!databaseUrl)("exact Content Package approval", () => {
       expect(await sql`SELECT id FROM evidence_item WHERE content_package_id=${rows[0]!.id}`).toHaveLength(1);
     } finally { await f.cleanup(); }
   });
+
+  it("serializes approval before a queued material writer and preserves the superseded exact receipt", async () => {
+    const f = await fixture();
+    const suffix = randomUUID().slice(0, 8);
+    const approvalTag = `mm-approve-first-${suffix}`;
+    const writerTag = `mm-writer-second-${suffix}`;
+    const gateSql = await taggedClient(`mm-root-gate-${suffix}`);
+    const approvalSql = await taggedClient(approvalTag);
+    const writerSql = await taggedClient(writerTag);
+    const attempt = { ...await f.expectation(), idempotencyKey: randomUUID() };
+    const release = deferred<void>();
+    const locked = deferred<number>();
+    const work: Promise<unknown>[] = [];
+    const gateWork = gateSql.begin(async (tx) => {
+      try {
+        const [{ pid }] = await tx<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+        await tx`SELECT id FROM content_package WHERE id=${f.pkg.id} FOR UPDATE`;
+        locked.resolve(Number(pid));
+        await release.promise;
+      } catch (error) {
+        locked.reject(error);
+        throw error;
+      }
+    });
+    work.push(gateWork); void gateWork.catch(() => undefined);
+    try {
+      const gatePid = await locked.promise;
+      const approvalPromise = new ContentPackageReviewRepository(approvalSql).approve(attempt);
+      work.push(approvalPromise); void approvalPromise.catch(() => undefined);
+      const approvalPid = await waitUntilBlockedBy(approvalTag, gatePid);
+
+      const writerPromise = new MarketMeRepository(writerSql).saveContentPackage({
+        ...f.input,
+        title: "Material writer committed second",
+        evidence: [{ ...f.input.evidence[0]!, id: randomUUID(), claim: "The source now says one o'clock." }],
+      });
+      work.push(writerPromise); void writerPromise.catch(() => undefined);
+      await waitUntilBlockedBy(writerTag, approvalPid);
+
+      release.resolve(undefined);
+      await gateWork;
+      const [approved, written] = await Promise.all([approvalPromise, writerPromise]);
+      expect(approved.replayed).toBe(false);
+      expect(approved.review?.currentApprovalValid).toBe(true);
+      expect(written.version).toBe(2);
+
+      const current = (await f.reviews.getReview(f.identity.workspaceId, f.pkg.id, f.user.id))!;
+      expect(current.snapshot.package.title).toBe("Material writer committed second");
+      expect(current.reviewFingerprint).not.toBe(attempt.expectedReviewFingerprint);
+      expect(current.currentApproval).toBeNull();
+      expect(current.currentApprovalValid).toBe(false);
+      expect(approved.approval.reviewSnapshot.package.title).toBe(f.input.title);
+      expect(await f.reviews.getApproval(f.identity.workspaceId, approved.approval.id, f.user.id)).toEqual(approved.approval);
+      expect(await sql`SELECT id FROM content_package_approval WHERE idempotency_key=${attempt.idempotencyKey}`).toHaveLength(1);
+    } finally {
+      release.resolve(undefined);
+      await Promise.allSettled(work);
+      await Promise.all([gateSql.end(), approvalSql.end(), writerSql.end()]);
+      await f.cleanup();
+    }
+  }, 20_000);
+
+  it("serializes a material writer before queued approval and creates no stale receipt", async () => {
+    const f = await fixture();
+    const suffix = randomUUID().slice(0, 8);
+    const writerTag = `mm-writer-first-${suffix}`;
+    const approvalTag = `mm-approve-second-${suffix}`;
+    const gateSql = await taggedClient(`mm-root-gate-${suffix}`);
+    const writerSql = await taggedClient(writerTag);
+    const approvalSql = await taggedClient(approvalTag);
+    const attempt = { ...await f.expectation(), idempotencyKey: randomUUID() };
+    const release = deferred<void>();
+    const locked = deferred<number>();
+    const work: Promise<unknown>[] = [];
+    const gateWork = gateSql.begin(async (tx) => {
+      try {
+        const [{ pid }] = await tx<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+        await tx`SELECT id FROM content_package WHERE id=${f.pkg.id} FOR UPDATE`;
+        locked.resolve(Number(pid));
+        await release.promise;
+      } catch (error) {
+        locked.reject(error);
+        throw error;
+      }
+    });
+    work.push(gateWork); void gateWork.catch(() => undefined);
+    try {
+      const gatePid = await locked.promise;
+      const writerPromise = new MarketMeRepository(writerSql).saveContentPackage({
+        ...f.input,
+        title: "Material writer committed first",
+        evidence: [{ ...f.input.evidence[0]!, id: randomUUID(), claim: "The source now says two o'clock." }],
+      });
+      work.push(writerPromise); void writerPromise.catch(() => undefined);
+      const writerPid = await waitUntilBlockedBy(writerTag, gatePid);
+
+      const approvalPromise = new ContentPackageReviewRepository(approvalSql).approve(attempt);
+      work.push(approvalPromise); void approvalPromise.catch(() => undefined);
+      await waitUntilBlockedBy(approvalTag, writerPid);
+
+      release.resolve(undefined);
+      await gateWork;
+      const written = await writerPromise;
+      expect(written.version).toBe(2);
+      await expect(approvalPromise).rejects.toMatchObject({ code: "package_version_mismatch" });
+      const current = (await f.reviews.getReview(f.identity.workspaceId, f.pkg.id, f.user.id))!;
+      expect(current.snapshot.package.title).toBe("Material writer committed first");
+      expect(current.reviewFingerprint).not.toBe(attempt.expectedReviewFingerprint);
+      expect(current.currentApproval).toBeNull();
+      expect(await sql`SELECT id FROM content_package_approval WHERE idempotency_key=${attempt.idempotencyKey}`).toHaveLength(0);
+      expect(await sql`SELECT id FROM learning_review WHERE content_package_id=${f.pkg.id} AND action='package_approved'`).toHaveLength(0);
+    } finally {
+      release.resolve(undefined);
+      await Promise.allSettled(work);
+      await Promise.all([gateSql.end(), writerSql.end(), approvalSql.end()]);
+      await f.cleanup();
+    }
+  }, 20_000);
+
+  it("rechecks membership after a queued approval waits for revocation and creates no unauthorized receipt", async () => {
+    const f = await fixture();
+    const suffix = randomUUID().slice(0, 8);
+    const approvalTag = `mm-approve-revoke-${suffix}`;
+    const revokerSql = await taggedClient(`mm-revoker-${suffix}`);
+    const approvalSql = await taggedClient(approvalTag);
+    const attempt = { ...await f.expectation(), idempotencyKey: randomUUID() };
+    const release = deferred<void>();
+    const locked = deferred<number>();
+    const work: Promise<unknown>[] = [];
+    const revocationWork = revokerSql.begin(async (tx) => {
+      try {
+        const [{ pid }] = await tx<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+        await tx`SELECT role FROM workspace_membership
+          WHERE workspace_id=${f.identity.workspaceId} AND user_id=${f.user.id} FOR UPDATE`;
+        locked.resolve(Number(pid));
+        await release.promise;
+        await tx`DELETE FROM workspace_membership
+          WHERE workspace_id=${f.identity.workspaceId} AND user_id=${f.user.id}`;
+      } catch (error) {
+        locked.reject(error);
+        throw error;
+      }
+    });
+    work.push(revocationWork); void revocationWork.catch(() => undefined);
+    try {
+      const revokerPid = await locked.promise;
+      const approvalPromise = new ContentPackageReviewRepository(approvalSql).approve(attempt);
+      work.push(approvalPromise); void approvalPromise.catch(() => undefined);
+      await waitUntilBlockedBy(approvalTag, revokerPid);
+
+      release.resolve(undefined);
+      await revocationWork;
+      await expect(approvalPromise).rejects.toMatchObject({ code: "access_denied" });
+      expect(await sql`SELECT user_id FROM workspace_membership
+        WHERE workspace_id=${f.identity.workspaceId} AND user_id=${f.user.id}`).toHaveLength(0);
+      expect(await sql`SELECT id FROM content_package_approval WHERE idempotency_key=${attempt.idempotencyKey}`).toHaveLength(0);
+      expect(await sql`SELECT id FROM learning_review WHERE content_package_id=${f.pkg.id} AND action='package_approved'`).toHaveLength(0);
+    } finally {
+      release.resolve(undefined);
+      await Promise.allSettled(work);
+      await Promise.all([revokerSql.end(), approvalSql.end()]);
+      await f.cleanup();
+    }
+  }, 20_000);
 
   it("rejects cross-workspace source lineage and ingestion attempts to self-approve", async () => {
     const f = await fixture(); const other = await fixture();
