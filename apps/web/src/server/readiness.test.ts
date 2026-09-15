@@ -26,9 +26,9 @@ describe("web readiness", () => {
 
   it.each([
     { migrationCount: 109, latestMigration: "0109_campaign_schedule_bounds.sql" },
-    { migrationCount: 112, latestMigration: "0113_content_package_approval_receipts.sql" },
-    { migrationCount: 113, latestMigration: "0112_campaign_finalizations.sql" },
-    { migrationCount: 114, latestMigration: "0114_future_schema.sql" },
+    { migrationCount: 113, latestMigration: "0114_learning_review_evidence_nullification_guard.sql" },
+    { migrationCount: 114, latestMigration: "0113_content_package_approval_receipts.sql" },
+    { migrationCount: 115, latestMigration: "0115_future_schema.sql" },
   ])("fails closed for a missing, mismatched, or newer schema: %j", async (schema) => {
     const readiness = await checkWebReadiness({
       version: "1.20.0", environment: productionEnvironment,

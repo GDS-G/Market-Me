@@ -242,6 +242,57 @@ describe.skipIf(!databaseUrl)("exact package approval generation database guards
     expect(reinserted).toBe(false);
     expect(await sql`SELECT id FROM learning_review WHERE id = ${learningId}`).toHaveLength(1);
   }));
+  it("rejects direct evidence detachment while preserving FK detachment during source refresh", async () => withFixture(async (f) => {
+    const learningId = randomUUID();
+    const evidenceId = f.captured.snapshot.evidence[0]!.id;
+    await sql.begin(async (tx) => {
+      await tx`INSERT INTO learning_review(id, workspace_id, content_package_id, evidence_item_id, actor_user_id, action, notes)
+        VALUES (${learningId}, ${f.workspace.workspaceId}, ${f.contentPackage.id}, ${evidenceId}, ${f.user.id}, 'accepted', 'Retained fixture decision')`;
+      await tx`INSERT INTO learning_review_proof(learning_review_id, workspace_id, content_package_id, content_package_version,
+        action, before_review_fingerprint, after_review_fingerprint, decision_snapshot)
+        VALUES (${learningId}, ${f.workspace.workspaceId}, ${f.contentPackage.id}, ${f.contentPackage.version},
+          'accepted', ${f.captured.token}, ${f.captured.token}, ${tx.json({ evidenceId, fixture: "source-refresh-detachment" })})`;
+    });
+    const [before] = await sql<{ evidenceItemId: string | null; retainedJson: string }[]>`
+      SELECT evidence_item_id, (to_jsonb(review) - 'evidence_item_id')::text AS retained_json
+      FROM learning_review review WHERE id = ${learningId}`;
+    const [proofBefore] = await sql<{ raw: string }[]>`
+      SELECT to_jsonb(proof)::text AS raw FROM learning_review_proof proof WHERE learning_review_id = ${learningId}`;
+
+    await expect(sql`UPDATE learning_review SET evidence_item_id = NULL WHERE id = ${learningId}`)
+      .rejects.toMatchObject({ code: "23514" });
+    expect((await sql<{ evidenceItemId: string | null }[]>`
+      SELECT evidence_item_id FROM learning_review WHERE id = ${learningId}`)[0]!.evidenceItemId).toBe(evidenceId);
+
+    const replacementEvidenceId = randomUUID();
+    const refreshed = await new MarketMeRepository(sql).saveContentPackage({
+      workspaceId: f.workspace.workspaceId,
+      smartSourceId: f.contentPackage.smartSourceId,
+      rootSourceItemId: f.contentPackage.rootSourceItemId,
+      title: "Reviewed facts after source refresh",
+      status: "ready",
+      ...(f.contentPackage.confidence === undefined ? {} : { confidence: f.contentPackage.confidence }),
+      contextPackVersionIds: f.contentPackage.contextPackVersionIds,
+      assets: [],
+      evidence: [{ id: replacementEvidenceId, claim: "The refreshed source remains available", provenance: "observed", sourceReferences: ["source:refresh"] }],
+      conflicts: [],
+    });
+    expect(refreshed.id).toBe(f.contentPackage.id);
+    expect(refreshed.version).toBe(f.contentPackage.version + 1);
+    const [after] = await sql<{ evidenceItemId: string | null; retainedJson: string }[]>`
+      SELECT evidence_item_id, (to_jsonb(review) - 'evidence_item_id')::text AS retained_json
+      FROM learning_review review WHERE id = ${learningId}`;
+    expect(after).toEqual({ evidenceItemId: null, retainedJson: before!.retainedJson });
+    expect((await sql<{ raw: string }[]>`
+      SELECT to_jsonb(proof)::text AS raw FROM learning_review_proof proof WHERE learning_review_id = ${learningId}`)[0]!.raw)
+      .toBe(proofBefore!.raw);
+    expect(await sql`SELECT id FROM evidence_item WHERE id = ${evidenceId}`).toHaveLength(0);
+    expect(await sql`SELECT id FROM evidence_item WHERE id = ${replacementEvidenceId}`).toHaveLength(1);
+    expect(await sql`SELECT id FROM content_package_approval WHERE id = ${f.approval.approvalId}`).toHaveLength(1);
+    expect(await sql`SELECT learning_review_id FROM learning_review_proof WHERE learning_review_id IN (${learningId}, ${f.approval.learningId})`).toHaveLength(2);
+    expect((await sql<{ currentApprovalId: string | null }[]>`
+      SELECT current_approval_id FROM content_package WHERE id = ${f.contentPackage.id}`)[0]!.currentApprovalId).toBeNull();
+  }));
   it.each(["claim", "provenance", "sourceReferences", "confidence", "order", "missing", "loser", "duplicate"])("rejects changed effective evidence: %s", async (change) => withFixture(async (f) => {
     const evidence = structuredClone(f.evidenceSnapshot) as Record<string, unknown>[];
     if (change === "order") evidence.reverse();
