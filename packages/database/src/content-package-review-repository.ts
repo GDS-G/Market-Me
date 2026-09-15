@@ -153,8 +153,11 @@ function appendAssetBlockers(captured: CapturedPackageReview, now: string, block
     } else if (asset.sourceAssetId !== null) {
       block("asset_source_invalid", "Only derivatives may reference a source asset.");
     }
-    if (asset.accessibility.status === "needs_review") block("accessibility_review_required", "Review this asset's accessibility text.");
-    if (asset.role !== "original" || !asset.mimeType.startsWith("image/")) continue;
+    const originalImage = asset.role === "original" && asset.mimeType.startsWith("image/");
+    if (asset.accessibility.status === "needs_review" && !originalImage) {
+      block("accessibility_review_required", "Review this asset's accessibility text.");
+    }
+    if (!originalImage) continue;
     if (!["approved", "decorative"].includes(asset.accessibility.status)
       || (asset.accessibility.status === "approved" && !asset.accessibility.altText?.trim())) {
       block("accessibility_review_required", "Original images require approved alternative text or a decorative decision.");

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { createDatabaseClient, type DatabaseClient } from "./client";
+import { ContentPackageReviewRepository } from "./content-package-review-repository";
 import { MarketMeRepository } from "./repositories";
 import { PublishingRepository } from "./publishing-repository";
 import { packageReviewPrecondition } from "./test-support/package-review-fixture";
@@ -515,6 +516,24 @@ describe.skipIf(!databaseUrl)("PostgreSQL repositories", () => {
       expect(saved.conflicts[0]).toEqual(
         expect.objectContaining({ factKey: "launch.date", status: "open" }),
       );
+      const originalImageId = saved.assets.find((asset) => asset.role === "original")!.id;
+      const initialReview = await new ContentPackageReviewRepository(sql).getReview(
+        workspace.workspaceId,
+        saved.id,
+        user.id,
+      );
+      expect(
+        initialReview?.blockers.filter(
+          (blocker) => blocker.code === "accessibility_review_required",
+        ),
+      ).toEqual([
+        {
+          code: "accessibility_review_required",
+          message:
+            "Original images require approved alternative text or a decorative decision.",
+          assetId: originalImageId,
+        },
+      ]);
       const precondition = () => packageReviewPrecondition(sql!, workspace.workspaceId, saved.id, user.id);
       const approvalInput = async () => ({ ...await precondition(), workspaceId: workspace.workspaceId,
         packageId: saved.id, actorUserId: user.id, idempotencyKey: randomUUID() });
@@ -527,7 +546,6 @@ describe.skipIf(!databaseUrl)("PostgreSQL repositories", () => {
         'conflicts',(SELECT jsonb_agg(to_jsonb(c) ORDER BY c.id) FROM evidence_conflict c WHERE c.content_package_id=p.id)) AS state
         FROM content_package p WHERE p.id=${saved.id}`;
       const unchanged = await materialState();
-      const originalImageId = saved.assets.find((asset) => asset.role === "original")!.id;
       await expect(repository.updateAssetAccessibility({ ...blockedInput, assetId: originalImageId, decorative: true })).rejects.toMatchObject({ code: "review_blocked" });
       await expect(repository.reviewAssetRights({ ...blockedInput, assetId: originalImageId, status: "restricted", owner: "Owner",
         sourceReference: "source:test", proofReference: "proof:test", reviewNote: "Review", commercialUseAllowed: false, derivativeUseAllowed: false,
