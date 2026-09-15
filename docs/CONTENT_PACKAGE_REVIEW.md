@@ -347,11 +347,12 @@ Completed preparation/finalization replay remains before mutable eligibility che
 
 ## API and UI contract
 
-All review API calls use explicit workspace identity and current authenticated access. Bodies are strict; callers cannot provide a trusted snapshot, actor, current-approval flag or authority override. `readReviewJson` streams at most 65,536 bytes, uses fatal UTF-8 decoding and rejects malformed/oversized bodies through validation. Mutations require exact allowed `Origin` against trusted `APP_BASE_URL`; missing/mismatched origin returns `origin_forbidden` 403. Review responses set `Cache-Control: no-store`. Unknown or duplicated query parameters are rejected.
+Release 1.24 exact-review API calls use explicit workspace identity and current authenticated access. Bodies are strict; callers cannot provide a trusted snapshot, actor, current-approval flag or authority override. `readReviewJson` streams at most 65,536 bytes, uses fatal UTF-8 decoding and rejects malformed/oversized bodies through validation. Mutations require exact allowed `Origin` against trusted `APP_BASE_URL`; missing/mismatched origin returns `origin_forbidden` 403. Exact-review responses set `Cache-Control: no-store`, and their unknown or duplicated query parameters are rejected. The established package-detail GET remains a separate compatibility route with its previous active-workspace fallback and response shape.
 
 | Route | Request / result |
 | --- | --- |
-| `GET /api/v1/content-packages/:id?workspaceId=...` | `{data: ContentPackageReview}` from one captured review; unavailable scope 404. There is no separate `/review` route. |
+| `GET /api/v1/content-packages/:id?workspaceId=...` | Established v1 `{data: StoredContentPackage}` detail contract. Release 1.24 preserves this route and its active-workspace fallback for existing clients; it is not an exact approval snapshot. |
+| `GET /api/v1/content-packages/:id/review?workspaceId=...` | `{data: ContentPackageReview}` from one captured review; explicit workspace is mandatory and unavailable scope is 404. This is the review/precondition endpoint for new callers. |
 | `POST /api/v1/content-packages/:id/approve` | `{workspaceId, expectedVersion, expectedReviewFingerprint, idempotencyKey}`. New 201 or replay 200: `{data: approval, review?, meta: {replayed}}`. |
 | `GET /api/v1/content-packages/:id/approve?workspaceId=...` | Latest up to 50 approval summaries. |
 | Same GET with `idempotencyKey` **or** `approvalId` | Exact immutable receipt, additionally checked against the route package/workspace. A 404 means no completed receipt found yet, not proof an earlier in-flight request was canceled. |

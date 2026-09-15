@@ -6,7 +6,7 @@ import type { ContentPackageApprovalSummary, ContentPackageReview, StoredContent
 import { PackageReviewSnapshot, PackageReviewState, type CapturedAssetPreview } from "./content-package-review-display";
 import { PackageReviewMaterialForms, type PackageRightsChoices } from "./content-package-review-material-forms";
 import { canApprovePackage, canEditPackageAssets, createPackageApprovalAttempt, packageApprovalResultPath, packageApprovalStorageKey,
-  packageReviewFingerprint, packageReviewVersion, restorePackageApprovalAttempt, reviewUuid, sendPackageApprovalAttempt,
+  packageReviewFingerprint, packageReviewRequestPath, packageReviewVersion, restorePackageApprovalAttempt, reviewUuid, sendPackageApprovalAttempt,
   type PackageApprovalAttempt, type PackageReviewScope } from "./content-package-review-request";
 import styles from "./content-package-review.module.css";
 
@@ -59,7 +59,7 @@ function PackageReviewEditor(props: PackageReviewProps) {
   async function refresh() {
     if (!start()) return;
     try {
-      const response = await fetch(`/api/v1/content-packages/${props.packageId}?workspaceId=${encodeURIComponent(props.workspaceId)}`, { cache: "no-store" });
+      const response = await fetch(packageReviewRequestPath(props.packageId, props.workspaceId), { cache: "no-store" });
       const payload = await response.json().catch(() => undefined);
       if (!response.ok) { setError(payload?.error?.message ?? "The current review is unavailable."); setNeedsRefresh(true); return; }
       replaceReview(payload?.data); setMessage("Loaded one current coherent review. All edit fields and confirmation were reset; inspect the content before a new action.");

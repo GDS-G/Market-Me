@@ -15,6 +15,9 @@ export type PackageApprovalAttempt = z.infer<typeof approvalAttempt>;
 export type PackageApprovalInput = z.infer<typeof approvalInput>;
 export interface PackageReviewScope { userId: string; workspaceId: string; packageId: string }
 
+export function packageReviewRequestPath(packageId: string, workspaceId: string): string {
+  return `/api/v1/content-packages/${reviewUuid.parse(packageId)}/review?workspaceId=${encodeURIComponent(reviewUuid.parse(workspaceId))}`;
+}
 export function packageApprovalStorageKey(scope: PackageReviewScope): string {
   return `market-me:package-approval:v1:${scope.userId}:${scope.workspaceId}:${scope.packageId}`;
 }

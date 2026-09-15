@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { canApprovePackage, canEditPackageAssets, createPackageApprovalAttempt, packageApprovalRequest,
-  packageApprovalResultPath, packageApprovalStorageKey, restorePackageApprovalAttempt, reviewRightsInstant,
+  packageApprovalResultPath, packageApprovalStorageKey, packageReviewRequestPath, restorePackageApprovalAttempt, reviewRightsInstant,
   sendPackageApprovalAttempt } from "./content-package-review-request";
 
 const userId = "11111111-1111-4111-8111-111111111111", workspaceId = "22222222-2222-4222-8222-222222222222";
@@ -52,6 +52,11 @@ describe("exact package approval recovery", () => {
   it("receipt link validates every scope identifier", () => {
     expect(packageApprovalResultPath(packageId, idempotencyKey, workspaceId)).toBe(`/content-packages/${packageId}/approvals/${idempotencyKey}?workspaceId=${workspaceId}`);
     expect(() => packageApprovalResultPath("javascript:alert(1)", idempotencyKey, workspaceId)).toThrow();
+  });
+  it("keeps exact review reads on the explicit compatibility-safe endpoint", () => {
+    expect(packageReviewRequestPath(packageId, workspaceId)).toBe(`/api/v1/content-packages/${packageId}/review?workspaceId=${workspaceId}`);
+    expect(() => packageReviewRequestPath("not-a-package", workspaceId)).toThrow();
+    expect(() => packageReviewRequestPath(packageId, "not-a-workspace")).toThrow();
   });
 });
 describe("review role separation and precision", () => {

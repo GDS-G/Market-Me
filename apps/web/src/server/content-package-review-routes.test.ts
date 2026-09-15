@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ContentPackageReviewError } from "@market-me/database";
-const mocks = vi.hoisted(() => ({ access: vi.fn(), review: vi.fn(), approve: vi.fn(), get: vi.fn(), key: vi.fn(), history: vi.fn(), conflict: vi.fn(), evidence: vi.fn(), accessibility: vi.fn(), rights: vi.fn(), generate: vi.fn(), apiError: vi.fn() }));
+const mocks = vi.hoisted(() => ({ access: vi.fn(), package: vi.fn(), review: vi.fn(), approve: vi.fn(), get: vi.fn(), key: vi.fn(), history: vi.fn(), conflict: vi.fn(), evidence: vi.fn(), accessibility: vi.fn(), rights: vi.fn(), generate: vi.fn(), apiError: vi.fn() }));
 vi.mock("@/server/auth", () => ({ requireWorkspaceAccess: mocks.access }));
 vi.mock("@/server/database", () => ({ getContentPackageReviewRepository: () => ({ getReview: mocks.review, approve: mocks.approve, getApproval: mocks.get, getApprovalByKey: mocks.key, listApprovalSummaries: mocks.history }),
-  getRepository: () => ({ resolveEvidenceConflict: mocks.conflict, resolveUnresolvedEvidence: mocks.evidence, updateAssetAccessibility: mocks.accessibility, reviewAssetRights: mocks.rights }), getDraftRepository: () => ({ generate: mocks.generate }) }));
+  getRepository: () => ({ getContentPackage: mocks.package, resolveEvidenceConflict: mocks.conflict, resolveUnresolvedEvidence: mocks.evidence, updateAssetAccessibility: mocks.accessibility, reviewAssetRights: mocks.rights }), getDraftRepository: () => ({ generate: mocks.generate }) }));
 vi.mock("./api-response", () => ({ apiError: mocks.apiError }));
 vi.mock("@/server/api-response", () => ({ apiError: mocks.apiError }));
 vi.mock("@/server/content-package-review-api", () => import("./content-package-review-api"));
 vi.mock("@/components/content-package-review-request", () => import("../components/content-package-review-request"));
 vi.mock("@/server/campaign-preparation-api", () => import("./campaign-preparation-api"));
-import { GET as REVIEW } from "../app/api/v1/content-packages/[id]/route";
+import { GET as PACKAGE } from "../app/api/v1/content-packages/[id]/route";
+import { GET as REVIEW } from "../app/api/v1/content-packages/[id]/review/route";
 import { POST as APPROVE, GET as LOOKUP } from "../app/api/v1/content-packages/[id]/approve/route";
 import { POST as CONFLICT } from "../app/api/v1/content-packages/[id]/conflicts/[conflictId]/resolve/route";
 import { POST as EVIDENCE } from "../app/api/v1/content-packages/[id]/evidence/[evidenceId]/resolve/route";
@@ -21,6 +22,7 @@ const workspaceId = uuid(1), packageId = uuid(2), userId = uuid(3), assetId = uu
 const precondition = { workspaceId, expectedVersion: 7, expectedReviewFingerprint: `mm-package-review-v1:sha256:${"b".repeat(64)}` };
 const approval = { id: uuid(8), workspaceId, contentPackageId: packageId, contentPackageVersion: 7, reviewFingerprint: precondition.expectedReviewFingerprint };
 const review = { snapshot: { package: { id: packageId, workspaceId, version: 7 } }, ...precondition };
+const storedPackage = { id: packageId, workspaceId, title: "Established v1 package", version: 7, status: "ready", assets: [], evidence: [], conflicts: [] };
 const rights = { status: "cleared", owner: "Owner", sourceReference: "Owned source", proofReference: "Signed license", commercialUseAllowed: true,
   derivativeUseAllowed: true, worldwideUseAllowed: true, permittedChannels: ["mastodon_account"], permittedChannelConnectionIds: [uuid(9)], permittedCampaignIds: [], permittedBrandProfileIds: [], reviewNote: "Reviewed original proof",
   validFrom: "2026-01-01T00:00:00.123456Z", expiresAt: "2027-01-01T10:30:42.654321-05:00" };
@@ -41,6 +43,7 @@ async function run(test: typeof mutationCases[number], req: Request, params = te
 beforeEach(() => {
   vi.clearAllMocks(); vi.stubEnv("APP_BASE_URL", "http://localhost:3119");
   mocks.access.mockResolvedValue({ user: { id: userId }, workspace: { workspaceId } });
+  mocks.package.mockResolvedValue(storedPackage);
   mocks.review.mockResolvedValue(review); mocks.approve.mockResolvedValue({ approval, replayed: false, review });
   mocks.get.mockResolvedValue(approval); mocks.key.mockResolvedValue(approval); mocks.history.mockResolvedValue([approval]);
   mocks.generate.mockResolvedValue([{ id: uuid(8) }]);
@@ -85,6 +88,20 @@ describe.each(mutationCases)("$name optimistic review boundary", (test) => {
   });
 });
 describe("coherent read and immutable approval recovery", () => {
+  it("preserves the established v1 package-detail payload independently of exact review", async () => {
+    const response = await PACKAGE(get(), { params: Promise.resolve({ id: packageId }) });
+    expect(response.status).toBe(200); expect(await response.json()).toEqual({ data: storedPackage });
+    expect(mocks.access).toHaveBeenCalledExactlyOnceWith(workspaceId);
+    expect(mocks.package).toHaveBeenCalledExactlyOnceWith(workspaceId, packageId);
+    expect(mocks.review).not.toHaveBeenCalled();
+  });
+  it("retains the v1 active-workspace fallback and not-found response", async () => {
+    expect((await PACKAGE(get(""), { params: Promise.resolve({ id: packageId }) })).status).toBe(200);
+    expect(mocks.access).toHaveBeenCalledWith(undefined);
+    mocks.package.mockResolvedValue(undefined);
+    const response = await PACKAGE(get(), { params: Promise.resolve({ id: packageId }) });
+    expect(response.status).toBe(404); expect(await response.json()).toEqual({ error: { code: "not_found", message: "Content Package not found." } });
+  });
   it("returns the exact current scoped review, not the old independently hydrated DTO", async () => {
     const response = await REVIEW(get(), { params: Promise.resolve({ id: packageId }) }); expect(response.status).toBe(200);
     expect(mocks.review).toHaveBeenCalledExactlyOnceWith(workspaceId, packageId, userId); expect(response.headers.get("cache-control")).toBe("no-store");

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ContentPackageReview } from "@market-me/database";
 import { PackageReviewSnapshot, PackageReviewState } from "./content-package-review-display";
 import { isScopedPackageReview } from "./content-package-review-actions";
+import { packageReviewRequestPath } from "./content-package-review-request";
 import styles from "./content-package-review.module.css";
 
 /** List options are only hints. This explicit load returns the coherent content and token used by a new request. */
@@ -18,7 +19,7 @@ export function ApprovedPackageReviewPicker({ workspaceId, packageId, disabled, 
     if (disabled || pending || !packageId) return;
     const request = ++sequence.current; setPending(true); setError(""); setReview(undefined); onReview(undefined);
     try {
-      const response = await fetch(`/api/v1/content-packages/${packageId}?workspaceId=${encodeURIComponent(workspaceId)}`, { cache: "no-store" });
+      const response = await fetch(packageReviewRequestPath(packageId, workspaceId), { cache: "no-store" });
       const payload = await response.json().catch(() => undefined);
       if (sequence.current !== request) return;
       if (!response.ok || !isScopedPackageReview(payload?.data, { userId: "", workspaceId, packageId })) {

@@ -1,12 +1,15 @@
+import { apiError } from "@/server/api-response";
 import { requireWorkspaceAccess } from "@/server/auth";
-import { getContentPackageReviewRepository } from "@/server/database";
-import { reviewApiError, reviewPackagePath, reviewQuery, reviewResponse, reviewWorkspaceQuery } from "@/server/content-package-review-api";
+import { getRepository } from "@/server/database";
+
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = reviewPackagePath.parse(await context.params);
-    const { workspaceId } = reviewWorkspaceQuery.parse(reviewQuery(request, ["workspaceId"]));
-    const { user, workspace } = await requireWorkspaceAccess(workspaceId);
-    const review = await getContentPackageReviewRepository().getReview(workspace.workspaceId, id, user.id);
-    return review ? reviewResponse({ data: review }) : reviewResponse({ error: { code: "not_found", message: "Content Package not found." } }, 404);
-  } catch (error) { return reviewApiError(error); }
+    const workspaceId = new URL(request.url).searchParams.get("workspaceId") ?? undefined;
+    const { workspace } = await requireWorkspaceAccess(workspaceId);
+    const data = await getRepository().getContentPackage(workspace.workspaceId, (await context.params).id);
+    if (!data) return Response.json({ error: { code: "not_found", message: "Content Package not found." } }, { status: 404 });
+    return Response.json({ data });
+  } catch (error) {
+    return apiError(error);
+  }
 }
