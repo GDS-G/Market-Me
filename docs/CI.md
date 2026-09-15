@@ -2,7 +2,7 @@
 
 ## Release 1.24 candidate - final local gate verified; cloud verification pending
 
-Exact runtime source `aa6c1c25e84317f06193d59b9849e9c899ec50c7` passed the final workflow-equivalent local gate. Release 1.24 does **not yet have a completed Linux cloud run**, so this remains local evidence rather than a verified cloud checkpoint. The remaining fields are the GitHub Actions run URL and duration, its exact migration/audit results, confirmation that the reviewed commit was published to main, and final Google documentation readback.
+Exact runtime source `aa6c1c25e84317f06193d59b9849e9c899ec50c7` passed the final workflow-equivalent local gate. Release 1.24 does **not yet have a completed Linux cloud run**, so this remains local evidence rather than a verified cloud checkpoint. The Google development parent and all five child tabs are updated and connector-verified. The remaining fields are the GitHub Actions run URL and duration, its exact migration/audit results and confirmation that the reviewed commit was published to main.
 
 Clean locked installation completed for 597 packages in 16.014 seconds and a confirmation run completed in 15.674 seconds, each reporting zero vulnerabilities. The full sequential suite passed **1,932 distinct TypeScript tests across 113 files without skips** in 99.410 seconds. Package counts were web 578/34 files, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 944/47, domain 65/3, generation 29/4, ingestion 11/4, media 24/2 and workflows 43/3. All 12 workspace typechecks passed in 50.611 seconds and lint in 50.931 seconds. Focused reruns documented in [Releases](RELEASES.md) corroborate these results but are not added to the distinct-case total.
 
