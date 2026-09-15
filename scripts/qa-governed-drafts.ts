@@ -3,15 +3,22 @@ import { DISCORD_WEBHOOK_CAPABILITIES } from "@market-me/connectors";
 import { CampaignRepository, createDatabaseClient, DraftRepository, MarketMeRepository, ProfileRepository, PublishingRepository, ContentPackageReviewRepository } from "@market-me/database";
 import { FileSystemObjectStore, sha256Hex } from "@market-me/media";
 
+const commands = ["seed", "bridge", "clean"] as const;
+type Command = typeof commands[number];
+const requestedCommand = process.argv[2] ?? "seed";
+if (!(commands as readonly string[]).includes(requestedCommand)) {
+  throw new Error(`QA governed-drafts command must be exactly one of: ${commands.join(", ")}`);
+}
+const command = requestedCommand as Command;
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
 if (!/^\/market_me_qa_[a-z0-9_]+$/.test(new URL(databaseUrl).pathname)) {
   throw new Error("Use an isolated market_me_qa_* database for browser fixtures");
 }
 const sql = createDatabaseClient(databaseUrl);
-const command = process.argv[2] ?? "seed";
 const names = { campaign: "QA Draft Campaign 0.13", source: "QA Draft Source 0.13", audienceA: "QA Members 0.13", audienceB: "QA Partners 0.13", connection: "QA Preview Channel 0.15", destination: "QA Preview Destination 0.15" };
 const fixture = {
+  advisoryLockName: "market-me:qa-governed-drafts:v1",
   actorEmail: "developer@market-me.local",
   organizationName: "Market Me QA Governed Drafts",
   organizationSlug: "market-me-qa-governed-drafts",
@@ -20,6 +27,27 @@ const fixture = {
 } as const;
 
 type FixtureAccess = { userId: string; workspaceId: string };
+
+async function withFixtureCommandLock<T>(run: () => Promise<T>): Promise<T> {
+  const lockSession = await sql.reserve();
+  let acquired = false;
+  try {
+    await lockSession`SELECT pg_advisory_lock(hashtextextended(${fixture.advisoryLockName}, 0))`;
+    acquired = true;
+    return await run();
+  } finally {
+    try {
+      if (acquired) {
+        const released = (await lockSession<{ released: boolean }[]>`
+          SELECT pg_advisory_unlock(hashtextextended(${fixture.advisoryLockName}, 0)) AS released
+        `)[0]?.released;
+        if (!released) throw new Error("QA governed-drafts advisory lock was not held by its reserved session");
+      }
+    } finally {
+      lockSession.release();
+    }
+  }
+}
 
 async function getFixtureAccess(): Promise<FixtureAccess | undefined> {
   return (await sql<FixtureAccess[]>`
@@ -116,8 +144,7 @@ async function createFixtureWorkspace(): Promise<FixtureAccess> {
   return { userId: actor.id, workspaceId };
 }
 
-async function main() {
-try {
+async function runCommand() {
   if (command === "clean") {
     await clean();
     console.log(JSON.stringify({ cleaned: true }));
@@ -178,9 +205,14 @@ try {
     console.log(JSON.stringify({ workspaceId: access.workspaceId, campaignId: campaign.id, packageId: saved.id, derivativeAssetId, audiences: audienceVersions.length,
       connectionId: connection.id, destinationId: destination.id, exactPackageReviewRequired: true }));
   }
-} finally {
-  await sql.end();
 }
+
+async function main() {
+  try {
+    await withFixtureCommandLock(runCommand);
+  } finally {
+    await sql.end();
+  }
 }
 
 void main();
