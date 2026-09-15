@@ -1,6 +1,16 @@
 # Architecture
 
-## Current implementation: 1.23 exact-preview finalization
+## Current implementation: 1.24 exact Content Package review
+
+Release 1.24 makes the complete reviewable Content Package—not its numeric ingestion version or status flag—the authority for new work. Under a package-root lock, one raw PostgreSQL projection captures package identity, ordered evidence/conflicts/assets, extraction, scan, accessibility and rights data with six-digit UTC and bigint precision. Strict validation creates domain-separated canonical bytes and a review fingerprint; a deterministic evaluator derives either one complete effective-evidence set or blockers. Oversized, lossy, contradictory or incomplete input fails closed rather than producing a partial approval. See [Exact Content Package review](CONTENT_PACKAGE_REVIEW.md) for the full schema, bounds and module map.
+
+Approval is one authorized transaction with mandatory expected version and fingerprint. It records an immutable `content_package_approval`, its `learning_review`, exact `learning_review_proof`, the current package pointer/status and a minimized general audit event together. Material evidence, conflict, accessibility or rights changes take the same root writer lock, clear current approval and require another explicit review without deleting the prior receipt. Proved generation and review history cannot be deleted while the workspace survives; only a deliberate whole-workspace or owning-organization cascade may remove it.
+
+New draft generation stores the original approval receipt ID and exactly that receipt's effective evidence. Preparation carries the approval ID/fingerprint into its immutable reference snapshot; finalization requires its original generation proof plus byte-identical current approved package content. These checks extend rather than replace Draft approval, exact-preview, Campaign activation, account, media-rights, scheduling and provider admission boundaries. Package approval performs no provider operation and grants no publication authority.
+
+Migration 0113 is a stop-the-world, forward-only writer boundary. Drain 1.23 ingestion, review, generation, preparation and finalization writers, apply the frozen migration, deploy matching 1.24 readers/writers/UI, verify representative recovery and new-work paths, then reopen writes. Mixed-version writing and a code-only rollback to 1.23 are unsafe. Its transaction-local admission marker and triggers assume the application uses a trusted, least-privilege database role; they are compatibility/integrity fences, not protection from arbitrary same-role SQL or an administrator. Final integrated release acceptance is still pending and remains separate from the verified 1.23 evidence below.
+
+## Verified 1.23 exact-preview finalization
 
 The review-first path now connects an approved prepared draft preview to one unpublished executable version of the same Campaign. The ordinary Campaign/workflow architecture is retained: a strict pure compiler emits one approval-required official-API text publication step, and one transaction inserts the distinct draft plus completed immutable receipt. It never publishes, activates, approves, or contacts a provider. Discord/Slack/Mastodon text and immediate/exact/preferred-window timing are bounded first-slice support; media, email, automated source-ready finalization and broader template recipes remain separate work. See [Campaign finalization contracts](CAMPAIGN_FINALIZATION.md) for exact APIs, state and limits.
 
@@ -88,13 +98,14 @@ Detection, stabilization, idempotency, policy precedence, permission checks, bud
 
 ### Evidence is first-class
 
-Every extracted or generated claim carries provenance: directly observed, authoritative context, inferred with confidence, or unresolved. Conflicts enter review unless an explicit authority rule resolves them.
+Every extracted or generated claim carries provenance: directly observed, authoritative context, inferred with confidence, or unresolved. Conflicts enter review unless an explicit authority rule resolves them. A current approval identifies exact canonical package bytes and the complete effective-evidence identity set; it never converts historical or unresolved evidence into truth.
 
 ## Data and workflow rules
 
 - Every tenant-owned row carries `workspaceId`; authorization is enforced at service and database boundaries.
 - External events and workflow commands require idempotency keys.
 - Mutable records use optimistic versions; append-only audit events capture actor, action, target, policy decision, correlation ID, and before/after references.
+- Material package-review mutations additionally use an exact fingerprint precondition because evidence, asset and rights state can change without the numeric ingestion version. Immutable decision/approval proof holds the full accountable snapshot while general audit data remains deliberately minimized.
 - Credentials are envelope-encrypted and referenced by opaque IDs. Tokens, passwords, signing keys, raw browser sessions, and provider secrets never enter model prompts or client bundles.
 - Originals are immutable. Media derivatives are addressable by content hash plus a transformation recipe.
 - Connector capabilities are live data with `observedAt`, supported actions, scopes, limits, and execution methods; they are not hard-coded marketing claims.

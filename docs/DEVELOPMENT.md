@@ -1,6 +1,23 @@
 # Developer Guide
 
-## Current implementation: 1.23 exact-preview finalization
+## Current implementation: 1.24 exact Content Package review
+
+Migration `0113_content_package_approval_receipts.sql` is frozen at SHA-256 `2431cf89e54705443eca1ca390aa082f6ecb51e0a6a5509769c1a4944e2c924f`. Isolated QA applied exactly 113 migrations ending at that filename into 133 public base tables, reran with all 113 checksums skipped unchanged, and rehearsed the committed 1.23-to-1.24 upgrade. Full workspace, browser, native and cloud Release 1.24 gates remain pending. Never edit 0113 after it has been applied, and never modify frozen 0110–0112 or recanonicalize their receipts. [Exact Content Package review](CONTENT_PACKAGE_REVIEW.md) is the authoritative schema/module/limit/error contract.
+
+Treat 0113 as a **stop-the-world, forward-only writer migration**:
+
+1. Block and drain web mutations plus ingestion, Learning Review, package/asset, draft generation, Campaign preparation and Campaign finalization writers, including queued/background work. Confirm no old writer remains; a maintenance page alone is insufficient.
+2. Apply the reviewed migration with the repository runner, then deploy the matching 1.24 readers, writers and UI together. Old writers omit mandatory proof/lineage and intentionally fail closed after 0113.
+3. Validate exact review retrieval, blocked/material actions, approval/replay, generation, preparation, finalization and completed historical recovery against the migrated database before reopening writes. Rerun migrations to verify all checksums skip unchanged.
+4. If deployment fails, keep writes closed and prefer a forward repair. A code-only rollback to 1.23 with 0113 retained is unsafe; do not remove guards, null provenance or fabricate approvals. A database restore is a coordinated recovery that must reconcile every newer decision and external outcome.
+
+New review code requires no environment variable or service. Continue to configure `APP_BASE_URL` for exact Origin checks. `market_me.content_package_approval_admission` is a transaction-local PostgreSQL JSON marker set only by the approval repository and cleared at commit/rollback; it is not a secret, process global or permission. The database triggers assume the normal application connection is trusted to call reviewed repositories. Production must use a narrowly privileged runtime role distinct from migration/administrative roles and prevent arbitrary SQL through that identity.
+
+Use `ContentPackageReviewRepository` and the transaction-scoped mutation/generation helpers; never assemble a trusted review from separate browser DTOs or bypass the package-root lock. Material evidence/conflict/accessibility/rights changes require both numeric-version and fingerprint preconditions, invalidate the current pointer and return one new coherent review. Proved approval, Learning Review and generation rows are immutable while their workspace survives. Fixture cleanup must delete the owned workspace/organization aggregate rather than directly deleting individual proof rows.
+
+Run live review suites only with `DATABASE_URL` pointing to an explicitly provisioned `market_me_qa_*` or `market_me_ci` database. A missing URL skips live cases and is not acceptance. Preserve checks for raw JSON/microsecond/bigint precision, exact evidence ordering, response-loss idempotency, lock races, current rights expiry, immutable update/delete guards, legacy rows and whole-workspace cleanup. Then run the full migration, typecheck, lint, test, build, audit, browser, native and cloud gates before changing release evidence. The focused commands and present development-only evidence are maintained in [Exact Content Package review](CONTENT_PACKAGE_REVIEW.md).
+
+## Verified 1.23 exact-preview finalization
 
 Apply `0112_campaign_finalizations.sql` with coordinated compatible writers/workers. SHA-256: `f38620c1b9c61a2e8298b9a1eb70b2b7a37ddc453e1f73f15ef243575c479566`. Readiness requires exactly 112 migrations and that filename. Fresh isolated QA123 has 131 public base tables; a second migration run verifies all 112 checksums unchanged. Never edit an applied migration or substitute application credentials into integration fixtures.
 
@@ -274,6 +291,9 @@ Release build outputs are beneath `apps/companion/src-tauri/target/release/`; `t
 - `ContextPackDraftWrite.authorityRules[]` maps a `factKey` to ordered preferred source IDs. A rule is applied only when it identifies an agreeing authoritative value; otherwise the fact remains conflicted.
 - `ContentPackageWrite.contextPackVersionIds[]` captures published version UUIDs, never mutable pack IDs.
 - Active unresolved evidence has `provenance = 'unresolved'` and no `supersededByEvidenceId`. A correction appends new evidence and points the historical row at it.
+- `CONTENT_PACKAGE_REVIEW_VERSION`, `CONTENT_PACKAGE_REVIEW_CONTRACT`, `CONTENT_PACKAGE_REVIEW_DOMAIN`, `CONTENT_PACKAGE_REVIEW_PREFIX`, `CONTENT_PACKAGE_REVIEWED_EVIDENCE_CONTRACT` and frozen `CONTENT_PACKAGE_REVIEW_LIMITS` define Release 1.24 bytes and resource bounds. Change them only through a new explicit contract version.
+- Review fingerprint validator collections and effective-evidence maps/sets are call-local. `PackageApprovalAttempt` is tab-scoped response-loss state and cannot authorize a server action; no cross-request mutable approval cache is supported.
+- `market_me.content_package_approval_admission` is transaction-local database state for one inserted receipt. Never set it session-wide on a pooled connection, expose it to a browser or treat it as a credential.
 - Companion protocol constants are `COMPANION_PLATFORMS`, `COMPANION_ARCHITECTURES`, `COMPANION_ACTIONS`, `COMPANION_ACTION_MODES`, `COMPANION_JOB_STATUSES`, `COMPANION_WORKER_STATUSES`, and `COMPANION_HEALTH_STATES`. TypeScript unions derive from these tuples.
 - `LocalConfiguration.executedJobIds[]` is a bounded local replay guard capped at 100 UUIDs. It is not server authority; the database job state and claim-token hash remain authoritative for completion.
 - `CompanionJobEnvelope.schemaVersion` is currently `1`. Canonical JSON sorts every object key recursively before HMAC so TypeScript and Rust produce identical bytes.
@@ -292,7 +312,9 @@ Avoid other mutable module globals. Inject repositories, clocks, ID generators, 
 - `webhook_event` is a durable hint queue. `(webhook_subscription_id, provider_event_id)` is unique; workers claim ready rows with `FOR UPDATE SKIP LOCKED`, reclaim abandoned processing rows after five minutes, reconcile through cursors, and exponentially retry up to six attempts before dead-lettering.
 - `context_pack_version` is updated only while `draft`; publish supersedes the prior version and later edits create the next draft by cloning the published snapshot.
 - `content_package`, `content_asset`, `evidence_item`, and `evidence_conflict` are written together after extraction. Package status remains `needs_review` while an open conflict or active unresolved evidence exists.
-- `learning_review` is append-only. Conflict selection, corrected claims, and package approval record the actor and source package; historical evidence is retained.
+- `learning_review` is append-only. Conflict selection, corrected claims, and package approval record the actor and source package; Release 1.24 also requires an immutable exact `learning_review_proof` for every new action.
+- `content_package_approval` retains the exact canonical snapshot/effective-evidence identity for an approval; `content_package.current_approval_id` is invalidated by every material review edit and is never reconstructed from the status flag.
+- Proved review, approval and draft-generation history cannot be directly deleted while the workspace survives. Synthetic cleanup and authorized erasure remove the whole owned workspace/organization aggregate so deferred guards can distinguish lifecycle deletion from history rewriting.
 - Migrations `0005` through `0009` add Context Packs, package/extraction persistence, processing status, Learning Review, and evidence supersession respectively.
 - Migration `0012_desktop_companion.sql` adds pairing codes, browser workers, and local jobs; `(workspace_id, worker_id)` is enforced by a composite foreign key and worker deletion cascades its jobs.
 - Migration filenames are immutable after application. Add a new migration instead of editing an applied file.

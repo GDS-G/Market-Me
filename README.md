@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Current build (1.23.0 verified local preview)
+## Release 1.24 development slice (verification in progress)
+
+The current feature branch adds exact Content Package review: one lossless, versioned snapshot covers the package, evidence graph, conflicts, assets, extraction, accessibility, malware-scan and rights records. A person approves that exact fingerprint with optimistic version/token preconditions; the server stores an immutable approval receipt and Learning Review decision proof. Same-version material changes clear the current pointer and require another review, while prior receipts and generated-work provenance remain history. Draft generation, General Announcement preparation and new finalization now require the exact current approval and approved effective-evidence set; package approval still does not approve a draft, publish, activate, send, waive rights or select a provider.
+
+Migration `0113_content_package_approval_receipts.sql` is frozen for a stop-the-world, forward-only writer rollout. Isolated QA applied and reran all 113 migrations with the frozen checksum and rehearsed the committed 1.23-to-1.24 upgrade; full workspace, browser, native and cloud acceptance are still pending, so the latest fully verified release remains 1.23.0 below. See [Exact Content Package review](docs/CONTENT_PACKAGE_REVIEW.md) for schemas, limits, roles, locks, immutable-history rules, recovery and current development evidence, and [Developer Guide](docs/DEVELOPMENT.md) for the coordinated rollout.
+
+## Previous verified build (1.23.0 local preview)
 
 The **1.23.0 preview** adds exact-reviewed-preview finalization: one approved prepared draft becomes an approval-required executable draft in the same Campaign, without JSON authoring. The finalizer does not publish, activate, approve or send. Immutable receipt provenance and a raw, full-precision preview fingerprint protect later activation and new/retry publication admission. Explicit publish/activate controls remain separate, and finalized plans are read-only. Reviewed source is published on main after all 1,405 tests and clean Linux CI passed; authenticated browser, production build/smoke and native packaging passed separately. Exact evidence is tracked in [Releases](docs/RELEASES.md) and [cloud CI](docs/CI.md). See [Implementation status](docs/IMPLEMENTATION_STATUS.md), [finalization contracts](docs/CAMPAIGN_FINALIZATION.md), [preparation contracts](docs/CAMPAIGN_PREPARATION.md), [evidence retention](docs/EVIDENCE_RETENTION.md) and [scheduling contracts](docs/SCHEDULING_CONTRACTS.md). The application is not yet complete or production-ready. The historical inventory below does not replace the current gap list.
 
@@ -19,6 +25,7 @@ The persistent workspace and Smart Source slice includes:
 - bounded Google Drive and Microsoft Graph content download plus text extraction;
 - evidence-backed Content Packages that capture exact Context Pack version IDs, original assets, conflicts, and unresolved claims;
 - Learning Review actions for conflict resolution, corrected claims, and approval-gated package readiness;
+- exact Content Package review fingerprints, current eligibility, immutable approval/decision receipts and proof-bound generation that retain prior evidence while invalidating changed current content;
 - a workspace Destination Registry with canonical URLs, provider identities, availability lifecycle, classifications, and tracking metadata;
 - immutable published Campaign versions whose validated directed-acyclic step graphs support dependencies, exact-time and duration waits, approvals, manual completion, retries, timeouts, optional steps, and context handoff;
 - durable Temporal execution with transactional start/signal commands, pause/resume/cancel controls, persisted step runs and attempt history, pending-approval queues, and bounded dead-letter handling;
@@ -41,7 +48,7 @@ The persistent workspace and Smart Source slice includes:
 - immutable content-addressed source-byte storage, strict MIME/size validation, deterministic Sharp image metadata and derivative recipes, five-minute signed media previews, and approval-blocking image accessibility review;
 - one configuration-driven immutable object-store factory shared by the web app, companion upload path, ingestion worker, and workflow worker, with local filesystem development storage and production-required S3-compatible storage using conditional creates, SHA-256 checksums, bounded verified reads, and default workload credentials;
 - an executable PostgreSQL logical recovery drill that requires quiesced writers, restores into a random isolated database, compares every public table and migration checksum, rejects unvalidated constraints, and cleans up its artifacts, plus a full cross-plane production recovery runbook;
-- separate non-cacheable liveness and readiness endpoints, package-sourced version reporting, safe production configuration checks, bounded database connectivity, and exact 112-migration readiness without exposing values or raw dependency errors;
+- separate non-cacheable liveness and readiness endpoints, package-sourced version reporting, safe production configuration checks, bounded database connectivity, and exact migration-ledger readiness without exposing values or raw dependency errors (113 in the current development source; 112 in the latest verified build);
 - evidence-backed publication-rights reviews for original images, inherited derivative clearance, revisioned preview snapshots, and fail-closed revalidation before package approval, preview creation, Campaign activation, and provider execution;
 - exact publishing-account rights scopes backed by Channel Connection foreign keys, with provider-and-account validation, immutable preview account snapshots, and live membership revalidation at every outbound boundary;
 - exact Campaign asset-rights grants backed by normalized Campaign foreign keys, with post-package-approval assignment, immutable preview Campaign snapshots, and live same-Campaign revalidation before media access or provider execution;
@@ -181,6 +188,7 @@ Release 0.96 treats a legacy `clean` malware flag without engine/time/revision e
 ## Documentation
 
 - `docs/ARCHITECTURE.md` - target system, boundaries, and architectural decisions
+- `docs/CONTENT_PACKAGE_REVIEW.md` - exact package snapshots, effective evidence, approvals, immutable history, and rollout
 - `docs/DOMAIN_MODEL.md` - entities, enums, important collections, and policy behavior
 - `docs/DEVELOPMENT.md` - setup, configuration, conventions, and operations
 - `docs/SECURITY.md` - sessions, authorization, OAuth, token, and secret handling

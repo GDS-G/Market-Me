@@ -1,6 +1,6 @@
 # Exact Content Package review and approval
 
-Status: implemented on the Release 1.24 development branch. Migration 0113 is frozen at SHA-256 `2431cf89e54705443eca1ca390aa082f6ecb51e0a6a5509769c1a4944e2c924f`; live migration acceptance, integrated release checks and publication evidence are pending. This document describes the current source contract, not a production-readiness or full-product-completion claim. Release metadata may still identify the preceding release until the release owner completes those gates.
+Status: implemented on the Release 1.24 development branch. Migration 0113 is frozen at SHA-256 `2431cf89e54705443eca1ca390aa082f6ecb51e0a6a5509769c1a4944e2c924f`; isolated live migration/rerun and the committed-1.23 upgrade rehearsal passed, while final full workspace, browser, native, cloud and publication evidence remain pending. This document describes the current source contract, not a production-readiness or full-product-completion claim. Branch metadata may identify 1.24 before those release gates are complete.
 
 ## Purpose and boundaries
 
@@ -387,7 +387,7 @@ Routes may also return `not_found`, origin errors, authentication responses and 
 
 ## Deployment, compatibility and rollback
 
-Migration 0113 is a **stop-the-world, forward-only writer migration**, not a rolling mixed-writer upgrade. Drain/stop 1.23 web mutation traffic and all ingestion, Learning Review, generation, preparation and finalization writers; apply the reviewed migration; deploy the matching 1.24 writers/readers/UI; validate readiness and representative exact-review/new-work/recovery paths; only then reopen writes. Include background workers and queued work that can write these tables, not only the visible web server. The frozen source checksum is `2431cf89e54705443eca1ca390aa082f6ecb51e0a6a5509769c1a4944e2c924f`; no applied-database claim is recorded here until the release owner verifies it.
+Migration 0113 is a **stop-the-world, forward-only writer migration**, not a rolling mixed-writer upgrade. Drain/stop 1.23 web mutation traffic and all ingestion, Learning Review, generation, preparation and finalization writers; apply the reviewed migration; deploy the matching 1.24 writers/readers/UI; validate readiness and representative exact-review/new-work/recovery paths; only then reopen writes. Include background workers and queued work that can write these tables, not only the visible web server. The frozen source checksum is `2431cf89e54705443eca1ca390aa082f6ecb51e0a6a5509769c1a4944e2c924f`; isolated QA verified exactly 113 applied migrations, 133 public base tables and a second runner pass that skipped all 113 unchanged.
 
 Post-migration old Learning Review writers omit required immutable proof; old generation writers omit receipt provenance; old preparation/finalization writers cannot create new unproved lineage. A receipt writer also needs the exact transaction-local admission marker. They fail closed. This prevents accidental old-format acceptance, but intentional failure is not a zero-downtime compatibility promise. A code-only rollback to 1.23 while retaining 0113 is unsafe for ordinary writes. Do not drop guards, null proof pointers, edit checksums or fabricate historical approvals to make it work. Prefer a forward repair; any complete database restore must be a coordinated recovery that accounts for all newer decisions and external publication outcomes.
 
@@ -397,14 +397,14 @@ New canonical contracts must use explicit new version/domain/prefix and reader s
 
 ## QA and release evidence
 
-Recorded focused development checks for this slice: 146 pure fingerprint cases, 34 effective-evidence cases, 78 mutation-helper cases, and 134 unchanged exact-preview fingerprint cases passed (392 distinct cases in that focused run); database TypeScript checking passed. The frozen 0113 candidate passed transactional rollback probes for admission, immutable-history bypasses, legacy-row protection, workspace/organization cleanup and 10,000-evidence/2,000-conflict upper bounds before application. This is point-in-time development evidence, not the final integrated release count. Mutation coverage includes 39 lossless timestamp cases, 36 human-review-state guards and three overlap-admission cases. No applied live database, whole-repository, browser, cloud CI or native release acceptance is asserted by this document yet.
+Recorded development checks for this slice: 146 pure fingerprint cases, 34 effective-evidence cases, 78 mutation-helper cases, and 134 unchanged exact-preview fingerprint cases passed (392 distinct cases in that focused run); database TypeScript checking passed. Frozen 0113 passed transactional rollback probes for admission, immutable-history bypasses, legacy-row protection, workspace/organization cleanup and 10,000-evidence/2,000-conflict upper bounds, then isolated QA applied all 113 migrations into 133 public base tables and reran with all 113 checksums skipped unchanged. A genuine committed-1.23 database upgraded successfully with exact legacy byte/provenance pins and completed recovery behavior preserved. The live exact-approval suite passed 17/17, including both root-lock orderings and membership revocation, with zero fixture users/packages or tagged backends left; repositories integration passed 7/7. This is point-in-time pre-release evidence, not the final integrated release count. Mutation coverage includes 39 lossless timestamp cases, 36 human-review-state guards and three overlap-admission cases. Final full workspace, browser, cloud CI and native release acceptance is not asserted here yet.
 
 Relevant test sources include:
 
 - `content-package-review-fingerprint.test.ts`: fixed canonical/hash vectors, every material field, raw keys/numeric-key order, Unicode, nulls, resource bounds, hostile descriptors, mutation/no-input-mutation and old-preview compatibility.
 - `content-package-reviewed-evidence.test.ts`: duplicates, missing/cyclic/merged supersession, open/dismissed/invalid candidates, unresolved active rows, overlapping winner/loser contradictions, stable output and large chains.
 - `content-package-review-mutations.test.ts` and `repositories.integration.test.ts`: exact rights time arithmetic, fail-closed package states, contradictory/consistent overlap decisions, mandatory preconditions, changed review DTO and mutation invalidation.
-- `content-package-review.integration.test.ts`: authored live capture/history/retry, legacy flags, in-place edits, raw JSON/number/bigint precision, asset lineage and ingestion-scope/race cases. Authored cases are not substitutes for executing them against the final migration.
+- `content-package-review.integration.test.ts`: 17 executed live capture/history/retry, legacy-flag, in-place edit, raw JSON/number/bigint precision, asset-lineage, ingestion-scope and deterministic lock-race cases. The targeted pass against frozen 0113 does not replace the final full workspace gate.
 - Consumer/SQL guard suites: require exact new generation evidence/order, receipt lineage, immutable proof/update/delete behavior, old-writer rejection, legacy completed replay, changed package rejection and identical-content reapproval. Run the current full database suite after migration freeze; retain deterministic lock-order, revocation, same-key concurrency, expiry and rollback checks as release gates.
 - Web request/route/page/view tests: strict preconditions/origin/body limits, roles and scope, snapshot-only display, immutable receipt retrieval, precision-preserving rights values and saved-attempt response-loss recovery.
 
@@ -418,7 +418,7 @@ npm run test --workspace @market-me/database -- src/content-package-review-finge
 npm run test --workspace @market-me/database -- src/content-package-review.integration.test.ts src/repositories.integration.test.ts
 ```
 
-Final full-suite/build/browser/cloud/migration results belong in [release history](RELEASES.md) and the release owner's checkpoint once actually observed. Deployment and runtime configuration remain in [development](DEVELOPMENT.md) and [security](SECURITY.md).
+Final full-suite/build/browser/native/cloud results belong in [release history](RELEASES.md) and the release owner's checkpoint once actually observed. Deployment and runtime configuration remain in [development](DEVELOPMENT.md) and [security](SECURITY.md).
 
 ## Privacy and security caveats
 

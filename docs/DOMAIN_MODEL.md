@@ -1,6 +1,18 @@
 # Domain Model and Important Variables
 
-## Current implementation: 1.23 exact finalization and proof identities
+## Current implementation: 1.24 exact package-review identities
+
+`ContentPackageReviewSnapshotV1` is the complete detached review input: required package identity/version/context pins; ordered evidence, conflicts and assets; and each asset's extraction, scan, accessibility, rights scopes, processing and raw JSON state. `createContentPackageReviewFingerprint` returns `{token, canonicalSnapshot, snapshot}` under `CONTENT_PACKAGE_REVIEW_CONTRACT = "content-package-review-v1"`, domain `market-me:content-package-review:v1\n` and prefix `mm-package-review-v1:sha256:`. Exact arrays retain their specified order; SQL relation arrays are UUID-ordered. UTC values are six-digit strings and byte sizes are decimal strings so `Date` and JavaScript integer rounding cannot change retained bytes. Frozen limits and the full nested schema are in [Exact Content Package review](CONTENT_PACKAGE_REVIEW.md).
+
+`ContentPackageReview` keeps `snapshot`, numeric `version`, `reviewFingerprint`, derived `effectiveEvidenceIds`/`excludedEvidenceIds`, `blockers`, database `evaluatedAt`, nullable `currentApproval`, `currentApprovalValid` and `historicalApproval` coherent. The effective-evidence evaluator uses per-call maps/sets to reject duplicate identities, invalid/cyclic supersession, open or inconsistent conflicts and active unresolved claims. Any semantic blocker empties the effective set; a status flag or legacy approval never substitutes for this result.
+
+`ContentPackageApprovalInput` is `{workspaceId, packageId, expectedVersion, expectedReviewFingerprint, idempotencyKey, actorUserId}` at the server/repository boundary; the actor comes from authentication. `StoredContentPackageApproval` retains contract versions, exact snapshot/canonical hash, ordered effective identities, actor/time and immutable retry intent. The `learning_review_proof` row records exact before/after fingerprints and decision data. `content_package.current_approval_id` is only the current pointer: material conflict/evidence/accessibility/rights writes clear it while old receipts and proved generations remain historical evidence.
+
+New `draft_generation.content_package_approval_id` binds generated claims to the receipt that admitted them. Preparation reference snapshots carry that approval ID and fingerprint; finalization preserves the generation's original approval and compares the current approved package's full bytes. A newly issued receipt may satisfy finalization only when the reviewed content is byte-identical. Proved review/generation rows cannot be deleted or retargeted while their workspace survives; the deferred guards permit deletion only through whole-workspace or owning-organization erasure. These database guards assume a trusted application role and do not make arbitrary privileged SQL safe.
+
+`CONTENT_PACKAGE_REVIEW_LIMITS`, validator issue arrays, evaluator maps/sets and browser component state are frozen or request-local; there is no mutable cross-request review or authorization cache. The only new process-adjacent marker, `market_me.content_package_approval_admission`, is a transaction-local PostgreSQL JSON value and expires at commit/rollback. It is neither an environment variable nor permission.
+
+## 1.23 exact finalization and proof identities
 
 `CampaignFinalizationTemplateInput` pins workspace/preparation/planning/draft/version/preview UUIDs, an exact expected preview fingerprint and explicit `CampaignFinalizationTiming`. The timing union is immediate, exact-time or preferred-window; it normalizes absolute values to UTC milliseconds. `normalizeCampaignFinalizationInput` returns immutable normalized intent and canonical fixed-key text. `CAMPAIGN_FINALIZATION_COMPILER = "market-me:campaign-finalization"` and template version `1` are server-owned semantics, not permissions. `compileCampaignFinalization` accepts a separate trusted preparation/preview context and emits one ordinary `approval_required` `CampaignDraftWrite`, preserving original ordered audiences and copy controls. The single step's inputs are exactly `{draftChannelPreviewId,draftChannelPreviewFingerprint,channelConnectionId}`.
 
@@ -203,11 +215,14 @@ AI cannot waive stabilization. Unknown or incomplete input remains not ready and
 
 ## Content Package and Learning Review records
 
-- `content_package` stores the source trigger, lifecycle status, confidence, exact `context_pack_version_ids`, and package version.
+- `content_package` stores the source trigger, lifecycle status, confidence, exact `context_pack_version_ids`, package version and nullable `current_approval_id`. The pointer is current convenience/lineage, not the retained proof itself.
 - `content_asset` stores the original/supporting/derivative role, file identity, MIME type, content hash, bounded extracted text, extraction outcome, and source metadata.
 - `evidence_item` stores a claim separately from output copy with `observed`, `authoritative_context`, `inferred`, or `unresolved` provenance.
 - `evidence_conflict.candidate_evidence_ids[]` names the admissible choices. Open conflicts and active unresolved evidence are hard approval blockers.
 - `learning_review` records the actor and `conflict_resolved`, `corrected`, or `package_approved` action. Corrections append authoritative evidence and supersede the unresolved row without deleting it.
+- `content_package_approval` stores one exact immutable package snapshot, fingerprint, canonical/hash evidence, effective-evidence UUID array, retry identity, actor and linked package-approval Learning Review. A legacy `status='approved'` package without this receipt is historical only.
+- `learning_review_proof` retains the exact versioned decision snapshot and before/after fingerprints for each new Learning Review action. General `audit_event.data` stores only minimized IDs, states, counts and presence flags rather than duplicating source claims, alt text or rights notes/scopes.
+- `draft_generation.content_package_approval_id` identifies the exact receipt used to generate its immutable evidence snapshot. Proof-bearing generation, decision and receipt history may be erased only as part of deleting the owning workspace/organization, never as ordinary package cleanup.
 
 ## Destination and campaign records
 
