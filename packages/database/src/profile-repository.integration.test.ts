@@ -60,6 +60,7 @@ describe.skipIf(!databaseUrl)("profile repositories", () => {
       expect(events.map((event) => event.eventType)).toEqual(expect.arrayContaining(["brand_profile.created", "brand_profile.published", "audience_profile.created", "audience_profile.published"]));
     } finally {
       await sql`DELETE FROM organization WHERE id IN (SELECT organization_id FROM workspace WHERE id IN (${first.workspace.workspaceId}, ${second.workspace.workspaceId}))`;
+      await sql`DELETE FROM app_user WHERE id IN (${first.user.id}, ${second.user.id})`;
     }
   });
 });

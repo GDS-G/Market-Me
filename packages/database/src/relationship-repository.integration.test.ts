@@ -152,6 +152,7 @@ describe.skipIf(!databaseUrl)("relationship repository", () => {
           WHERE id IN (${first.workspace.workspaceId}, ${second.workspace.workspaceId})
         )
       `;
+      await sql`DELETE FROM app_user WHERE id IN (${first.user.id}, ${second.user.id})`;
     }
   });
 
@@ -395,6 +396,7 @@ describe.skipIf(!databaseUrl)("relationship repository", () => {
           WHERE id IN (${first.workspace.workspaceId}, ${second.workspace.workspaceId})
         )
       `;
+      await sql`DELETE FROM app_user WHERE id IN (${first.user.id}, ${second.user.id})`;
     }
   });
 
@@ -568,6 +570,7 @@ describe.skipIf(!databaseUrl)("relationship repository", () => {
           WHERE id = ${first.workspace.workspaceId}
         )
       `;
+      await sql`DELETE FROM app_user WHERE id = ${first.user.id}`;
     }
   });
 });

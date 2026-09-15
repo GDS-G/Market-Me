@@ -173,6 +173,7 @@ describe.skipIf(!databaseUrl)("conversation assistant repository", () => {
           WHERE id = ${boot.workspace.workspaceId}
         )
       `;
+      await sql`DELETE FROM app_user WHERE id = ${boot.user.id}`;
     }
   });
 });

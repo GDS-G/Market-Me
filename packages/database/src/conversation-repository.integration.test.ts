@@ -1276,6 +1276,10 @@ describe.skipIf(!databaseUrl)("conversation repository", () => {
           WHERE id IN (${second.workspace.workspaceId}, ${third.workspace.workspaceId})
         )
       `;
+      await sql`
+        DELETE FROM app_user
+        WHERE id IN (${first.user.id}, ${second.user.id}, ${third.user.id})
+      `;
     }
   });
 });
