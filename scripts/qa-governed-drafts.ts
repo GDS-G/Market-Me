@@ -5,21 +5,115 @@ import { FileSystemObjectStore, sha256Hex } from "@market-me/media";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
+if (!/^\/market_me_qa_[a-z0-9_]+$/.test(new URL(databaseUrl).pathname)) {
+  throw new Error("Use an isolated market_me_qa_* database for browser fixtures");
+}
 const sql = createDatabaseClient(databaseUrl);
 const command = process.argv[2] ?? "seed";
 const names = { campaign: "QA Draft Campaign 0.13", source: "QA Draft Source 0.13", audienceA: "QA Members 0.13", audienceB: "QA Partners 0.13", connection: "QA Preview Channel 0.15", destination: "QA Preview Destination 0.15" };
+const fixture = {
+  actorEmail: "developer@market-me.local",
+  organizationName: "Market Me QA Governed Drafts",
+  organizationSlug: "market-me-qa-governed-drafts",
+  workspaceName: "QA Governed Drafts",
+  workspaceSlug: "governed-drafts",
+} as const;
+
+type FixtureAccess = { userId: string; workspaceId: string };
+
+async function getFixtureAccess(): Promise<FixtureAccess | undefined> {
+  return (await sql<FixtureAccess[]>`
+    SELECT actor.id AS user_id, workspace.id AS workspace_id
+    FROM organization
+    JOIN organization_membership membership ON membership.organization_id = organization.id
+    JOIN app_user actor ON actor.id = membership.user_id
+    JOIN workspace ON workspace.organization_id = organization.id
+    JOIN workspace_membership workspace_access
+      ON workspace_access.workspace_id = workspace.id AND workspace_access.user_id = actor.id
+    WHERE organization.slug = ${fixture.organizationSlug}
+      AND organization.name = ${fixture.organizationName}
+      AND workspace.slug = ${fixture.workspaceSlug}
+      AND workspace.name = ${fixture.workspaceName}
+      AND actor.normalized_email = ${fixture.actorEmail}
+      AND membership.role = 'owner'
+      AND workspace_access.role = 'owner'
+  `)[0];
+}
 
 async function clean() {
   await sql.begin(async (transaction) => {
-    const generations = await transaction<{ id: string }[]>`SELECT g.id FROM draft_generation g JOIN campaign_version cv ON cv.id = g.campaign_version_id JOIN campaign c ON c.id = cv.campaign_id WHERE c.name = ${names.campaign}`;
-    if (generations.length) await transaction`DELETE FROM content_draft WHERE draft_generation_id IN ${transaction(generations.map((item) => item.id))}`;
-    if (generations.length) await transaction`DELETE FROM draft_generation WHERE id IN ${transaction(generations.map((item) => item.id))}`;
-    await transaction`DELETE FROM campaign WHERE name = ${names.campaign}`;
-    await transaction`DELETE FROM audience_profile WHERE name IN (${names.audienceA}, ${names.audienceB})`;
-    await transaction`DELETE FROM smart_source WHERE name = ${names.source}`;
-    await transaction`DELETE FROM channel_connection WHERE name = ${names.connection}`;
-    await transaction`DELETE FROM destination WHERE title = ${names.destination}`;
+    const organizations = await transaction<{ id: string; name: string }[]>`
+      SELECT id, name FROM organization
+      WHERE slug = ${fixture.organizationSlug}
+      FOR UPDATE
+    `;
+    if (!organizations.length) return;
+    const organization = organizations[0]!;
+    if (organizations.length !== 1 || organization.name !== fixture.organizationName) {
+      throw new Error("Refusing to clean a QA organization whose identity marker does not match");
+    }
+
+    const workspaces = await transaction<{ id: string; name: string; slug: string }[]>`
+      SELECT id, name, slug FROM workspace
+      WHERE organization_id = ${organization.id}
+      FOR UPDATE
+    `;
+    const organizationMembers = await transaction<{ normalizedEmail: string; role: string }[]>`
+      SELECT actor.normalized_email, membership.role
+      FROM organization_membership membership
+      JOIN app_user actor ON actor.id = membership.user_id
+      WHERE membership.organization_id = ${organization.id}
+    `;
+    const workspaceMembers = workspaces.length === 1
+      ? await transaction<{ normalizedEmail: string; role: string }[]>`
+          SELECT actor.normalized_email, membership.role
+          FROM workspace_membership membership
+          JOIN app_user actor ON actor.id = membership.user_id
+          WHERE membership.workspace_id = ${workspaces[0]!.id}
+        `
+      : [];
+    const workspace = workspaces[0];
+    const ownedFixture = workspaces.length === 1
+      && workspace?.name === fixture.workspaceName
+      && workspace.slug === fixture.workspaceSlug
+      && organizationMembers.length === 1
+      && organizationMembers[0]?.normalizedEmail === fixture.actorEmail
+      && organizationMembers[0].role === "owner"
+      && workspaceMembers.length === 1
+      && workspaceMembers[0]?.normalizedEmail === fixture.actorEmail
+      && workspaceMembers[0].role === "owner";
+    if (!ownedFixture) {
+      throw new Error("Refusing to clean a QA organization that is not the complete owned fixture workspace");
+    }
+
+    // Approval, Learning Review and proved-generation history is immutable while
+    // its workspace survives. Delete the marked disposable aggregate so the
+    // deferred guards observe authorized fixture lifecycle deletion at commit.
+    await transaction`DELETE FROM organization WHERE id = ${organization.id}`;
   });
+}
+
+async function createFixtureWorkspace(): Promise<FixtureAccess> {
+  const actor = (await sql<{ id: string }[]>`
+    SELECT id FROM app_user WHERE normalized_email = ${fixture.actorEmail}
+  `)[0];
+  if (!actor) throw new Error("Development workspace is not bootstrapped");
+  const organizationId = randomUUID();
+  const workspaceId = randomUUID();
+  const brandId = randomUUID();
+  await sql.begin(async (transaction) => {
+    await transaction`INSERT INTO organization (id, name, slug)
+      VALUES (${organizationId}, ${fixture.organizationName}, ${fixture.organizationSlug})`;
+    await transaction`INSERT INTO organization_membership (organization_id, user_id, role)
+      VALUES (${organizationId}, ${actor.id}, 'owner')`;
+    await transaction`INSERT INTO workspace (id, organization_id, name, slug)
+      VALUES (${workspaceId}, ${organizationId}, ${fixture.workspaceName}, ${fixture.workspaceSlug})`;
+    await transaction`INSERT INTO workspace_membership (workspace_id, user_id, role)
+      VALUES (${workspaceId}, ${actor.id}, 'owner')`;
+    await transaction`INSERT INTO brand (id, workspace_id, name, is_default)
+      VALUES (${brandId}, ${workspaceId}, ${fixture.workspaceName}, true)`;
+  });
+  return { userId: actor.id, workspaceId };
 }
 
 async function main() {
@@ -28,8 +122,8 @@ try {
     await clean();
     console.log(JSON.stringify({ cleaned: true }));
   } else if (command === "bridge") {
-    const access = (await sql<{ userId: string; workspaceId: string }[]>`SELECT u.id AS user_id, m.workspace_id FROM app_user u JOIN workspace_membership m ON m.user_id = u.id WHERE u.email = 'developer@market-me.local' ORDER BY m.created_at LIMIT 1`)[0];
-    if (!access) throw new Error("Development workspace is not bootstrapped");
+    const access = await getFixtureAccess();
+    if (!access) throw new Error("Run seed before bridge");
     const core = new MarketMeRepository(sql); const campaigns = new CampaignRepository(sql); const drafts = new DraftRepository(sql);
     const campaign = (await campaigns.listCampaigns(access.workspaceId)).find((item) => item.name === names.campaign);
     const contentPackage = (await core.listContentPackages(access.workspaceId)).find((item) => item.title === "QA Evidence Launch 0.13");
@@ -52,11 +146,7 @@ try {
     console.log(JSON.stringify({ workspaceId: access.workspaceId, campaignId: campaign.id, draftId: generated[0]!.id, previewId: preview!.id, connectionId: connection.id, destinationId: destination.id }));
   } else {
     await clean();
-    const access = (await sql<{ userId: string; workspaceId: string }[]>`
-      SELECT u.id AS user_id, m.workspace_id FROM app_user u JOIN workspace_membership m ON m.user_id = u.id
-      WHERE u.email = 'developer@market-me.local' ORDER BY m.created_at LIMIT 1
-    `)[0];
-    if (!access) throw new Error("Development workspace is not bootstrapped");
+    const access = await createFixtureWorkspace();
     const core = new MarketMeRepository(sql); const profiles = new ProfileRepository(sql); const campaigns = new CampaignRepository(sql); const publishing = new PublishingRepository(sql);
     const source = await core.createSmartSource({ workspaceId: access.workspaceId, name: names.source, provider: "local", locations: [{ providerLocationId: "qa-draft", displayPath: "C:\\MarketMeQA" }], recursive: true, readinessMode: "immediate", stabilizationWindowSeconds: 0, allowedMimeTypes: ["text/plain"], ignorePatterns: [], contextPackIds: [], autonomyMode: "draft_only", enabled: true }, access.userId);
     await core.applySourceItemChanges({ workspaceId: access.workspaceId, smartSourceId: source.id, upserts: [{ workspaceId: access.workspaceId, smartSourceId: source.id, providerItemId: "qa-draft-facts", name: "facts.txt", displayPath: "C:\\MarketMeQA\\facts.txt", mimeType: "text/plain", isFolder: false, contentHash: "sha256:qa-draft-013" }], deletedProviderItemIds: [] });
