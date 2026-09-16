@@ -1,7 +1,21 @@
 import { randomUUID } from "node:crypto";
 import { createStorageConnector, parseOperationalAlertAllowedHosts } from "@market-me/connectors";
-import { AiRepository, createDatabaseClient, MarketMeRepository, OperationsRepository, ServiceHeartbeatLease } from "@market-me/database";
-import { ContentPackageService, OperationalAlertService, StorageIngestionService, WebhookReconciliationService } from "@market-me/ingestion";
+import {
+  AiRepository,
+  CampaignPreparationRepository,
+  createDatabaseClient,
+  MarketMeRepository,
+  OperationsRepository,
+  ServiceHeartbeatLease,
+  SourcePreparationRepository,
+} from "@market-me/database";
+import {
+  ContentPackageService,
+  OperationalAlertService,
+  SourcePreparationService,
+  StorageIngestionService,
+  WebhookReconciliationService,
+} from "@market-me/ingestion";
 import { ClamAvInstreamScanner, createObjectStoreFromEnvironment, MediaProcessor } from "@market-me/media";
 import packageMetadata from "../package.json";
 
@@ -40,6 +54,8 @@ const webhooks = publicWebhookBaseUrl
   ? new WebhookReconciliationService({ repository, ingestion, publicBaseUrl: publicWebhookBaseUrl })
   : undefined;
 const contentBatchSize = Number(process.env.CONTENT_INGESTION_BATCH_SIZE ?? "10");
+const sourcePreparationBatchSize = Number(process.env.SOURCE_PREPARATION_BATCH_SIZE ?? "10");
+const sourcePreparationLeaseSeconds = Number(process.env.SOURCE_PREPARATION_LEASE_SECONDS ?? "300");
 const maxSourceDownloadBytes = Number(process.env.MAX_SOURCE_DOWNLOAD_BYTES ?? String(10 * 1024 * 1024));
 const mediaProcessingVersion = process.env.MEDIA_PROCESSING_VERSION ?? "image-v1";
 const malwareScannerMode = process.env.MALWARE_SCANNER ?? "unconfigured";
@@ -49,6 +65,12 @@ const clamAvPort = Number(process.env.CLAMAV_PORT ?? "3310");
 const clamAvTimeoutMs = Number(process.env.CLAMAV_TIMEOUT_MS ?? "15000");
 if (!Number.isInteger(contentBatchSize) || contentBatchSize < 1 || contentBatchSize > 100) {
   throw new Error("CONTENT_INGESTION_BATCH_SIZE must be an integer from 1 through 100");
+}
+if (!Number.isInteger(sourcePreparationBatchSize) || sourcePreparationBatchSize < 1 || sourcePreparationBatchSize > 100) {
+  throw new Error("SOURCE_PREPARATION_BATCH_SIZE must be an integer from 1 through 100");
+}
+if (!Number.isInteger(sourcePreparationLeaseSeconds) || sourcePreparationLeaseSeconds < 30 || sourcePreparationLeaseSeconds > 3600) {
+  throw new Error("SOURCE_PREPARATION_LEASE_SECONDS must be an integer from 30 through 3600");
 }
 if (!Number.isInteger(maxSourceDownloadBytes) || maxSourceDownloadBytes < 1024 || maxSourceDownloadBytes > 50 * 1024 * 1024) {
   throw new Error("MAX_SOURCE_DOWNLOAD_BYTES must be an integer from 1024 through 52428800");
@@ -69,6 +91,10 @@ const contentPackages = new ContentPackageService({
     malwareScanner,
   }),
   objectStore,
+});
+const sourcePreparations = new SourcePreparationService({
+  commands: new SourcePreparationRepository(sql),
+  preparations: new CampaignPreparationRepository(sql),
 });
 const operationalAlertEncryptionKey = process.env.AI_OPERATIONAL_ALERT_ENCRYPTION_KEY;
 const operationalAlertAllowedHosts = parseOperationalAlertAllowedHosts(
@@ -127,6 +153,23 @@ async function poll(): Promise<void> {
   const packageResult = await contentPackages.processReadyEvents();
   if (packageResult.processed || packageResult.deferred || packageResult.ignored || packageResult.failed) {
     console.log(JSON.stringify({ event: "content-packages.processed", ...packageResult }));
+  }
+  try {
+    const preparationResult = await sourcePreparations.processReadyCommands(
+      sourcePreparationBatchSize,
+      sourcePreparationLeaseSeconds,
+    );
+    if (preparationResult.claimed || preparationResult.completed || preparationResult.retried
+      || preparationResult.deadLettered || preparationResult.lost || preparationResult.settlementFailed) {
+      console.log(JSON.stringify({ event: "source-preparations.processed", ...preparationResult }));
+    }
+  } catch {
+    // Raw database errors can include SQL and connection details. The next poll
+    // safely retries pending commands or recovers expired processing leases.
+    console.error(JSON.stringify({
+      event: "source-preparations.failed",
+      errorCode: "source_preparation_store_unavailable",
+    }));
   }
   if (operationalAlerts) {
     const alertResult = await operationalAlerts.processReadyEvents(operationalAlertBatchSize);

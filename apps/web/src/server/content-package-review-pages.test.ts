@@ -3,16 +3,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ContentPackageReviewError } from "@market-me/database";
 import { reviewTestApproval, reviewTestReview, reviewTestScope, reviewTestUuid } from "../components/content-package-review.test-fixture";
-const mocks = vi.hoisted(() => ({ user: vi.fn(), workspace: vi.fn(), review: vi.fn(), history: vi.fn(), approval: vi.fn(), legacyGet: vi.fn(), connections: vi.fn(), campaigns: vi.fn(), brands: vi.fn(), preview: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: vi.fn(), workspace: vi.fn(), review: vi.fn(), history: vi.fn(), approval: vi.fn(), legacyGet: vi.fn(), connections: vi.fn(), campaigns: vi.fn(), brands: vi.fn(), sourceBinding: vi.fn(), preview: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); }, notFound: () => { throw new Error("not-found"); } }));
 vi.mock("@/server/auth", () => ({ getAuthenticatedUser: mocks.user }));
 vi.mock("@/server/active-workspace", () => ({ getActiveWorkspace: mocks.workspace }));
 vi.mock("@/server/media", () => ({ createAssetPreviewUrl: mocks.preview }));
 vi.mock("@/server/database", () => ({ getContentPackageReviewRepository: () => ({ getReview: mocks.review, listApprovalSummaries: mocks.history, getApproval: mocks.approval }),
-  getRepository: () => ({ getContentPackage: mocks.legacyGet }), getPublishingRepository: () => ({ listChannelConnections: mocks.connections }), getCampaignRepository: () => ({ listCampaigns: mocks.campaigns }), getProfileRepository: () => ({ listBrandProfiles: mocks.brands }) }));
+  getRepository: () => ({ getContentPackage: mocks.legacyGet }), getPublishingRepository: () => ({ listChannelConnections: mocks.connections }), getCampaignRepository: () => ({ listCampaigns: mocks.campaigns }), getProfileRepository: () => ({ listBrandProfiles: mocks.brands }),
+  getSourcePreparationRepository: () => ({ getSourcePreparationBindingForSource: mocks.sourceBinding }) }));
 vi.mock("@/components/workspace-shell", () => ({ WorkspaceShell: ({ children }: { children: ReactNode }) => createElement("main", {}, children) }));
 vi.mock("@/components/content-package-review-request", () => import("../components/content-package-review-request"));
-vi.mock("@/components/content-package-review-actions", () => ({ ContentPackageReviewActions: (props: { role: string; initialReview: unknown }) => createElement("div", { "data-role": props.role }, JSON.stringify(props.initialReview)) }));
+vi.mock("@/components/content-package-review-actions", () => ({ ContentPackageReviewActions: (props: { role: string; initialReview: unknown; sourcePreparationEnabled: boolean }) => createElement("div", { "data-role": props.role, "data-source-preparation": String(props.sourcePreparationEnabled) }, JSON.stringify(props.initialReview)) }));
 vi.mock("@/components/content-package-review-display", () => ({ PackageReviewSnapshot: (props: { snapshot: unknown }) => createElement("div", {}, JSON.stringify(props.snapshot)) }));
 import ReviewPage from "../app/content-packages/[id]/page";
 import ApprovalPage from "../app/content-packages/[id]/approvals/[approvalId]/page";
@@ -22,6 +23,7 @@ beforeEach(() => {
   vi.clearAllMocks(); mocks.user.mockResolvedValue({ id: userId, displayName: "QA" }); mocks.workspace.mockResolvedValue({ workspaceId, workspaceName: "Scoped QA", role: "owner" });
   mocks.review.mockResolvedValue(reviewTestReview); mocks.history.mockResolvedValue([reviewTestApproval]); mocks.approval.mockResolvedValue(reviewTestApproval);
   mocks.connections.mockResolvedValue([]); mocks.campaigns.mockResolvedValue([]); mocks.brands.mockResolvedValue([]);
+  mocks.sourceBinding.mockResolvedValue(undefined);
   mocks.legacyGet.mockRejectedValue(new Error("Never hydrate a review from the legacy DTO"));
 });
 describe("coherent package page authority", () => {
@@ -30,6 +32,14 @@ describe("coherent package page authority", () => {
     const html = renderToStaticMarkup(await ReviewPage({ params: Promise.resolve({ id: packageId }) }));
     expect(html).toContain(`data-role="${role}"`); expect(html).toContain("Captured café 🚀"); expect(html).toContain(reviewTestReview.reviewFingerprint);
     expect(mocks.review).toHaveBeenCalledExactlyOnceWith(workspaceId, packageId, userId); expect(mocks.history).toHaveBeenCalledWith(workspaceId, packageId, userId); expect(mocks.legacyGet).not.toHaveBeenCalled();
+    expect(mocks.sourceBinding).toHaveBeenCalledWith(workspaceId, reviewTestReview.snapshot.package.smartSourceId, userId);
+  });
+  it("passes only the enabled source-binding fact to the explicit approval UI", async () => {
+    mocks.sourceBinding.mockResolvedValue({ enabled: true, configurationSnapshot: { shouldNotReachClient: true } });
+    const html = renderToStaticMarkup(await ReviewPage({ params: Promise.resolve({ id: packageId }) }));
+    expect(html).toContain('data-source-preparation="true"');
+    mocks.sourceBinding.mockResolvedValue({ enabled: false });
+    expect(renderToStaticMarkup(await ReviewPage({ params: Promise.resolve({ id: packageId }) }))).toContain('data-source-preparation="false"');
   });
   it("redirects missing identity/membership and rejects malformed route identity before DB", async () => {
     mocks.user.mockResolvedValue(undefined); await expect(ReviewPage({ params: Promise.resolve({ id: packageId }) })).rejects.toThrow("redirect:/login");

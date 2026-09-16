@@ -217,8 +217,10 @@ export async function insertLearningReviewProofInTransaction(tx: TransactionSql,
 /** Internal consumer: caller already owns writer authorization and Campaign
  * locks. Root SHARE only, never assets; see loader lock-order documentation. */
 export async function assertCurrentContentPackageApprovalInTransaction(tx: TransactionSql, input: {
-  workspaceId: string; contentPackageId: string; expectedPackageVersion: number; expectedReviewFingerprint?: string;
+  workspaceId: string; contentPackageId: string; expectedPackageVersion: number;
+  expectedReviewFingerprint?: string; expectedApprovalId?: string;
 }) {
+  if (input.expectedApprovalId !== undefined) assertPackageReviewUuid(input.expectedApprovalId);
   const identity = { workspaceId: input.workspaceId, packageId: input.contentPackageId };
   await lockContentPackageReviewInTransaction(tx, identity);
   const current = await loadContentPackageReviewInTransaction(tx, identity);
@@ -228,6 +230,9 @@ export async function assertCurrentContentPackageApprovalInTransaction(tx: Trans
   }
   if (!current.review.currentApprovalValid || !current.review.currentApproval) throw new ContentPackageReviewError(
     "approval_unavailable", "New work requires exact current Content Package approval.", current.review.blockers);
+  if (input.expectedApprovalId !== undefined && input.expectedApprovalId !== current.review.currentApproval.id) {
+    throw new ContentPackageReviewError("approval_unavailable", "The expected Content Package approval is no longer current.", current.review.blockers);
+  }
   const effective = new Set(current.review.effectiveEvidenceIds);
   return { approvalId: current.review.currentApproval.id, reviewFingerprint: current.review.reviewFingerprint,
     snapshot: current.review.snapshot,

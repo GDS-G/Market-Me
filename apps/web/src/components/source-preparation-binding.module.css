@@ -1,0 +1,138 @@
+.fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.notice {
+  padding: 16px;
+  border: 1px solid #dcd5ec;
+  border-radius: 10px;
+  background: #faf8ff;
+}
+
+.notice p {
+  margin: 6px 0;
+  line-height: 1.55;
+}
+
+.audiences {
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #e9e5ef;
+  border-radius: 10px;
+}
+
+.audiences legend {
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.audiences > p {
+  margin: 0 0 10px;
+  color: #817a86;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.availableAudiences {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.availableAudiences label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 9px;
+}
+
+.orderedAudiences {
+  margin: 14px 0 0;
+  padding-left: 24px;
+}
+
+.orderedAudiences li {
+  margin: 8px 0;
+  padding-left: 4px;
+}
+
+.orderedAudienceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.orderedAudienceRow span {
+  min-width: 0;
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.audienceActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
+.audienceActions button {
+  min-height: 27px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 8px;
+}
+
+.history {
+  margin-top: 18px;
+  padding: 20px 22px;
+}
+
+.history h2,
+.history p {
+  margin-top: 0;
+}
+
+.history > p {
+  color: #817a86;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.commands {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.command {
+  padding: 13px 0;
+  border-top: 1px solid #f1eef2;
+}
+
+.commandHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.command p {
+  margin: 6px 0 0;
+  color: #817a86;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.command code {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .availableAudiences { grid-template-columns: 1fr; }
+  .orderedAudienceRow { align-items: flex-start; flex-direction: column; }
+}

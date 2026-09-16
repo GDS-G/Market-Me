@@ -60,11 +60,24 @@ export class CampaignPreparationError extends Error {
   }
 }
 
+export interface CampaignPreparationOptions {
+  expectedReviewFingerprint?: string;
+  /** Optional exact receipt pin for durable automatic commands. */
+  expectedApprovalId?: string;
+}
+
 function key(value: unknown): string {
   if (typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim())) {
     throw new CampaignPreparationError("invalid_idempotency_key", "Provide a UUID preparation attempt key.");
   }
   return value.trim().toLowerCase();
+}
+
+function approvalKey(value: unknown): string {
+  if (typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value)) {
+    throw new CampaignPreparationError("invalid_review_input", "Select the exact current Content Package approval.");
+  }
+  return value;
 }
 
 function publicReceipt({ canonicalPayload: _canonicalPayload, ...receipt }: ReceiptRow): StoredCampaignPreparation {
@@ -77,18 +90,41 @@ export class CampaignPreparationRepository {
   constructor(private readonly sql: DatabaseClient) {}
 
   async prepare(input: unknown, idempotencyKey: unknown, actorUserId: string,
-    options: { expectedReviewFingerprint?: string } = {}): Promise<{
+    options: CampaignPreparationOptions = {}): Promise<{
     preparation: StoredCampaignPreparation; replayed: boolean;
   }> {
     const compiled = compileGeneralAnnouncementPreparation(input);
     const configuration = compiled.normalizedInput;
     const attemptKey = key(idempotencyKey);
+    const expectedApprovalId = options.expectedApprovalId === undefined ? undefined : approvalKey(options.expectedApprovalId);
     const configurationHash = createHash("sha256").update(compiled.canonicalPayload).digest("hex");
     return this.sql.begin(async (transaction) => {
       await this.lockWriter(transaction, configuration.workspaceId, actorUserId);
       // Transaction-scoped serialization complements the database UNIQUE constraint.
       // Hash collisions only serialize unrelated requests; equality uses full canonical bytes.
       await transaction`SELECT pg_advisory_xact_lock(hashtextextended(${`campaign-preparation:${configuration.workspaceId}:${attemptKey}`}, 0))`;
+      // Source-preparation command UUIDs are a reserved idempotency namespace.
+      // A browser/manual caller cannot preempt a pending command or substitute
+      // different settings: only a claimed command's exact writer, approval and
+      // immutable configuration may use its UUID.
+      const sourceCommand = (await transaction<{
+        status: string; writerUserId: string; expectedApprovalId: string;
+        expectedReviewFingerprint: string; configurationMatches: boolean;
+      }[]>`
+        SELECT status, writer_user_id, expected_approval_id, expected_review_fingerprint,
+          configuration_snapshot = ${transaction.json(configuration as unknown as JSONValue)} AS configuration_matches
+        FROM source_preparation_command WHERE id = ${attemptKey} FOR SHARE
+      `)[0];
+      if (sourceCommand && (sourceCommand.status !== "processing"
+        || sourceCommand.writerUserId !== actorUserId
+        || sourceCommand.expectedApprovalId !== expectedApprovalId
+        || sourceCommand.expectedReviewFingerprint !== options.expectedReviewFingerprint
+        || !sourceCommand.configurationMatches)) {
+        throw new CampaignPreparationError(
+          "idempotency_conflict",
+          "This attempt key is reserved for an exact claimed source preparation command.",
+        );
+      }
       const prior = (await transaction<ReceiptRow[]>`
         SELECT * FROM campaign_preparation
         WHERE workspace_id = ${configuration.workspaceId} AND idempotency_key = ${attemptKey}
@@ -97,7 +133,8 @@ export class CampaignPreparationRepository {
         const original = prior.referenceSnapshot.contentPackage;
         if (prior.canonicalPayload !== compiled.canonicalPayload
           || ((original.approvalId !== undefined || original.reviewFingerprint !== undefined)
-            && (!original.approvalId || !original.reviewFingerprint || original.reviewFingerprint !== options.expectedReviewFingerprint))) {
+            && (!original.approvalId || !original.reviewFingerprint || original.reviewFingerprint !== options.expectedReviewFingerprint))
+          || (expectedApprovalId !== undefined && original.approvalId !== expectedApprovalId)) {
           throw new CampaignPreparationError("idempotency_conflict", "This attempt key already belongs to different preparation settings.", prior.id);
         }
         // A successful retry remains successful after source/profile changes. Current
@@ -107,7 +144,7 @@ export class CampaignPreparationRepository {
       if (typeof options.expectedReviewFingerprint !== "string" || !/^mm-package-review-v1:sha256:[0-9a-f]{64}$/.test(options.expectedReviewFingerprint)) {
         throw new CampaignPreparationError("invalid_review_input", "Select the exact currently approved package review before preparing a Campaign.");
       }
-      const referenceSnapshot = await this.lockReferences(transaction, configuration, options.expectedReviewFingerprint);
+      const referenceSnapshot = await this.lockReferences(transaction, configuration, options.expectedReviewFingerprint, expectedApprovalId);
       const campaigns = new CampaignRepository(this.sql);
       // Existing graph/reference/communication-policy validation remains authoritative;
       // all stricter preparation references are now locked through receipt insertion.
@@ -189,10 +226,10 @@ export class CampaignPreparationRepository {
   }
 
   private async lockReferences(transaction: TransactionSql, configuration: NormalizedCampaignPreparationInput,
-    expectedReviewFingerprint: string): Promise<PreparationReferenceSnapshot> {
+    expectedReviewFingerprint: string, expectedApprovalId?: string): Promise<PreparationReferenceSnapshot> {
     const approval = await assertCurrentContentPackageApprovalInTransaction(transaction, {
       workspaceId: configuration.workspaceId, contentPackageId: configuration.contentPackageId,
-      expectedPackageVersion: configuration.expectedPackageVersion, expectedReviewFingerprint,
+      expectedPackageVersion: configuration.expectedPackageVersion, expectedReviewFingerprint, expectedApprovalId,
     }).catch((error: unknown) => {
       if (error instanceof ContentPackageReviewError) throw new CampaignPreparationError(error.code, error.message);
       throw error;

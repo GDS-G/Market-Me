@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PackageReviewSnapshot, PackageReviewState } from "./content-package-review-display";
 import { PackageReviewMaterialForms, initialPackageRightsInput, packageRightsRequest } from "./content-package-review-material-forms";
 import { canApprovePackage, canEditPackageAssets } from "./content-package-review-request";
-import { isScopedPackageReview } from "./content-package-review-actions";
+import { isScopedPackageReview, SourcePreparationApprovalWarning } from "./content-package-review-actions";
 import { DraftGenerationForm } from "./draft-generation-form";
 import { ApprovedPackageReviewPicker } from "./approved-package-review-picker";
 import { reviewTestReview, reviewTestSnapshot, reviewTestScope, reviewTestUuid } from "./content-package-review.test-fixture";
@@ -88,5 +88,13 @@ describe("captured package review display", () => {
   it("an unloaded review picker offers an explicit GET only, with no hidden token or mutation", () => {
     const html = renderToStaticMarkup(createElement(ApprovedPackageReviewPicker, { workspaceId: reviewTestScope.workspaceId, packageId: reviewTestScope.packageId, disabled: false, onReview: vi.fn() }));
     expect(html).toContain("Load exact approved package review"); expect(html).toContain("Package-list names and status are not proof"); expect(html).not.toContain("sha256:");
+  });
+  it("warns that explicit reapproval queues another bounded draft-only command", () => {
+    const html = renderToStaticMarkup(createElement(SourcePreparationApprovalWarning, { reapproval: true }));
+    expect(html).toContain("Approval-linked draft preparation is enabled");
+    expect(html).toContain("creates another approval receipt and queues another preparation command");
+    expect(html).toContain("does not approve or finalize a Campaign or draft");
+    expect(html).toContain("does not cancel a command once queued");
+    expect(html).not.toContain("automatically activate");
   });
 });

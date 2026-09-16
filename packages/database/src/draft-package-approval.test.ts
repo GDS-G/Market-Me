@@ -112,7 +112,8 @@ describe("preparation display-token compatibility", () => {
     const receipt = { id: preparationId, workspaceId, canonicalPayload: compiled.canonicalPayload,
       referenceSnapshot: { contentPackage: { id: packageId, title: "Historical", version: 2,
         ...(proved ? { approvalId, reviewFingerprint: expectedReviewFingerprint } : {}) }, audiences: [] }, createdAt: stamp };
-    const h = mockDatabase((query) => query.includes("FROM workspace_membership") ? [{ role: "editor" }]
+    const h = mockDatabase((query) => query.startsWith("SELECT status, writer_user_id") ? []
+      : query.includes("FROM workspace_membership") ? [{ role: "editor" }]
       : query.startsWith("SELECT * FROM campaign_preparation") ? [receipt] : [{ id: actorId }]);
     return { ...h, repository: new CampaignPreparationRepository(h.sql) };
   }
@@ -134,7 +135,8 @@ describe("preparation display-token compatibility", () => {
     expect(checkApproval).not.toHaveBeenCalled();
   });
   it("requires a display token for new preparation even though template1 canonical input stays unchanged", async () => {
-    const h = mockDatabase((query) => query.includes("FROM workspace_membership") ? [{ role: "editor" }]
+    const h = mockDatabase((query) => query.startsWith("SELECT status, writer_user_id") ? []
+      : query.includes("FROM workspace_membership") ? [{ role: "editor" }]
       : query.startsWith("SELECT * FROM campaign_preparation") ? [] : [{ id: actorId }]);
     await expect(new CampaignPreparationRepository(h.sql).prepare(preparationInput, id(30), actorId))
       .rejects.toMatchObject({ code: "invalid_review_input" });

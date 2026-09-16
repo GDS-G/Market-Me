@@ -1,6 +1,6 @@
 # Review-first campaign preparation
 
-Status: immutable evidence is published in 1.21, preparation in 1.22 and the protected same-Campaign preview-to-executable-draft finalizer in verified 1.23. Current contracts are in [Campaign preparation](CAMPAIGN_PREPARATION.md) and [Campaign finalization](CAMPAIGN_FINALIZATION.md); exact acceptance is in [Releases](RELEASES.md). The design below is retained for rationale, not a claim that every broader setup/template requirement is delivered. Source-ready binding and complete beginner setup remain open.
+Status: immutable evidence is published in 1.21, preparation in 1.22 and the protected same-Campaign preview-to-executable-draft finalizer in verified 1.23. Release 1.25 adds a candidate [source-bound exact-approval outbox](SOURCE_BOUND_DRAFT_PREPARATION.md) for built-in General Announcement v1. Current contracts are in [Campaign preparation](CAMPAIGN_PREPARATION.md) and [Campaign finalization](CAMPAIGN_FINALIZATION.md); exact acceptance is in [Releases](RELEASES.md). The design below is retained for rationale, not a claim that every broader setup/template requirement is delivered. Complete beginner setup, reusable templates, ready-before-approval behavior and automatic finalization/activation remain open.
 
 ## Why this comes next
 
@@ -23,7 +23,15 @@ The repair must retain exact claim-to-generation-snapshot identity across refres
 5. An exact current approved text preview compiles an executable draft version of the same campaign, with `approval_required` and one official API publication step. Optional immediate/exact/window timing must obey existing supported-route checks.
 6. Present the final plan and hand off to explicit version publication, activation and execution approvals. Never auto-approve or auto-activate.
 
-The compiler emits ordinary `CampaignDraftWrite`; it is not another execution engine. Media automation, source-ready automatic preparation, reusable user-authored/shared templates, recurrence and broader setup follow this bounded slice.
+The compiler emits ordinary `CampaignDraftWrite`; it is not another execution engine. The Release 1.25 candidate invokes it automatically only after a new explicit exact approval for a source with an enabled binding. Media automation, ready-before-approval preparation, reusable user-authored/shared templates, recurrence and broader setup still follow this bounded slice.
+
+## Release 1.25 bounded source bridge
+
+The approved next increment uses the existing transaction rather than placing generation inside ingestion. One mutable Smart Source binding captures `general_announcement@1`, its authenticated writer, optional current Brand/ordered Audiences/published Destination, copy controls and revision. A database trigger on a genuine new `content_package.current_approval_id` records one immutable command in the same approval transaction. Installation and binding configuration never scan or backfill historical approvals.
+
+The command UUID is also the preparation idempotency key, remains hidden from browser DTOs and is reserved by application plus database guards to the exact processing source command. Exact approval ID, review fingerprint, package version, configuration and binding revision prevent a worker or manual caller from adopting newer state merely because bytes match. Due/lease-gated `SKIP LOCKED` claims and attempt-fenced settlement support concurrent workers and crash recovery. Retry claims stop at eight; an expired eighth attempt completes only from an exact committed receipt and otherwise becomes terminal. The worker calls `CampaignPreparationRepository.prepare()` with that exact evidence; it never invokes a provider or publication worker. Edits/disabling govern only future approvals, while queued snapshots remain durable. An identical stale reference set may be retained while disabled, but re-enable validates all retained references, and approval/disable races follow commit order.
+
+This delivers the explicit-approval-to-prepared-drafts hop, not the entire setup journey. Its internally published immutable `draft_only` planning version is database ancestry, not external publication. It creates no approval, finalization, instance, workflow command, activation, schedule or provider action. Local, browser, native and Google-document candidate evidence is observed; public-workflow audits, feature/main cloud CI and publication remain pending in [Releases](RELEASES.md).
 
 Finalizer prerequisite discovered during review: channel previews can be rewritten under the same ID, so a preview ID alone is not a content/review token. Require a server-derived full snapshot fingerprint or revision, checked during finalization and again at activation and locked publication admission. Release 1.22 repairs the split capability read/timestamp race with connection-first locking and exact raw JSONB/provider/timestamp checks; this does not make preview content immutable. First finalization should require no existing editable Campaign draft and retain its original compiled definition in an immutable completed receipt.
 
@@ -51,4 +59,4 @@ Finalizer prerequisite discovered during review: channel previews can be rewritt
 - Stale/foreign previews, changed draft/campaign versions and revoked channels are rejected; successful finalization retains exact lineage.
 - Existing activation, scheduler, provider uncertainty and approval regression suites still pass, followed by browser, production build and cloud CI checks.
 
-Future automatic ready-event preparation should use a durable outbox and this same idempotent service. Ingestion must not call directly into external publishing.
+The Release 1.25 candidate now uses a durable outbox and the same idempotent preparation service after **explicit exact approval**. A distinct future ready-before-approval trigger, if approved, must preserve the same evidence, idempotency and safety boundaries rather than silently backfilling or calling external publishing. Ingestion must never call directly into provider publication.

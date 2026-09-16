@@ -15,6 +15,7 @@ import {
   ProfileRepository,
   PublishingRepository,
   RelationshipRepository,
+  SourcePreparationRepository,
 } from "@market-me/database";
 import { getServerConfiguration } from "./config";
 
@@ -34,6 +35,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
     conversationAssistant: ConversationAssistantRepository;
     conversationComposer: ConversationComposerRepository;
     ai: AiRepository;
+    sourcePreparations: SourcePreparationRepository;
   };
 };
 
@@ -102,6 +104,10 @@ export function getAiRepository(): AiRepository {
   return getRepositories().ai;
 }
 
+export function getSourcePreparationRepository(): SourcePreparationRepository {
+  return getRepositories().sourcePreparations;
+}
+
 function getRepositories(): {
   core: MarketMeRepository;
   campaigns: CampaignRepository;
@@ -117,6 +123,7 @@ function getRepositories(): {
   conversationAssistant: ConversationAssistantRepository;
   conversationComposer: ConversationComposerRepository;
   ai: AiRepository;
+  sourcePreparations: SourcePreparationRepository;
 } {
   if (databaseGlobal.marketMeDatabase) return databaseGlobal.marketMeDatabase;
   const databaseUrl = getServerConfiguration().databaseUrl;
@@ -137,6 +144,7 @@ function getRepositories(): {
     conversationAssistant: new ConversationAssistantRepository(sql),
     conversationComposer: new ConversationComposerRepository(sql),
     ai: new AiRepository(sql),
+    sourcePreparations: new SourcePreparationRepository(sql),
   };
   if (process.env.NODE_ENV !== "production")
     databaseGlobal.marketMeDatabase = repositories;
