@@ -1,10 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.26 local candidate and pending cloud gate
+## Release 1.26 verified implementation feature gate and pending publication gates
 
 Release 1.26 changes no migration and reproduces the verified 116-migration ledger ending at frozen 0116. Exact approval-to-command coverage includes historical no-command, pending, completed, byte-identical reapproval separation, package mismatch and revoked membership in live PostgreSQL; both advisory binding-load states, all five minimized browser states and hidden-field exclusion in web tests. The final local suite passes all 2,020 TypeScript tests across 118 files without skips: web 634/37, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 958/48, domain 65/3, generation 29/4, ingestion 29/5, media 24/2 and workflows 43/3. All 12 typechecks, web lint, both production builds, migration replay/checksums, browser acceptance, production smoke, native checks, three Rust tests and Windows packaging also pass.
 
-Public 1.26 status still requires a clean exact-source feature workflow with all workspace tests and typechecks, lint, production builds, migration replay/checksums, cleanup and both audits, followed by an identical `main` run after divergence-free fast-forward. Google-document synchronization/readback is complete at revision `ANLCKQm1MNZWjmKnwIUXQ84l2HPKN5k2S8-73oBxfPs8bQkWFwfT-1ENuVY-sYLzgSRxCjObqQ-wHYe-gnwIPFLw-pPFK87YSjv85BoN3Q`. Until the cloud observations exist, do not copy 1.25 run IDs or call this candidate verified, public or released.
+Exact implementation commit `8d23c4bafc852ded456eef54b49af3f476a72f0c` passed [feature-branch run 35045757711](https://github.com/GDS-G/Market-Me/actions/runs/35045757711) in 2 minutes 44 seconds. The clean job added 609 packages and audited 622 with zero vulnerabilities; native dependency smoke, all 116 migrations, generated Next types, all 12 workspace typechecks, lint, the 2,020-test/118-file suite, both production builds, cleanup and both audits passed. Google-document synchronization/readback is complete at revision `ANLCKQlb8GkLMYr3oAyJQScpH6Loyrxr59koVpH548zZxoceA6ouIwWJqfzXRHKWxdWGuQMBLnHknnPqlG9Qcs5yfob3FhYjbXQMw5zBHg`. Public 1.26 status still requires the reviewed documentation commit to pass the same feature workflow, a divergence-free fast-forward and an identical `main` run. Until those observations exist, do not call this candidate public or released.
 
 ## Verified Release 1.25 checkpoint
 

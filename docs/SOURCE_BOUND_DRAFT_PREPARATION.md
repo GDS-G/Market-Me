@@ -1,6 +1,6 @@
 # Source-bound draft preparation
 
-Status: Release 1.25 is the verified public source checkpoint; Release 1.26 adds a locally verified candidate exact approval-receipt handoff without changing persistent semantics. Its full local workspace, migration, build, browser, production-smoke and native/package gates plus Google development-document readback pass; reviewed feature/main CI and publication evidence remain pending. Release readiness still expects 116 migrations ending at `0116_source_preparation_recovery_hardening.sql`. Exact verified and candidate evidence is separated in [Releases](RELEASES.md); this document is the source contract and operational boundary.
+Status: Release 1.25 is the verified public source checkpoint; Release 1.26 adds a locally verified candidate exact approval-receipt handoff without changing persistent semantics. Its full local workspace, migration, build, browser, production-smoke and native/package gates plus Google development-document readback pass; exact implementation commit `8d23c4bafc852ded456eef54b49af3f476a72f0c` also passed feature run 35045757711 with both audits clean. Reviewed documentation feature CI, `main` publication and identical `main` CI remain pending. Release readiness still expects 116 migrations ending at `0116_source_preparation_recovery_hardening.sql`. Exact verified and candidate evidence is separated in [Releases](RELEASES.md); this document is the source contract and operational boundary.
 
 ## Outcome and safety boundary
 
