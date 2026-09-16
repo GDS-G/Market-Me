@@ -1,6 +1,6 @@
 # Source-bound draft preparation
 
-Status: locally and first-feature-CI verified Release 1.25 candidate. Candidate readiness expects 116 migrations ending at `0116_source_preparation_recovery_hardening.sql`. Frozen checksums, integrated local tests/builds, browser/production/native evidence, the clean public audit result and remaining final reviewed/main/publication state are recorded in [Releases](RELEASES.md); this document is the source contract and operational boundary.
+Status: verified public Release 1.25 source checkpoint. Release readiness expects 116 migrations ending at `0116_source_preparation_recovery_hardening.sql`. Frozen checksums, integrated local tests/builds, browser/production/native evidence, Google-document readback, exact reviewed feature/main CI, clean public audits and publication state are recorded in [Releases](RELEASES.md); this document is the source contract and operational boundary.
 
 ## Outcome and safety boundary
 
@@ -169,9 +169,9 @@ Old 1.24 approval code does not know the new UI, but the database trigger would 
 
 ## Required acceptance evidence
 
-The exact local candidate passed the frozen 116-migration replay/checksum gate, 14 live repository cases, 18 service cases, 95 focused web cases, the complete 2,015-test/118-file workspace suite, all 12 typechecks, lint, frontend builds, authenticated browser acceptance, production smoke and Windows native/package checks. Google development-document synchronization and native connector readback are complete. Local npm audits remain unverified because registry metadata transmission was blocked; implementation commit `48c975157cdd52abf29c9c606ea80e98efc6cec5` passed feature run 35040381880 with both zero-vulnerability audits. Final evidence/reviewed commit, main cloud CI and publication are still required. Exact counts and artifact hashes are maintained in [Releases](RELEASES.md).
+The exact local release source passed the frozen 116-migration replay/checksum gate, 14 live repository cases, 18 service cases, 95 focused web cases, the complete 2,015-test/118-file workspace suite, all 12 typechecks, lint, frontend builds, authenticated browser acceptance, production smoke and Windows native/package checks. Google development-document synchronization and native connector readback are complete. Local npm audits remain unverified because registry metadata transmission was blocked. Reviewed release commit `d9ff270d15bfe143c839e17c007fc558658eb62b` passed feature run 35041096710 and identical main run 35041414004 with both zero-vulnerability audits and is published on `main`. Exact counts and artifact hashes are maintained in [Releases](RELEASES.md).
 
-Before publication, tests and QA must prove:
+Release acceptance proves:
 
 - migrations 0115 then 0116 apply after frozen 0114, replay unchanged, and support whole-workspace cleanup;
 - one enabled binding plus one exact approval transition atomically yields one command; absent/disabled binding yields none; approval replay yields no duplicate;

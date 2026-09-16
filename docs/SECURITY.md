@@ -1,6 +1,6 @@
 # Security and Integration Controls
 
-## Current candidate: 1.25 source-bound preparation boundaries
+## Current release: 1.25 source-bound preparation boundaries
 
 Binding read/write always starts with the authenticated user and an explicit workspace/source scope. Any current workspace member may read the minimized binding/status presentation; only owner/admin/editor may create, edit, enable or disable it. The server, repository and database agree that the authenticated saver is `writer_user_id`; no browser field can select another user. Content Package approval remains owner/admin/approver authority. An approver-only actor can trigger the database transition but never becomes the preparation writer, while one owner/admin may legitimately perform both actions.
 
@@ -16,7 +16,7 @@ The command UUID is a hidden reserved preparation-idempotency namespace, not a b
 
 Successful preparation grants no execution or external-publication authority. It creates only a planning Campaign, an internally published immutable `draft_only` version, governed drafts, a preparation receipt and minimized audits. Internal planning-version publication exists solely to pin generation ancestry; it is not provider publication. No Draft or Campaign approval, finalization, Campaign instance, workflow command, activation, schedule, `publication_action`, credential decryption, provider request or send occurs. Existing exact preview, rights, account, approval, scheduling and publication admission remain mandatory downstream.
 
-Migrations 0115–0116 and their guards assume a trusted, least-privilege application database role; a privileged SQL client or database owner remains outside the application authority model. Coordinated rollout is required because old approval writers can fire the new trigger but old ingestion workers cannot consume its commands. Stop writers, verify/backup, apply 0115 then 0116, deploy matching code and reopen only after end-to-end checks. Candidate readiness expects 116 migrations ending at 0116. Frozen migration checksums, live integration/recovery evidence, full local/browser/native gates and feature run 35040381880 with both zero-vulnerability audits are observed; final evidence/reviewed commit, main cloud CI and publication remain pending. See [Source-bound draft preparation](SOURCE_BOUND_DRAFT_PREPARATION.md), [Developer Guide](DEVELOPMENT.md) and [Recovery](RECOVERY.md).
+Migrations 0115–0116 and their guards assume a trusted, least-privilege application database role; a privileged SQL client or database owner remains outside the application authority model. Coordinated rollout is required because old approval writers can fire the new trigger but old ingestion workers cannot consume its commands. Stop writers, verify/backup, apply 0115 then 0116, deploy matching code and reopen only after end-to-end checks. Release readiness expects 116 migrations ending at 0116. Frozen migration checksums, live integration/recovery evidence, full local/browser/native gates, reviewed feature run 35041096710 and identical main run 35041414004 with both zero-vulnerability audits, and publication on `main` are verified. See [Source-bound draft preparation](SOURCE_BOUND_DRAFT_PREPARATION.md), [Developer Guide](DEVELOPMENT.md) and [Recovery](RECOVERY.md).
 
 ## Current implementation: 1.24 exact Content Package review boundaries
 
