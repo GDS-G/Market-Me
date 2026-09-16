@@ -1,6 +1,6 @@
 # Architecture
 
-## Current locally verified candidate: 1.26 exact approval-to-preparation handoff
+## Current verified release: 1.26 exact approval-to-preparation handoff
 
 Release 1.26 adds a read path over the existing 1.25 outbox. `getSourcePreparationCommandForApproval(workspaceId, contentPackageId, approvalId, actorUserId)` canonicalizes each UUID, joins current `workspace_membership`, and matches all three durable scopes on `source_preparation_command`. Global uniqueness of `expected_approval_id` guarantees at most one result. The method does not reuse recent-source history, whose bounded result could omit an older receipt, and it does not mutate, claim or retry the command.
 

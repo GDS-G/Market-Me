@@ -1,6 +1,6 @@
 # Security and Integration Controls
 
-## Current locally verified candidate: 1.26 exact handoff read boundary
+## Current verified release: 1.26 exact handoff read boundary
 
 The approval-to-preparation panel is server-rendered only after the immutable approval receipt passes exact workspace, approval and Content Package checks. Its repository lookup independently validates canonical UUIDs, joins current workspace membership and matches `workspace_id`, `content_package_id` and globally unique `expected_approval_id`. A guessed approval UUID, stale membership, foreign package route or foreign workspace yields no command. The page never scans recent source history or trusts the advisory binding Boolean captured when the review page loaded.
 
