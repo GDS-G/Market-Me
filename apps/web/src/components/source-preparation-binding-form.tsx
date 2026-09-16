@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { INFORMATION_DEPTHS, PROMOTIONAL_STRENGTHS } from "@market-me/domain";
@@ -17,6 +16,7 @@ import {
   type SourcePreparationBindingView,
   type SourcePreparationCommandView,
 } from "./source-preparation-binding-request";
+import { SourcePreparationCommandStatus } from "./source-preparation-command-status";
 import styles from "./source-preparation-binding.module.css";
 
 export interface SourcePreparationChoice { id: string; name: string; versionNumber?: number }
@@ -149,18 +149,9 @@ function AudienceOrderEditor({ values, audiences, onChange }: {
 export function SourcePreparationCommandHistory({ workspaceId, commands }: { workspaceId: string; commands: readonly SourcePreparationCommandView[] }) {
   return <section className={`resource-panel ${styles.history}`}><h2>Recent durable preparation commands</h2>
     <p>Each row is the immutable snapshot queued by one exact approval transition. Later binding edits or disablement do not change or cancel it.</p>
-    {!commands.length ? <p>No approval-linked preparation command has been queued for this source.</p> : <ul className={styles.commands}>{commands.map((command, index) => <li className={styles.command}
-      key={`${command.contentPackageId}:${command.contentPackageVersion}:${command.bindingRevision}:${command.createdAt}:${index}`}>
-      <div className={styles.commandHeader}><strong><Link href={`/content-packages/${command.contentPackageId}`}>Content Package revision {command.contentPackageVersion}</Link></strong>
-        <span className={`status-pill ${commandStatusClass(command.status)}`}>{commandStatusLabel(command.status)}</span></div>
-      <p>Binding revision {command.bindingRevision} · queued <time dateTime={command.createdAt}>{command.createdAt}</time> · worker attempts {command.attemptCount}</p>
-      {command.status === "pending" && <p>Waiting for the preparation worker. No Campaign or provider action has been authorized.</p>}
-      {command.status === "processing" && <p>The worker is preparing the draft-only plan. This is not activation or external publication.</p>}
-      {command.status === "failed" && <p>Retryable failure recorded{command.nextAttemptAt ? <>; next attempt after <time dateTime={command.nextAttemptAt}>{command.nextAttemptAt}</time></> : ""}.</p>}
-      {command.status === "dead_letter" && <p>Terminal failure recorded. This command will not retry automatically; changing the binding does not alter it.</p>}
-      {(command.status === "failed" || command.status === "dead_letter") && command.lastErrorCode && <p>Error code <code>{command.lastErrorCode}</code>{command.safeError ? ` · ${command.safeError}` : ""}</p>}
-      {command.status === "completed" && command.preparationId && <p><Link href={`/campaigns/preparations/${command.preparationId}?workspaceId=${encodeURIComponent(workspaceId)}`}>Open immutable preparation receipt</Link>. The resulting Campaign remains draft-only and requires separate review steps.</p>}
-    </li>)}</ul>}
+    {!commands.length ? <p>No approval-linked preparation command has been queued for this source.</p> : <div className={styles.commands}>{commands.map((command, index) => <SourcePreparationCommandStatus
+      key={`${command.contentPackageId}:${command.contentPackageVersion}:${command.bindingRevision}:${command.createdAt}:${index}`}
+      workspaceId={workspaceId} command={command} showPackageLink />)}</div>}
   </section>;
 }
 
@@ -172,15 +163,4 @@ function withOptional(values: SourcePreparationBindingValues, field: "brandProfi
   const next = { ...values };
   delete next[field];
   return value ? { ...next, [field]: value } : next;
-}
-
-function commandStatusLabel(status: SourcePreparationCommandView["status"]): string {
-  return status === "dead_letter" ? "Stopped" : status.replaceAll("_", " ");
-}
-
-function commandStatusClass(status: SourcePreparationCommandView["status"]): string {
-  if (status === "completed") return "status-green";
-  if (status === "failed") return "status-amber";
-  if (status === "dead_letter") return "status-red";
-  return "status-violet";
 }

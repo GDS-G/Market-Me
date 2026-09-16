@@ -1,6 +1,14 @@
 # Security and Integration Controls
 
-## Current release: 1.25 source-bound preparation boundaries
+## Current locally verified candidate: 1.26 exact handoff read boundary
+
+The approval-to-preparation panel is server-rendered only after the immutable approval receipt passes exact workspace, approval and Content Package checks. Its repository lookup independently validates canonical UUIDs, joins current workspace membership and matches `workspace_id`, `content_package_id` and globally unique `expected_approval_id`. A guessed approval UUID, stale membership, foreign package route or foreign workspace yields no command. The page never scans recent source history or trusts the advisory binding Boolean captured when the review page loaded.
+
+Raw `SourcePreparationCommandSummary` stays server-side. The existing explicit view constructor omits command UUID, exact approval/fingerprint, writer, preparation idempotency key, lease, Campaign ID and both snapshots. Visible error content remains the repository's bounded `last_error_code`/`safe_error`; raw exceptions, SQL, provider responses and credentials are not rendered. The completed link targets only the immutable preparation receipt. There is no browser retry/requeue, claim, finalization, activation, provider or publication operation.
+
+Because enqueue and approval commit together, no-command is not treated as an uncertain or pending state. The page says that no command was recorded and that later configuration cannot backfill that receipt. Conversely, page-load binding state cannot promise either enqueue or non-enqueue across a concurrent enable/disable, so the pre-approval warning is shown for both loaded states, remains conditional, and makes the immutable approval page authoritative. This change adds no persistent data or global mutable state and leaves frozen migrations 0113–0116 untouched.
+
+## Previous verified release: 1.25 source-bound preparation boundaries
 
 Binding read/write always starts with the authenticated user and an explicit workspace/source scope. Any current workspace member may read the minimized binding/status presentation; only owner/admin/editor may create, edit, enable or disable it. The server, repository and database agree that the authenticated saver is `writer_user_id`; no browser field can select another user. Content Package approval remains owner/admin/approver authority. An approver-only actor can trigger the database transition but never becomes the preparation writer, while one owner/admin may legitimately perform both actions.
 

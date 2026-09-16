@@ -89,12 +89,20 @@ describe("captured package review display", () => {
     const html = renderToStaticMarkup(createElement(ApprovedPackageReviewPicker, { workspaceId: reviewTestScope.workspaceId, packageId: reviewTestScope.packageId, disabled: false, onReview: vi.fn() }));
     expect(html).toContain("Load exact approved package review"); expect(html).toContain("Package-list names and status are not proof"); expect(html).not.toContain("sha256:");
   });
-  it("warns that explicit reapproval queues another bounded draft-only command", () => {
-    const html = renderToStaticMarkup(createElement(SourcePreparationApprovalWarning, { reapproval: true }));
-    expect(html).toContain("Approval-linked draft preparation is enabled");
-    expect(html).toContain("creates another approval receipt and queues another preparation command");
-    expect(html).toContain("does not approve or finalize a Campaign or draft");
-    expect(html).toContain("does not cancel a command once queued");
-    expect(html).not.toContain("automatically activate");
+  it("describes the commit-time binding race and bounded explicit reapproval", () => {
+    const enabledHtml = renderToStaticMarkup(createElement(SourcePreparationApprovalWarning, { enabledWhenLoaded: true, reapproval: true }));
+    expect(enabledHtml).toContain("was enabled when this review loaded");
+    expect(enabledHtml).toContain("The binding state when approval commits is authoritative");
+    expect(enabledHtml).toContain("If it remains enabled before that commit");
+    expect(enabledHtml).toContain("if a binding is enabled when this approval commits, a new preparation command");
+    expect(enabledHtml).toContain("immutable receipt shows the authoritative result");
+    expect(enabledHtml).toContain("does not approve or finalize a Campaign or draft");
+    expect(enabledHtml).toContain("does not cancel a command once queued");
+    expect(enabledHtml).not.toContain("automatically activate");
+
+    const disabledHtml = renderToStaticMarkup(createElement(SourcePreparationApprovalWarning, { enabledWhenLoaded: false, reapproval: false }));
+    expect(disabledHtml).toContain("was not enabled when this review loaded");
+    expect(disabledHtml).toContain("The binding state when approval commits is authoritative");
+    expect(disabledHtml).toContain("If another writer enables it before that commit");
   });
 });

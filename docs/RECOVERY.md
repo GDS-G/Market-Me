@@ -1,5 +1,11 @@
 # Backup and Recovery Runbook
 
+## Release 1.26 approval-handoff recovery note
+
+Release 1.26 adds no recoverable relation, column, migration, queue state or provider side effect. Restore and reconcile the 1.25 binding/command/preparation data exactly as described below. The approval receipt panel is a projection: it joins current membership to exact restored `workspace_id`, `content_package_id` and `expected_approval_id`, then minimizes the result. Do not synthesize a missing command so the UI shows progress; atomic approval/enqueue semantics mean absence is historical evidence that no command was recorded for that receipt.
+
+After restore, sample each command state through both the Smart Source history and its exact approval receipt. Completed rows must navigate only to their matching immutable preparation receipt. Pending/processing/failed rows remain governed by the normal worker lease and attempt rules; dead letters remain terminal. A broken panel or missing link is a read-path defect, not permission to edit command identifiers, result lineage, approval pointers or snapshots. Release 1.26 introduces no new environment variable or recovery toggle.
+
 ## Release 1.25 source-preparation recovery note
 
 Restore `smart_source_preparation_binding`, `smart_source_preparation_binding_audience` and `source_preparation_command` with their Smart Source, package/approval, profile/Destination, writer membership, Campaign preparation and Campaign lineage. Preserve binding revision/audit identity, authored Audience `sort_order`, exact approval ID/fingerprint/package version, both JSON snapshots, command UUID/idempotency key, attempts/leases/safe failure evidence and terminal result IDs exactly. Do not reconstruct a command from a current binding/approval, retarget its writer or approval, reorder audiences, recanonicalize snapshots, or delete/reinsert a terminal row to make a retry possible.

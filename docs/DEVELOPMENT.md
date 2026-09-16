@@ -1,5 +1,27 @@
 # Developer Guide
 
+## Release 1.26 exact approval-to-preparation handoff
+
+Release 1.26 is a read-only extension of the 1.25 source-preparation contract. It adds no migration; release readiness remains exactly 116 migrations ending at frozen `0116_source_preparation_recovery_hardening.sql`. Do not edit migrations 0113–0116.
+
+Implementation map:
+
+- `SourcePreparationRepository.getSourcePreparationCommandForApproval(workspaceId, contentPackageId, approvalId, actorUserId)` validates the four UUID parameters into invocation-local `scope`, `contentPackage`, `approval` and `actor` strings. One membership-joined query matches all exact durable identities and maps the row through `publicSummary()`. It returns `undefined` for no current membership, foreign/mismatched scope or an approval that never enqueued. It performs no lock, claim, retry or write.
+- `sourcePreparationCommandView(command)` remains the only browser projection. Never pass a raw `SourcePreparationCommandSummary` to a Client Component: the raw server summary contains command and approval identifiers plus server-only result lineage.
+- `SourcePreparationCommandStatus({workspaceId, command, showPackageLink?})` is the shared pure renderer. `workspaceId` is used only to construct a validated immutable preparation-receipt path; `command` is already minimized; `showPackageLink` is a presentation Boolean used by Smart Source history. The component owns no state and exposes no mutation.
+- The immutable approval page holds invocation-local `preparationCommand` and `resultPath` variables only after validating the retained receipt's workspace/package identity. A same-page link performs an explicit refresh. Do not add optimistic polling, browser retry/requeue, or direct mutable Campaign links here.
+- `SourcePreparationApprovalWarning` is deliberately rendered for both page-load binding states and describes that state as advisory. Never change it into an unconditional enqueue or non-enqueue promise; migration 0116 orders concurrent approval with enable/disable changes by commit-time locking.
+
+Focused development uses an explicitly disposable database named `market_me_qa_126_*` (or CI's `market_me_ci`):
+
+```powershell
+$env:DATABASE_URL='postgresql://.../market_me_qa_126_handoff'
+npm test --workspace=@market-me/database -- src/source-preparation-repository.integration.test.ts
+npm test --workspace=@market-me/web -- src/components/source-preparation-binding.test.ts src/components/content-package-review-view.test.ts src/server/content-package-review-pages.test.ts
+```
+
+The live suite proves no-command historical receipts, exact pending/completed lookup, separate byte-identical reapprovals, mismatched package scope, revoked membership and minimized return shape. Web coverage renders all five statuses and verifies that command UUID, lease and Campaign ID do not cross the view boundary. The complete local 2,020-test workspace, typecheck, lint, build, migration checksum/replay, browser, production and native/package gates pass. Google development-document synchronization/readback preserves all 30 tabs at revision `ANLCKQm1MNZWjmKnwIUXQ84l2HPKN5k2S8-73oBxfPs8bQkWFwfT-1ENuVY-sYLzgSRxCjObqQ-wHYe-gnwIPFLw-pPFK87YSjv85BoN3Q`. Reviewed feature CI, divergence-free `main` fast-forward and identical `main` CI remain before public release.
+
 ## Release 1.25 source-bound draft preparation
 
 Migration `0115_source_bound_draft_preparation.sql` is the additive base schema for Release 1.25. It creates `smart_source_preparation_binding`, ordered `smart_source_preparation_binding_audience`, durable `source_preparation_command`, validation/immutability functions, and an `AFTER UPDATE OF current_approval_id` enqueue trigger. Forward migration `0116_source_preparation_recovery_hardening.sql` adds safe stale-reference disable/re-enable semantics, same-transaction parent-revision admission for Audience children, deferred enabled-Audience validation, source-command UUID reservation, approval/first-binding/disable commit ordering, strict due/lease/eight-attempt claim guards and exact receipt/configuration recovery. Release readiness expects exactly **116** migrations ending at 0116. Migration 0115 is frozen at SHA-256 `a8a0acc7e43700a591ca75904dc2737ce7cac88bb418ad72719208ce06d793c6`; 0116 is frozen at `3e756bccfde1d6b7836f6ddb71b3b0c4861d6c6afb1bfa87dfb5a20094b3c652`. A zero-to-116 disposable replay created 136 public base tables and the rerun skipped all 116 checksums unchanged. Never edit either file—use migration 0117 or later.
@@ -31,7 +53,7 @@ Configure the existing ingestion worker with these non-secret variables:
 
 `DATABASE_URL` remains server-only; the feature adds no provider/model key or outbound service. `APP_BASE_URL` remains mandatory for PUT Origin enforcement. Web request JSON is streaming-bounded to 32,768 bytes, strict/unknown-field-free, and carries the same workspace in query and body. Status/browser DTOs must remain minimized: do not expose command UUID, writer/approval/fingerprint/idempotency/lease/snapshot authority merely because the server summary contains it.
 
-For focused development, use an explicitly disposable database whose name starts `market_me_qa_125_` (or CI's `market_me_ci`); the live suite rejects other names:
+For the archived 1.25 procedure, an explicitly disposable database name began with `market_me_qa_125_` (or CI's `market_me_ci`). Current 1.26 source rejects that old prefix and requires `market_me_qa_126_*`:
 
 ```powershell
 npm run db:migrate

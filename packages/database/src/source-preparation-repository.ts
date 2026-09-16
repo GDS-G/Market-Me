@@ -622,6 +622,31 @@ export class SourcePreparationRepository {
     });
   }
 
+  /**
+   * Finds the one durable command created by an exact Content Package approval.
+   * The approval identifier is lookup scope only: callers must minimize the
+   * returned summary before it crosses a browser boundary.
+   */
+  async getSourcePreparationCommandForApproval(workspaceId: string, contentPackageId: string,
+    approvalId: string, actorUserId: string): Promise<SourcePreparationCommandSummary | undefined> {
+    const scope = identifier(workspaceId, "workspaceId");
+    const contentPackage = identifier(contentPackageId, "contentPackageId");
+    const approval = identifier(approvalId, "approvalId");
+    const actor = identifier(actorUserId, "actorUserId");
+    const row = (await this.sql<CommandRow[]>`
+      SELECT command.id, command.content_package_id, command.content_package_version,
+        command.expected_approval_id, command.binding_revision, command.status, command.attempt_count,
+        command.next_attempt_at, command.lease_expires_at, command.last_error_code, command.safe_error,
+        command.preparation_id, command.campaign_id, command.created_at, command.updated_at, command.completed_at
+      FROM source_preparation_command command
+      JOIN workspace_membership member ON member.workspace_id = command.workspace_id AND member.user_id = ${actor}
+      WHERE command.workspace_id = ${scope} AND command.content_package_id = ${contentPackage}
+        AND command.expected_approval_id = ${approval}
+      LIMIT 1
+    `)[0];
+    return row ? publicSummary(row) : undefined;
+  }
+
   async listSourcePreparationCommands(workspaceId: string, smartSourceId: string, actorUserId: string,
     limit = 20): Promise<readonly SourcePreparationCommandSummary[]> {
     const scope = identifier(workspaceId, "workspaceId");

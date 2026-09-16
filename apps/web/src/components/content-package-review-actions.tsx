@@ -98,7 +98,7 @@ function PackageReviewEditor(props: PackageReviewProps) {
         setApproval(saved); setApprovals((previous) => [saved, ...previous.filter((item) => item.id !== saved.id)].slice(0, 50));
         if (payload.review) replaceReview(payload.review);
         else setNeedsRefresh(true);
-        setMessage("The original approval receipt is available. A replay does not approve changed content. Open the receipt or load the current review to check today's eligibility.");
+        setMessage("The original approval receipt is available. Open it for authoritative approval-linked preparation status. A replay does not approve changed content; load the current review separately to check today's eligibility.");
         return;
       }
       if (checkOnly && response.status === 404) { setMessage("No completed approval was found yet. An earlier request may still finish. Check again or retry this same saved approval; do not start a new attempt to recover it."); return; }
@@ -129,18 +129,18 @@ function PackageReviewEditor(props: PackageReviewProps) {
       disabled={pending || frozen || needsRefresh} mutate={mutate} channelConnections={props.channelConnections} campaigns={props.campaigns} brandProfiles={props.brandProfiles} />}
     {!canEdit && !canApprove && <p>Read-only access. Owners, admins, and approvers can approve facts; owners, admins, and editors can edit asset reviews.</p>}
     {canApprove && !frozen && <section className={styles.notice}><h2>Approve this exact review</h2><p>This attests to the captured content and usable fact set. It does not approve drafts, grant extra media permissions, activate a campaign, or send content.</p>
-      {props.sourcePreparationEnabled && <SourcePreparationApprovalWarning reapproval={review.currentApprovalValid} />}
+      <SourcePreparationApprovalWarning enabledWhenLoaded={props.sourcePreparationEnabled} reapproval={review.currentApprovalValid} />
       <label className="check-row"><input type="checkbox" checked={confirmed} disabled={pending || needsRefresh || review.blockers.length > 0} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed the captured facts, exclusions, assets, permissions, and blockers shown above.</label>
       <div className="form-actions"><button className="button-primary" disabled={pending || needsRefresh || !confirmed || review.blockers.length > 0} onClick={() => void approve(false)}>{review.currentApprovalValid ? "Record another explicit approval" : "Approve exact package review"}</button></div></section>}
-    {approval && <p role="status"><Link href={packageApprovalResultPath(props.packageId, approval.id, props.workspaceId)}>Open original approval receipt</Link></p>}
+    {approval && <p role="status"><Link href={packageApprovalResultPath(props.packageId, approval.id, props.workspaceId)}>Open approval receipt and preparation status</Link></p>}
     {storageError && <p className="form-error" role="alert">{storageError}</p>}{error && <p className="form-error" role="alert">{error}</p>}
     {message && <p role="status">{message}</p>}{needsRefresh && <p role="status">Load the current review before a new mutation. Pending approval recovery retains its original precondition.</p>}
     {pending && <p role="status">Checking the exact review request…</p>}
   </div>;
 }
 
-export function SourcePreparationApprovalWarning({ reapproval }: { reapproval: boolean }) {
-  return <div role="note"><p><strong>Approval-linked draft preparation is enabled for this source.</strong> Recording this exact approval durably queues one separate draft-only preparation with the binding settings captured at that moment.</p>
-    {reapproval && <p><strong>This is an explicit reapproval.</strong> It creates another approval receipt and queues another preparation command; it is not a harmless refresh of the current receipt.</p>}
+export function SourcePreparationApprovalWarning({ enabledWhenLoaded, reapproval }: { enabledWhenLoaded: boolean; reapproval: boolean }) {
+  return <div role="note"><p><strong>Approval-linked draft preparation {enabledWhenLoaded ? "was enabled" : "was not enabled"} when this review loaded.</strong> The binding state when approval commits is authoritative. {enabledWhenLoaded ? "If it remains enabled" : "If another writer enables it"} before that commit, recording this exact approval durably queues one separate draft-only preparation with the binding settings captured in that transaction. The immutable receipt shows the authoritative result.</p>
+    {reapproval && <p><strong>This is an explicit reapproval.</strong> It creates another approval receipt and, if a binding is enabled when this approval commits, a new preparation command; it is not a harmless refresh of the current receipt.</p>}
     <p>The queued command does not approve or finalize a Campaign or draft, activate a Campaign, create an external publication action, send content, or call a provider. Editing or disabling the source binding later does not cancel a command once queued.</p></div>;
 }

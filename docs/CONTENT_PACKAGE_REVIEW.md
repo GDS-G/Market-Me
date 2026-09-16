@@ -11,12 +11,19 @@ The intended sequence is:
 ```text
 source ingestion -> coherent package review -> resolve blockers / reload
                  -> exact package approval receipt
+                 -> exact preparation-command status / immutable preparation receipt
                  -> draft generation / General Announcement preparation
                  -> reviewed draft and exact channel preview
                  -> Campaign finalization -> separate publish / activate / approve
 ```
 
 Package approval is an attestation to captured content and its effective fact set. It does not approve a content draft, authorize an external account, publish a Campaign, start a workflow, send content, waive media rights or grant a higher autonomy mode. No provider request, credential decryption, source recipe, autonomous conflict resolution, recurring campaign or cold-outreach automation is added by this boundary.
+
+## Release 1.26 exact preparation handoff
+
+The immutable approval receipt now shows the exact source-preparation command created by that approval transaction, when one exists. The lookup occurs only after the retained receipt agrees with the selected workspace, package route and approval route, then independently requires current workspace membership. It does not infer enqueue from the binding state observed when the review page loaded.
+
+The panel renders minimized pending, processing, retryable-failure, stopped or completed status. A completed row links to the immutable preparation receipt; stopped work has no browser requeue control. If no row exists, approval and enqueue atomicity means no command was recorded for that receipt. Later binding creation or enablement never backfills it. This visibility does not change the meaning or authority of package approval and adds no new approval, Campaign, worker or provider action.
 
 Three concepts must remain separate:
 

@@ -1,6 +1,6 @@
 # Source-bound draft preparation
 
-Status: verified public Release 1.25 source checkpoint. Release readiness expects 116 migrations ending at `0116_source_preparation_recovery_hardening.sql`. Frozen checksums, integrated local tests/builds, browser/production/native evidence, Google-document readback, exact reviewed feature/main CI, clean public audits and publication state are recorded in [Releases](RELEASES.md); this document is the source contract and operational boundary.
+Status: Release 1.25 is the verified public source checkpoint; Release 1.26 adds a locally verified candidate exact approval-receipt handoff without changing persistent semantics. Its full local workspace, migration, build, browser, production-smoke and native/package gates plus Google development-document readback pass; reviewed feature/main CI and publication evidence remain pending. Release readiness still expects 116 migrations ending at `0116_source_preparation_recovery_hardening.sql`. Exact verified and candidate evidence is separated in [Releases](RELEASES.md); this document is the source contract and operational boundary.
 
 ## Outcome and safety boundary
 
@@ -11,6 +11,14 @@ The result remains **Prepared—not activated**. This feature does not approve a
 The binding is a separate control from `smart_source.enabled`. Pausing a source stops synchronization, while an enabled preparation binding still applies to a later explicit approval of an already-created package. Disabling or editing a binding affects only approval transitions after that change commits. It never rewrites or cancels an already-enqueued command.
 
 There is deliberately no migration-time or binding-time backfill. Existing approved packages remain unchanged. To request preparation, a person must make a later explicit exact approval while the binding is enabled.
+
+## Release 1.26 receipt visibility
+
+`getSourcePreparationCommandForApproval(workspaceId, contentPackageId, approvalId, actorUserId)` reads the one command associated with an exact approval. The method validates all identifiers, requires current membership and filters exact workspace/package/approval in one query. It deliberately does not call `listSourcePreparationCommands()`: that recent-history operation is bounded and may omit an older receipt.
+
+The immutable approval page loads and validates the receipt first, then maps any returned server summary through `sourcePreparationCommandView()`. Visible state is limited to status, binding/package revision, attempts, optional retry time and bounded safe failure, optional immutable preparation receipt ID and queue time. Command ID, approval/fingerprint, writer, lease, Campaign ID, idempotency key and JSON snapshots do not enter browser props. A same-page link explicitly refreshes current operational state.
+
+Command absence is definitive for the exact receipt because enqueue and approval commit atomically. It is displayed as “No preparation command recorded,” never as waiting work, and later binding configuration does not backfill it. The warning before approval is always shown and intentionally conditional: the binding may be enabled or disabled after the page loads, while the approval receipt reports commit-time truth. Release 1.26 adds no command mutation, retry, requeue, template change, automatic finalization, activation or provider operation.
 
 ## End-to-end sequence
 

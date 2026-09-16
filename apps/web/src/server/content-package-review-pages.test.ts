@@ -3,16 +3,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ContentPackageReviewError } from "@market-me/database";
 import { reviewTestApproval, reviewTestReview, reviewTestScope, reviewTestUuid } from "../components/content-package-review.test-fixture";
-const mocks = vi.hoisted(() => ({ user: vi.fn(), workspace: vi.fn(), review: vi.fn(), history: vi.fn(), approval: vi.fn(), legacyGet: vi.fn(), connections: vi.fn(), campaigns: vi.fn(), brands: vi.fn(), sourceBinding: vi.fn(), preview: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: vi.fn(), workspace: vi.fn(), review: vi.fn(), history: vi.fn(), approval: vi.fn(), legacyGet: vi.fn(), connections: vi.fn(), campaigns: vi.fn(), brands: vi.fn(), sourceBinding: vi.fn(), preparationCommand: vi.fn(), preview: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); }, notFound: () => { throw new Error("not-found"); } }));
 vi.mock("@/server/auth", () => ({ getAuthenticatedUser: mocks.user }));
 vi.mock("@/server/active-workspace", () => ({ getActiveWorkspace: mocks.workspace }));
 vi.mock("@/server/media", () => ({ createAssetPreviewUrl: mocks.preview }));
 vi.mock("@/server/database", () => ({ getContentPackageReviewRepository: () => ({ getReview: mocks.review, listApprovalSummaries: mocks.history, getApproval: mocks.approval }),
   getRepository: () => ({ getContentPackage: mocks.legacyGet }), getPublishingRepository: () => ({ listChannelConnections: mocks.connections }), getCampaignRepository: () => ({ listCampaigns: mocks.campaigns }), getProfileRepository: () => ({ listBrandProfiles: mocks.brands }),
-  getSourcePreparationRepository: () => ({ getSourcePreparationBindingForSource: mocks.sourceBinding }) }));
+  getSourcePreparationRepository: () => ({ getSourcePreparationBindingForSource: mocks.sourceBinding,
+    getSourcePreparationCommandForApproval: mocks.preparationCommand }) }));
 vi.mock("@/components/workspace-shell", () => ({ WorkspaceShell: ({ children }: { children: ReactNode }) => createElement("main", {}, children) }));
 vi.mock("@/components/content-package-review-request", () => import("../components/content-package-review-request"));
+vi.mock("@/components/source-preparation-command-status", () => import("../components/source-preparation-command-status"));
+vi.mock("@/server/source-preparation-view", () => import("./source-preparation-view"));
 vi.mock("@/components/content-package-review-actions", () => ({ ContentPackageReviewActions: (props: { role: string; initialReview: unknown; sourcePreparationEnabled: boolean }) => createElement("div", { "data-role": props.role, "data-source-preparation": String(props.sourcePreparationEnabled) }, JSON.stringify(props.initialReview)) }));
 vi.mock("@/components/content-package-review-display", () => ({ PackageReviewSnapshot: (props: { snapshot: unknown }) => createElement("div", {}, JSON.stringify(props.snapshot)) }));
 import ReviewPage from "../app/content-packages/[id]/page";
@@ -23,7 +26,7 @@ beforeEach(() => {
   vi.clearAllMocks(); mocks.user.mockResolvedValue({ id: userId, displayName: "QA" }); mocks.workspace.mockResolvedValue({ workspaceId, workspaceName: "Scoped QA", role: "owner" });
   mocks.review.mockResolvedValue(reviewTestReview); mocks.history.mockResolvedValue([reviewTestApproval]); mocks.approval.mockResolvedValue(reviewTestApproval);
   mocks.connections.mockResolvedValue([]); mocks.campaigns.mockResolvedValue([]); mocks.brands.mockResolvedValue([]);
-  mocks.sourceBinding.mockResolvedValue(undefined);
+  mocks.sourceBinding.mockResolvedValue(undefined); mocks.preparationCommand.mockResolvedValue(undefined);
   mocks.legacyGet.mockRejectedValue(new Error("Never hydrate a review from the legacy DTO"));
 });
 describe("coherent package page authority", () => {
@@ -59,12 +62,42 @@ describe("immutable original package approval page", () => {
   it("loads only the retained receipt and never substitutes current live children", async () => {
     const html = renderToStaticMarkup(await approvalPage());
     expect(mocks.approval).toHaveBeenCalledExactlyOnceWith(workspaceId, reviewTestApproval.id, userId); expect(mocks.review).not.toHaveBeenCalled(); expect(mocks.legacyGet).not.toHaveBeenCalled();
+    expect(mocks.preparationCommand).toHaveBeenCalledExactlyOnceWith(workspaceId, packageId, reviewTestApproval.id, userId);
     expect(html).toContain("Historical attestation, not current permission"); expect(html).toContain("2026-09-15T15:30:42.654321Z"); expect(html).toContain("Captured café 🚀"); expect(html).toContain(reviewTestApproval.reviewFingerprint); expect(html).not.toContain("idempotencyKey");
+    expect(html).toContain("No preparation command recorded"); expect(html).toContain("does not backfill this historical receipt");
+  });
+  it.each([
+    ["pending", "Waiting for the preparation worker"],
+    ["processing", "preparing the draft-only plan"],
+    ["failed", "Retryable failure recorded"],
+    ["dead_letter", "will not retry automatically"],
+  ] as const)("shows minimized exact preparation status %s", async (status, expected) => {
+    const commandId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0001";
+    const hiddenCampaignId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0002";
+    mocks.preparationCommand.mockResolvedValue({ id: commandId, contentPackageId: packageId, contentPackageVersion: 3,
+      expectedApprovalId: reviewTestApproval.id, bindingRevision: 2, status, attemptCount: 1,
+      nextAttemptAt: status === "failed" ? "2026-09-15T15:31:00Z" : undefined,
+      leaseExpiresAt: "2026-09-15T15:40:00Z", lastErrorCode: status === "failed" || status === "dead_letter" ? "safe_fixture" : undefined,
+      safeError: status === "failed" || status === "dead_letter" ? "Review the saved setup." : undefined,
+      campaignId: hiddenCampaignId, createdAt: "2026-09-15T15:30:43Z", updatedAt: "2026-09-15T15:30:44Z" });
+    const html = renderToStaticMarkup(await approvalPage());
+    expect(html).toContain(expected); expect(html).toContain("Binding revision 2");
+    expect(html).not.toContain(commandId); expect(html).not.toContain("leaseExpiresAt"); expect(html).not.toContain(hiddenCampaignId);
+  });
+  it("links a completed exact command only to its immutable preparation receipt", async () => {
+    const preparationId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0003";
+    const hiddenCampaignId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0004";
+    mocks.preparationCommand.mockResolvedValue({ id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0005", contentPackageId: packageId, contentPackageVersion: 3,
+      expectedApprovalId: reviewTestApproval.id, bindingRevision: 2, status: "completed", attemptCount: 1,
+      preparationId, campaignId: hiddenCampaignId, createdAt: "2026-09-15T15:30:43Z", updatedAt: "2026-09-15T15:30:44Z" });
+    const html = renderToStaticMarkup(await approvalPage());
+    expect(html).toContain(`/campaigns/preparations/${preparationId}?workspaceId=${workspaceId}`);
+    expect(html).toContain("resulting Campaign remains draft-only"); expect(html).not.toContain(hiddenCampaignId);
   });
   it.each([undefined, "bad", [workspaceId], reviewTestUuid(9)])("requires an explicit selected workspace %s", async (scope) => {
     await expect(ApprovalPage({ params: Promise.resolve({ id: packageId, approvalId: reviewTestApproval.id }), searchParams: Promise.resolve({ workspaceId: scope }) })).rejects.toThrow("not-found"); expect(mocks.approval).not.toHaveBeenCalled();
   });
   it.each([undefined, { ...reviewTestApproval, contentPackageId: reviewTestUuid(9) }, { ...reviewTestApproval, workspaceId: reviewTestUuid(9) }])("does not leak mismatched historical receipts", async (value) => {
-    mocks.approval.mockResolvedValue(value); await expect(approvalPage()).rejects.toThrow("not-found");
+    mocks.approval.mockResolvedValue(value); await expect(approvalPage()).rejects.toThrow("not-found"); expect(mocks.preparationCommand).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.26 local candidate and pending cloud gate
+
+Release 1.26 changes no migration and reproduces the verified 116-migration ledger ending at frozen 0116. Exact approval-to-command coverage includes historical no-command, pending, completed, byte-identical reapproval separation, package mismatch and revoked membership in live PostgreSQL; both advisory binding-load states, all five minimized browser states and hidden-field exclusion in web tests. The final local suite passes all 2,020 TypeScript tests across 118 files without skips: web 634/37, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 958/48, domain 65/3, generation 29/4, ingestion 29/5, media 24/2 and workflows 43/3. All 12 typechecks, web lint, both production builds, migration replay/checksums, browser acceptance, production smoke, native checks, three Rust tests and Windows packaging also pass.
+
+Public 1.26 status still requires a clean exact-source feature workflow with all workspace tests and typechecks, lint, production builds, migration replay/checksums, cleanup and both audits, followed by an identical `main` run after divergence-free fast-forward. Google-document synchronization/readback is complete at revision `ANLCKQm1MNZWjmKnwIUXQ84l2HPKN5k2S8-73oBxfPs8bQkWFwfT-1ENuVY-sYLzgSRxCjObqQ-wHYe-gnwIPFLw-pPFK87YSjv85BoN3Q`. Until the cloud observations exist, do not copy 1.25 run IDs or call this candidate verified, public or released.
+
 ## Verified Release 1.25 checkpoint
 
 Reviewed release commit [`d9ff270d15bfe143c839e17c007fc558658eb62b`](https://github.com/GDS-G/Market-Me/commit/d9ff270d15bfe143c839e17c007fc558658eb62b) passed [feature-branch GitHub Actions run 35041096710](https://github.com/GDS-G/Market-Me/actions/runs/35041096710) in 3 minutes 53 seconds, was fast-forwarded without divergence to `main`, and passed [main run 35041414004](https://github.com/GDS-G/Market-Me/actions/runs/35041414004) in 2 minutes 56 seconds. Every workflow and cleanup step passed in both runs. The reviewed source is public on `main`; no cloud-only source correction was required.

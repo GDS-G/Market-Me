@@ -11,8 +11,8 @@ import { packageReviewPrecondition } from "./test-support/package-review-fixture
 const databaseUrl = process.env.DATABASE_URL;
 if (databaseUrl) {
   const name = decodeURIComponent(new URL(databaseUrl).pathname.slice(1));
-  if (!name.startsWith("market_me_qa_125_") && name !== "market_me_ci") {
-    throw new Error("Source preparation integration requires an isolated market_me_qa_125_* or market_me_ci database.");
+  if (!name.startsWith("market_me_qa_126_") && name !== "market_me_ci") {
+    throw new Error("Source preparation integration requires an isolated market_me_qa_126_* or market_me_ci database.");
   }
 }
 let sql: DatabaseClient;
@@ -117,8 +117,11 @@ describe.skipIf(!databaseUrl)("Smart Source preparation outbox", () => {
   });
 
   it("does not backfill, retains audience order, permits the same configuring writer to approve, and completes exact lineage", async () => withFixture(async (f) => {
-    await approve(f);
+    const historicalApproval = await approve(f);
     expect(await commandCount(f.workspace.workspaceId)).toBe(0);
+    await expect(f.sourcePreparations.getSourcePreparationCommandForApproval(
+      f.workspace.workspaceId, f.contentPackage.id, historicalApproval.approval.id, f.owner.id,
+    )).resolves.toBeUndefined();
 
     const binding = await f.sourcePreparations.saveSourcePreparationBinding(f.bindingInput, f.owner.id);
     expect(binding).toMatchObject({ smartSourceId: f.source.id, writerUserId: f.owner.id, enabled: true, revision: 1,
@@ -142,6 +145,13 @@ describe.skipIf(!databaseUrl)("Smart Source preparation outbox", () => {
 
     const approved = await approve(f);
     expect(await commandCount(f.workspace.workspaceId)).toBe(1);
+    const queued = await f.sourcePreparations.getSourcePreparationCommandForApproval(
+      f.workspace.workspaceId, f.contentPackage.id, approved.approval.id, f.owner.id,
+    );
+    expect(queued).toMatchObject({ status: "pending", expectedApprovalId: approved.approval.id,
+      contentPackageId: f.contentPackage.id, contentPackageVersion: f.contentPackage.version, attemptCount: 0 });
+    expect(queued).not.toHaveProperty("configurationSnapshot");
+    expect(queued).not.toHaveProperty("bindingSnapshot");
     const [command] = (await f.sourcePreparations.claimSourcePreparationCommands(10)).commands;
     expect(command).toMatchObject({ bindingId: binding.id, bindingRevision: 1, smartSourceId: f.source.id,
       contentPackageId: f.contentPackage.id, contentPackageVersion: f.contentPackage.version,
@@ -190,6 +200,17 @@ describe.skipIf(!databaseUrl)("Smart Source preparation outbox", () => {
       expectedApprovalId: approved.approval.id, preparationId: prepared.preparation.id, campaignId: prepared.preparation.campaignId })]);
     expect(summaries[0]).not.toHaveProperty("configurationSnapshot");
     expect(summaries[0]).not.toHaveProperty("bindingSnapshot");
+    await expect(f.sourcePreparations.getSourcePreparationCommandForApproval(
+      f.workspace.workspaceId, f.contentPackage.id, approved.approval.id, f.writer.id,
+    )).resolves.toEqual(expect.objectContaining({ id: command!.id, status: "completed",
+      preparationId: prepared.preparation.id, campaignId: prepared.preparation.campaignId }));
+    await expect(f.sourcePreparations.getSourcePreparationCommandForApproval(
+      f.workspace.workspaceId, randomUUID(), approved.approval.id, f.owner.id,
+    )).resolves.toBeUndefined();
+    await sql`DELETE FROM workspace_membership WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.writer.id}`;
+    await expect(f.sourcePreparations.getSourcePreparationCommandForApproval(
+      f.workspace.workspaceId, f.contentPackage.id, approved.approval.id, f.writer.id,
+    )).resolves.toBeUndefined();
 
     await expect(sql`
       WITH identity AS (SELECT gen_random_uuid() AS id)
@@ -212,6 +233,10 @@ describe.skipIf(!databaseUrl)("Smart Source preparation outbox", () => {
   it("pins the expected approval across a byte-identical reapproval race and preserves completed replay identity", async () => withFixture(async (f) => {
     await f.sourcePreparations.saveSourcePreparationBinding(f.bindingInput, f.owner.id);
     const firstApproval = await approve(f);
+    const firstQueued = await f.sourcePreparations.getSourcePreparationCommandForApproval(
+      f.workspace.workspaceId, f.contentPackage.id, firstApproval.approval.id, f.owner.id,
+    );
+    expect(firstQueued).toMatchObject({ status: "pending", expectedApprovalId: firstApproval.approval.id });
     const [first] = (await f.sourcePreparations.claimSourcePreparationCommands(1)).commands;
     await expect(f.preparations.prepare(first!.configurationSnapshot, first!.id, first!.writerUserId, {
       expectedReviewFingerprint: first!.expectedReviewFingerprint,
@@ -227,6 +252,11 @@ describe.skipIf(!databaseUrl)("Smart Source preparation outbox", () => {
       WHERE workspace_id = ${f.workspace.workspaceId}`)[0]!.count).toBe(0);
     const secondApproval = await approve(f);
     expect(firstApproval.approval.reviewFingerprint).toBe(secondApproval.approval.reviewFingerprint);
+    const secondQueued = await f.sourcePreparations.getSourcePreparationCommandForApproval(
+      f.workspace.workspaceId, f.contentPackage.id, secondApproval.approval.id, f.owner.id,
+    );
+    expect(secondQueued).toMatchObject({ status: "pending", expectedApprovalId: secondApproval.approval.id });
+    expect(secondQueued!.id).not.toBe(firstQueued!.id);
     await expect(f.preparations.prepare(first!.configurationSnapshot, first!.id, first!.writerUserId, {
       expectedReviewFingerprint: first!.expectedReviewFingerprint, expectedApprovalId: first!.expectedApprovalId,
     })).rejects.toMatchObject({ code: "approval_unavailable" });
@@ -243,6 +273,9 @@ describe.skipIf(!databaseUrl)("Smart Source preparation outbox", () => {
       expectedReviewFingerprint: second!.expectedReviewFingerprint, expectedApprovalId: second!.expectedApprovalId,
     });
     const thirdApproval = await approve(f);
+    await expect(f.sourcePreparations.getSourcePreparationCommandForApproval(
+      f.workspace.workspaceId, f.contentPackage.id, thirdApproval.approval.id, f.owner.id,
+    )).resolves.toEqual(expect.objectContaining({ status: "pending", expectedApprovalId: thirdApproval.approval.id }));
     const replay = await f.preparations.prepare(second!.configurationSnapshot, second!.id, second!.writerUserId, {
       expectedReviewFingerprint: second!.expectedReviewFingerprint, expectedApprovalId: second!.expectedApprovalId,
     });

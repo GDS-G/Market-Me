@@ -1,6 +1,14 @@
 # Architecture
 
-## Current release: 1.25 source-bound draft preparation
+## Current locally verified candidate: 1.26 exact approval-to-preparation handoff
+
+Release 1.26 adds a read path over the existing 1.25 outbox. `getSourcePreparationCommandForApproval(workspaceId, contentPackageId, approvalId, actorUserId)` canonicalizes each UUID, joins current `workspace_membership`, and matches all three durable scopes on `source_preparation_command`. Global uniqueness of `expected_approval_id` guarantees at most one result. The method does not reuse recent-source history, whose bounded result could omit an older receipt, and it does not mutate, claim or retry the command.
+
+The immutable approval page validates and loads its retained approval first. Only after exact workspace/package/approval agreement does it perform the command lookup. `sourcePreparationCommandView()` removes command UUID, exact approval/fingerprint, writer, idempotency key, lease, Campaign ID and snapshots before the shared status component renders. Completed state links to the immutable `campaign_preparation` receipt; the UI never links this handoff directly to mutable Campaign execution state and never offers a terminal-command retry.
+
+Command creation and approval remain atomic in migration 0115. Therefore a visible approval receipt with no matching command means no command was recorded for that exact approval; it is not a polling state and later binding enablement does not backfill it. The binding Boolean loaded on the review page is only advisory because a concurrent enable or disable can commit first. Approval copy is always present and conditional, and the exact receipt becomes the commit-time source of truth. No new global state, cache, API route, migration, worker, provider or credential boundary is introduced.
+
+## Previous verified release: 1.25 source-bound draft preparation
 
 Release 1.25 adds a durable bridge from a Smart Source's future exact package approvals to the existing review-first preparation transaction. `smart_source_preparation_binding` stores one mutable `general_announcement@1` configuration per source, while `smart_source_preparation_binding_audience` preserves an ordered set of at most 20 current published Audience versions. The authenticated owner/admin/editor who saves or toggles the binding is also its configured writer; browser input cannot nominate an actor. Source synchronization and preparation are deliberately orthogonal: `smart_source.enabled` governs intake, while the binding's `enabled` flag governs only later approval transitions.
 
