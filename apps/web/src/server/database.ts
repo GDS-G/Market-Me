@@ -19,6 +19,7 @@ import {
   SourceSetupRepository,
   SourceSampleRepository,
   PreparationPresetRepository,
+  WorkspaceManagementRepository,
 } from "@market-me/database";
 import { getServerConfiguration } from "./config";
 
@@ -42,6 +43,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
     sourceSetups: SourceSetupRepository;
     sourceSamples: SourceSampleRepository;
     preparationPresets: PreparationPresetRepository;
+    workspaceManagement: WorkspaceManagementRepository;
   };
 };
 
@@ -126,6 +128,10 @@ export function getPreparationPresetRepository(): PreparationPresetRepository {
   return getRepositories().preparationPresets;
 }
 
+export function getWorkspaceManagementRepository(): WorkspaceManagementRepository {
+  return getRepositories().workspaceManagement;
+}
+
 function getRepositories(): {
   core: MarketMeRepository;
   campaigns: CampaignRepository;
@@ -145,6 +151,7 @@ function getRepositories(): {
   sourceSetups: SourceSetupRepository;
   sourceSamples: SourceSampleRepository;
   preparationPresets: PreparationPresetRepository;
+  workspaceManagement: WorkspaceManagementRepository;
 } {
   if (databaseGlobal.marketMeDatabase) return databaseGlobal.marketMeDatabase;
   const databaseUrl = getServerConfiguration().databaseUrl;
@@ -169,6 +176,7 @@ function getRepositories(): {
     sourceSetups: new SourceSetupRepository(sql),
     sourceSamples: new SourceSampleRepository(sql),
     preparationPresets: new PreparationPresetRepository(sql),
+    workspaceManagement: new WorkspaceManagementRepository(sql),
   };
   if (process.env.NODE_ENV !== "production")
     databaseGlobal.marketMeDatabase = repositories;

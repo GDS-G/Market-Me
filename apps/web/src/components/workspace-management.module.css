@@ -1,0 +1,23 @@
+.editor { display: grid; gap: 20px; min-width: 0; overflow-wrap: anywhere; }
+.panel { padding: 24px; margin-bottom: 22px; min-width: 0; overflow-wrap: anywhere; }
+.panel h2 { margin: 0 0 12px; font-size: 20px; }
+.panel p { line-height: 1.65; margin: 10px 0; }
+.summary { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; padding: 12px 0; }
+.summary > div { min-width: 0; flex: 1 1 240px; }
+.summary > a, .panel > a { display: inline-flex; padding: 11px 15px; border-radius: 8px; }
+.fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 16px; }
+.fieldset h3, .notice h3, .result h3 { margin: 0 0 10px; font-size: 17px; }
+.fieldset:disabled { opacity: .7; }
+.fieldset > button { justify-self: start; padding: 12px 18px; border-radius: 9px; }
+.boundary { color: #645a70; line-height: 1.6; }
+.boundary p { margin: 8px 0; }
+.notice, .result { border: 1px solid #dcd3e9; border-radius: 12px; background: #faf8ff; padding: 20px; }
+.notice p, .result p { line-height: 1.65; margin: 10px 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.actions button, .notice > button, .result a { padding: 11px 15px; border: 1px solid #ac94c4; border-radius: 8px; background: #fff; color: #4c3267; }
+.result a { display: inline-flex; margin-top: 6px; }
+.notice button:disabled { opacity: .5; cursor: default; }
+.consent { display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; margin: 18px 0; }
+.consent input { flex: 0 0 auto; width: 17px; height: 17px; margin-top: 3px; }
+.help { font-size: 12px; color: #716879; line-height: 1.65; }
+@media (max-width: 600px) { .panel, .notice, .result { padding: 16px; } .actions { align-items: stretch; } .actions button { flex: 1 1 140px; } }

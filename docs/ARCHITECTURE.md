@@ -1,5 +1,11 @@
 # Architecture
 
+## Release 1.32 scoped workspace management
+
+Settings and an explicit organization-owner creation page call one bounded no-store API backed by `WorkspaceManagementRepository`. Creation and rename have separate authority scopes, held membership locks, organization/request advisory serialization, immutable actor-private receipts and atomic audits. Create initializes only its new workspace/default Brand/creator membership; rename changes only the display label and revision. Existing identity provisioning and member-role policy are unchanged.
+
+The browser persists a strict account/organization/operation/workspace-scoped request before network dispatch, freezes edits, validates exact bounded receipts and offers read-only lookup or byte-identical retry. Explicit local clearing reloads current authority/revision. Active selection still checks current membership; oldest membership order replaces mutable-name order for a stable no-cookie fallback. [Workspace management](WORKSPACE_MANAGEMENT.md) gives schema, API, state/cache lifetime, locks, limits and compatibility notes.
+
 ## Release 1.31: explicit source preset copy
 
 The source-preparation editor has a writer-only, current-workspace chooser backed by a bounded/minimized no-store GET route. Explicit selection and version-scoped acknowledgement call the existing readonly exact-revision copy endpoint. Strict browser validation replaces reusable fields, preserves enablement/workspace/binding revision and clears the old preview; no durable preset relationship or execution authority is introduced. Immediate guards serialize copy/preview/save, obsolete reads are canceled, and ambiguous binding writes require authoritative reload.

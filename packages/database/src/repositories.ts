@@ -383,7 +383,9 @@ export class MarketMeRepository {
       FROM workspace w
       JOIN workspace_membership wm ON wm.workspace_id = w.id
       WHERE wm.user_id = ${userId}
-      ORDER BY w.name
+      -- Stable fallback selection: a new workspace or display-name edit must not
+      -- silently switch users who have not saved an active-workspace cookie.
+      ORDER BY wm.created_at, w.created_at, w.id
     `;
   }
 

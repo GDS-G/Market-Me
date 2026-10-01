@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.32 workspace management
+
+Read [Workspace management](WORKSPACE_MANAGEMENT.md) before changing tenant creation, naming or recovery. Own package/npm/native metadata is 1.32.0; dependencies and user pnpm files are unchanged. Apply additive frozen `0119_workspace_management.sql` (SHA-256 `55e44aa09b5c34e33c81e5134562829542e8fc3520d78fae31f74c6b60ec5372`), then restart matching web/database code. Readiness requires exactly 119/latest 0119. The existing development repository cache needs a restart after repository implementation/constructor changes.
+
+Focused live-database tests accept only `market_me_ci` or `market_me_qa_132_*`. Full regression runs in CI's disposable database, never the application database. Browser QA uses one named synthetic organization; verify stable selection, exact recovery, stale rejection, separate scopes and narrow layout without copied content or sends. No-cookie users may adopt their oldest membership once at upgrade; valid selected memberships are preserved. No new environment variable, secret, provider scope or worker is introduced. Evidence belongs in [Releases](RELEASES.md).
+
 ## Release 1.31 source preset integration
 
 Package/npm-lock/native metadata is 1.31.0. No third-party dependency or migration changes are required; frozen 0118/readiness remains 118. Preserve user pnpm files. [Source preset copy](SOURCE_PRESET_COPY.md) covers query/response bounds, exact version/revision selection, preserved control fields, optional clearing, local lifecycle and uncertainty handling.

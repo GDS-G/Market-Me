@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.32 candidate checkpoint
+
+The full local gate passes 2,486 TypeScript tests/144 files without skips: web 895/54, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1096/54, domain 128/6, generation 29/4, ingestion 33/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, Next/companion builds, cargo check and three Rust tests pass. CI applies additive 0119, replay applies none/skips all 119, and fixture organizations return to zero. Browser/production recovery and unsigned Windows packaging pass separately. Exact-source feature/main cloud jobs and audits remain pending; earlier-release runs are not substitute evidence.
+
+Prior 1.31 documentation-only commit `b48217f9d4e52b84eae58d2488aabfa36b2dbbc4` separately passed feature/main runs 36935019681/36935019598; those jobs do not include 1.32 code.
+
 ## Verified Release 1.31 checkpoint
 
 The complete local gate passes 2,371 TypeScript tests/139 files without skips: web 827/51, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1049/52, domain 128/6, generation 29/4, ingestion 33/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, Next/companion production builds, cargo check, three Rust tests and unsigned Windows packaging pass. Migration checksum replay skips all 118; the isolated CI database returns to zero fixture organizations. Browser desktop/mobile/stale-copy checks, authenticated production preview and native Google topology/text/style readback pass separately.

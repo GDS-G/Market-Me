@@ -7,7 +7,8 @@ export interface WorkspaceSwitchState {
   error?: string;
 }
 
-/** A cookie selects among current memberships; it never grants workspace access. */
+/** A cookie selects among current memberships; it never grants access. The repository
+ * supplies oldest membership first as the stable fallback, independent of mutable names. */
 export function selectActiveWorkspace(
   workspaces: readonly WorkspaceAccess[],
   workspaceHint?: string,

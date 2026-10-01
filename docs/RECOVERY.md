@@ -1,5 +1,11 @@
 # Backup and Recovery Runbook
 
+## Release 1.32 workspace request recovery
+
+Keep revisions, memberships, default Brands, immutable management receipts and audits together in backups. After an uncertain create/rename, check or retry the exact saved request, not a new UUID. A 404 may mean another transaction has not committed. Historical replay does not reset a later name or membership, and current operation authority is still required. Never delete receipts or decrement revisions to recover.
+
+The browser retains the exact request per account/organization/operation/workspace and freezes editing. Acknowledged clearing removes only that local key, then reloads current settings; no server undo occurs. Tab closure, parent erasure or a restore predating the request can lose recovery evidence. Inspect current workspaces before intentionally issuing a separate create. Apply forward migration 0119 and restart matching code; no down migration is provided. [Workspace management](WORKSPACE_MANAGEMENT.md) details recovery states and limits.
+
 ## Release 1.31 source preset recovery
 
 Copy failures retain current form values and any earlier preview. Refresh after stale/archive rejection, select and acknowledge again, then explicitly copy; never substitute a newer version automatically. Preset edits do not follow copied settings or existing bindings. Source synchronization and approval-linked enablement remain independent and unchanged by copying.

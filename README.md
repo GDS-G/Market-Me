@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.31: preset reuse on Smart Sources
+## Release 1.32 candidate: workspace creation and naming
+
+Organization owners can create empty workspaces; workspace owners/admins can rename their current workspace. Permissions remain independent, no members/content/connections are inherited, and exact private request recovery prevents duplicate creates after response loss. Stable membership ordering keeps no-cookie selection independent of new or renamed labels. [Workspace management design and variables](docs/WORKSPACE_MANAGEMENT.md) documents the contract.
+
+Local acceptance passes 2,486 tests/144 files, all typechecks/lint/builds, 119 migrations/replay, browser/production checks and unsigned Windows packaging. Exact-source cloud verification and final Google readback are in progress; this is not yet a released-source or production-deployment claim. See [Releases](docs/RELEASES.md).
+
+## Previous release: 1.31 preset reuse on Smart Sources
 
 Smart Source writers can explicitly browse, select and acknowledge a saved preset before copying its reusable values into the unsaved preparation editor. Copy preserves enablement and the binding revision; preview and save remain separate. Stale or archived choices fail without overwriting the form, and an uncertain binding save locks further operations until current state is reloaded. [Source copy design and variables](docs/SOURCE_PRESET_COPY.md) documents the complete contract.
 

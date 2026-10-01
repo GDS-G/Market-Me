@@ -1,5 +1,11 @@
 # Security and Integration Controls
 
+## Release 1.32 workspace creation and naming
+
+Current organization ownership permits empty workspace creation only; current workspace owner/admin membership permits that workspace's display-name edit only. Neither grants the other authority. Transactions hold qualifying membership locks through immutable receipt/audit commit; revoked access is rechecked even for exact replay or lookup. Actor-private organization/request keys cannot be reused with another actor or changed canonical input. New workspaces inherit no other members, content, credentials or provider access.
+
+Mutation uses configured exact Origin, closed query/body fields and bounded JSON/UTF-8. Receipt lookup is authenticated, no-store and exact actor/scope; missing receipts may still complete. Client storage must persist before dispatch, is isolated by account/organization/operation/workspace, and cannot be silently replaced; strict result validation precedes success. Existing signup/bootstrap/provider controls are unchanged. [Workspace management](WORKSPACE_MANAGEMENT.md) describes role races, sanitized errors, immutable SQL guards and erasure limits. Exact-source cloud audits are pending for this candidate.
+
 ## Release 1.31 source copy and ambiguous-save boundary
 
 Choices GET requires a current workspace writer and strict single-workspace/page query. Its bounded projection excludes settings, notes, actors, private receipts, hashes, times and credentials. Actual copying uses the existing Origin-checked, current-writer, exact-revision readonly transaction with archive/reference/policy validation. Strict bounded client parsing and scope/version matching precede values replacement; copying cannot change workspace, enablement, expected revision, approvals or execution authority.

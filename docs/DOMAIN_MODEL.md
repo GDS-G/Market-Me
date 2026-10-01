@@ -1,5 +1,11 @@
 # Domain Model and Important Variables
 
+## Release 1.32 workspace revisions and private receipts
+
+`workspace.settings_revision` starts at 1 and advances only with a validated display-name change. Migration 0119 protects immutable workspace identity and adds organization-scoped `workspace_management_receipt`: exact request UUID, target workspace, actor, create/rename operation, original name/resulting revision, canonical request and server time. Composite tenant scope, canonical checks, insert authority, immutable history and parent-cascade erasure are enforced. No tenant content or membership graph is copied.
+
+`WorkspaceManagementRequest` is a closed create/rename union; `ManagedWorkspaceSettings` exposes separate current rename/create capabilities; the browser receipt excludes canonical input and actor. New names are NFC-normalized, control-free and limited to 120 UTF-16 units; requests 4,096 UTF-8 bytes, browser recovery/responses 8,192, revisions positive int32. [Workspace management](WORKSPACE_MANAGEMENT.md) inventories fields, constants, Sets/arrays, state/refs, repository cache and recovery lifetimes.
+
 ## 1.31 source preset choice and save-confirmation models
 
 `SourcePresetChoice` holds root ID, observed revision, immutable version number, bounded title and archive state. `SourcePresetChoices` adds exact workspace/page, lookahead and up to 50 unique choices. Consent includes the full validated choice and source/workspace scope. Pure copying retains only workspace, optional expected binding revision and enabled from the existing form, then replaces strict reusable settings and ordered Audience values. Absent optional references are cleared.

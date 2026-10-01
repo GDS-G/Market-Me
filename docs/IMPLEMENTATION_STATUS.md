@@ -1,6 +1,10 @@
 # Market Me implementation status
 
-## Current verified source: Release 1.31 source preparation-preset reuse
+## Current candidate: Release 1.32 workspace creation and naming
+
+Organization-owner creation and workspace-owner/admin renaming are implemented with independent permissions, empty-workspace isolation, locked authority/revision checks, actor-private immutable receipts and exact browser recovery. Stable membership ordering fixes unintended no-cookie selection changes. [Workspace management](WORKSPACE_MANAGEMENT.md) documents the full contract. Local acceptance passes 2,486 tests/144 files, static/frontend/native checks, 119 migrations/replay, browser/production recovery and unsigned Windows packaging. Exact-source cloud verification and final Google readback remain in progress; no whole-product completion or hosted deployment is claimed.
+
+## Previous verified source: Release 1.31 source preparation-preset reuse
 
 The writer-scoped chooser and explicit exact-version values copy are implemented with preserved enablement/revision, preview invalidation, stale/archive rejection and ambiguous-save recovery locking. Reviewed runtime `36f97773db69003235a27f671ef199316e0a0b91` is public on main after exact feature/main runs 36933672028/36934237380 passed 2,371 tests/139 files, static/build checks, 118 migrations and both clean audits. Local native/unsigned packaging, synthetic desktop/mobile/production acceptance and final Google readback pass separately. [Source copy reference](SOURCE_PRESET_COPY.md) documents implementation and limits. This is not a live source-to-template binding, arbitrary template engine or whole-product completion. [Workspace creation/name management](WORKSPACE_MANAGEMENT_PLAN.md) is underway separately; no user input is required merely to continue development.
 

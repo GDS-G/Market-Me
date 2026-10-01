@@ -28,3 +28,5 @@ export * from "./ai-repository";
 export * from "./operations-repository";
 export * from "./preparation-preset-models";
 export * from "./preparation-preset-repository";
+export * from "./workspace-management-models";
+export * from "./workspace-management-repository";
