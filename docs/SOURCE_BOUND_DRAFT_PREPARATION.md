@@ -2,6 +2,8 @@
 
 Status: Release 1.26 is the verified public source checkpoint. It adds an exact approval-receipt handoff without changing persistent semantics. Its full local workspace, migration, build, browser, production-smoke and native/package gates pass; reviewed release commit `d8f49197fb7840fd68788d518437408e6d655a54` passed feature run 35046134076, was fast-forwarded without divergence to `main`, and passed main run 35046360770 with both audits clean in each run. Google development-document readback at revision `ANLCKQm7afrwuAlhllQN9XK6hmBLQLbAe_WsXySINo_Pvm7isreCz6W0PWnJDspeQHcnTYPJA2wJ_ckaWmDscPVVKzNG-0i-J0NShN1sQg` preserves all 30 tabs. Release readiness still expects 116 migrations ending at `0116_source_preparation_recovery_hardening.sql`. Exact evidence is in [Releases](RELEASES.md); this document is the source contract and operational boundary.
 
+Release 1.27 adds a [side-effect-free preparation-plan preview](SOURCE_PREPARATION_PLAN_PREVIEW.md). It explains current unsaved settings using the shared compiler and reference checks, adds source/binding concurrency protection to preview, and leaves the persistent binding/outbox contract below unchanged. [Releases](RELEASES.md) tracks the new release's verification separately from the verified 1.26 checkpoint above.
+
 ## Outcome and safety boundary
 
 An authorized writer can attach the built-in `general_announcement` template version `1` to a Smart Source. A later, explicit exact Content Package approval atomically creates one durable preparation command. The ingestion worker consumes that command through the existing `CampaignPreparationRepository.prepare()` transaction and creates a planning Campaign plus governed draft variants.

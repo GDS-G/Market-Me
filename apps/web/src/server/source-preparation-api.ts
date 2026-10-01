@@ -9,6 +9,7 @@ const SOURCE_PREPARATION_CODES = new Set([
   "access_denied",
   "invalid_input",
   "source_unavailable",
+  "source_changed",
   "binding_unavailable",
   "binding_changed",
   "writer_unavailable",
@@ -95,7 +96,9 @@ export function sourcePreparationApiError(error: unknown): Response {
       : error.code === "invalid_input" ? 422 : 409;
     return sourcePreparationResponse({ error: { code: error.code, message: error.message } }, status);
   }
-  return apiError(error);
+  const response = apiError(error);
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }
 
 function isSourcePreparationError(error: unknown): error is Error & { code: string } {

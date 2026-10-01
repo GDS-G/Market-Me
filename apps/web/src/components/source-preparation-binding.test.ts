@@ -76,7 +76,7 @@ describe("source preparation binding browser contract", () => {
 
   it("shows the non-retroactive, non-canceling, non-activation boundary and separates sync pause", () => {
     const html = renderToStaticMarkup(createElement(SourcePreparationBindingForm, {
-      workspaceId, smartSourceId: sourceId, sourceEnabled: false, canWrite: false,
+      workspaceId, smartSourceId: sourceId, sourceVersion: 2, sourceEnabled: false, canWrite: false,
       initialBinding: sourcePreparationBindingView(binding), commands: [],
       brands: [], audiences: [{ id: audienceA, name: "Primary audience", versionNumber: 2 }], destinations: [],
     }));

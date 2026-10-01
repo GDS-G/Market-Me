@@ -1,6 +1,12 @@
 # Security and Integration Controls
 
-## Current verified release: 1.26 exact handoff read boundary
+## Release 1.27 preparation-preview boundary
+
+Preview is a writer-scoped, Origin-checked, no-store POST, even though it has no persistent side effects. It shares the strict binding schema and 32,768-byte streaming JSON bound, requires matching path/query/body scope and validates source/binding concurrency under authority/reference locks. Unknown actor, graph, command, approval and credential fields are rejected. Viewer, analyst, approver-only and revoked membership do not acquire preview authority.
+
+The browser receives explicitly minimized labels/versions/state, not Brand/Audience/Destination UUIDs, binding revision, actors, credentials, approval or command authority, snapshots, fingerprints or the compiler placeholder. A strict response guard rejects unexpected nested keys, foreign scope, invalid variants and unsupported execution semantics. Labels are React text. Exact unchanged stale references may be described only in a disabled proposal; that exception never permits enabling stale configuration. Previewing neither saves nor extends authority, and later saves/execution revalidate their own current inputs. See [Preview contracts](SOURCE_PREPARATION_PLAN_PREVIEW.md).
+
+## Previous verified release: 1.26 exact handoff read boundary
 
 The approval-to-preparation panel is server-rendered only after the immutable approval receipt passes exact workspace, approval and Content Package checks. Its repository lookup independently validates canonical UUIDs, joins current workspace membership and matches `workspace_id`, `content_package_id` and globally unique `expected_approval_id`. A guessed approval UUID, stale membership, foreign package route or foreign workspace yields no command. The page never scans recent source history or trusts the advisory binding Boolean captured when the review page loaded.
 

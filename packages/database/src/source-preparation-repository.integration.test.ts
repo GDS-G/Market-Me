@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { CampaignPreparationRepository } from "./campaign-preparation-repository";
 import { CampaignRepository } from "./campaign-repository";
 import { createDatabaseClient, type DatabaseClient } from "./client";
@@ -7,12 +7,13 @@ import { ProfileRepository } from "./profile-repository";
 import { MarketMeRepository } from "./repositories";
 import { SourcePreparationRepository } from "./source-preparation-repository";
 import { packageReviewPrecondition } from "./test-support/package-review-fixture";
+import { finalizationBrandInput } from "./test-support/campaign-finalization-fixture";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (databaseUrl) {
   const name = decodeURIComponent(new URL(databaseUrl).pathname.slice(1));
-  if (!name.startsWith("market_me_qa_126_") && name !== "market_me_ci") {
-    throw new Error("Source preparation integration requires an isolated market_me_qa_126_* or market_me_ci database.");
+  if (!name.startsWith("market_me_qa_127_") && name !== "market_me_ci") {
+    throw new Error("Source preparation integration requires an isolated market_me_qa_127_* or market_me_ci database.");
   }
 }
 let sql: DatabaseClient;
@@ -93,6 +94,29 @@ async function commandCount(workspaceId: string) {
     WHERE workspace_id = ${workspaceId}`)[0]!.count;
 }
 
+async function preparationFootprint(workspaceId: string) {
+  return (await sql`
+    SELECT
+      (SELECT count(*)::integer FROM smart_source_preparation_binding WHERE workspace_id = ${workspaceId}) AS bindings,
+      (SELECT count(*)::integer FROM smart_source_preparation_binding_audience a
+        JOIN smart_source_preparation_binding b ON b.id = a.binding_id WHERE b.workspace_id = ${workspaceId}) AS audiences,
+      (SELECT count(*)::integer FROM source_preparation_command WHERE workspace_id = ${workspaceId}) AS commands,
+      (SELECT count(*)::integer FROM campaign_preparation WHERE workspace_id = ${workspaceId}) AS preparations,
+      (SELECT count(*)::integer FROM campaign WHERE workspace_id = ${workspaceId}) AS campaigns,
+      (SELECT count(*)::integer FROM campaign_version v JOIN campaign c ON c.id = v.campaign_id WHERE c.workspace_id = ${workspaceId}) AS versions,
+      (SELECT count(*)::integer FROM draft_generation WHERE workspace_id = ${workspaceId}) AS generations,
+      (SELECT count(*)::integer FROM content_draft WHERE workspace_id = ${workspaceId}) AS drafts,
+      (SELECT count(*)::integer FROM content_package_approval WHERE workspace_id = ${workspaceId}) AS package_approvals,
+      (SELECT count(*)::integer FROM content_draft_approval WHERE workspace_id = ${workspaceId}) AS draft_approvals,
+      (SELECT count(*)::integer FROM campaign_approval WHERE workspace_id = ${workspaceId}) AS campaign_approvals,
+      (SELECT count(*)::integer FROM campaign_finalization WHERE workspace_id = ${workspaceId}) AS finalizations,
+      (SELECT count(*)::integer FROM campaign_instance WHERE workspace_id = ${workspaceId}) AS instances,
+      (SELECT count(*)::integer FROM campaign_workflow_command WHERE workspace_id = ${workspaceId}) AS workflow_commands,
+      (SELECT count(*)::integer FROM publication_action WHERE workspace_id = ${workspaceId}) AS publication_actions,
+      (SELECT count(*)::integer FROM audit_event WHERE workspace_id = ${workspaceId}) AS audits
+  `)[0]!;
+}
+
 describe.skipIf(!databaseUrl)("Smart Source preparation outbox", () => {
   beforeAll(async () => {
     sql = createDatabaseClient(databaseUrl!, { max: 12 });
@@ -115,6 +139,160 @@ describe.skipIf(!databaseUrl)("Smart Source preparation outbox", () => {
     await sql`DROP FUNCTION IF EXISTS test_pause_source_preparation_approval()`;
     await sql.end();
   });
+
+  it("previews normalized settings and authored draft order with zero records or network calls", async () => withFixture(async (f) => {
+    const input = { ...f.bindingInput, name: "  Cafe\u0301   launch  ", description: " Notes\r\nNext line ",
+      timezone: " America/Chicago ", expectedSourceVersion: f.source.version };
+    const before = await preparationFootprint(f.workspace.workspaceId);
+    const network = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Preview must not access a provider."));
+    try {
+      const preview = await f.sourcePreparations.previewSourcePreparationPlan(input, f.writer.id);
+      expect(preview).toMatchObject({
+        source: { id: f.source.id, version: f.source.version, enabled: true },
+        enabled: true, referenceValidation: "current",
+        template: { key: "general_announcement", version: 1, name: "Café launch", description: "Notes\nNext line" },
+        settings: { informationDepth: "contextual", promotionalStrength: "informational", timezone: "America/Chicago" },
+        draftVariants: [
+          { position: 0, kind: "audience", label: "Source audience B", audienceProfileVersionId: f.audienceVersionB.id, current: true },
+          { position: 1, kind: "audience", label: "Source audience A", audienceProfileVersionId: f.audienceVersionA.id, current: true },
+        ],
+        campaign: { objective: "awareness", autonomyMode: "draft_only", steps: [
+          { id: "review_preparation", operationType: "request_approval", executionMethods: ["manual_handoff"], approvalRequired: true },
+        ] },
+      });
+      expect(preview).not.toHaveProperty("currentBindingRevision");
+      expect(JSON.stringify(preview)).not.toContain("00000000-0000-4000-8000-000000000001");
+      expect(Object.isFrozen(preview)).toBe(true);
+      expect(Object.isFrozen(preview.draftVariants)).toBe(true);
+      expect(await preparationFootprint(f.workspace.workspaceId)).toEqual(before);
+      expect(network).not.toHaveBeenCalled();
+      const saved = await f.sourcePreparations.saveSourcePreparationBinding(input, f.writer.id);
+      expect(saved).toMatchObject({ name: preview.template.name, description: preview.template.description,
+        ...preview.settings, audienceProfileVersionIds: [f.audienceVersionB.id, f.audienceVersionA.id] });
+      const savedBefore = await preparationFootprint(f.workspace.workspaceId);
+      await f.sourcePreparations.previewSourcePreparationPlan({ ...input, expectedRevision: saved.revision }, f.writer.id);
+      expect(await preparationFootprint(f.workspace.workspaceId)).toEqual(savedBefore);
+      expect(await f.sourcePreparations.getSourcePreparationBindingForSource(f.workspace.workspaceId, f.source.id, f.owner.id)).toEqual(saved);
+    } finally { network.mockRestore(); }
+  }));
+
+  it("previews one General draft and reports paused synchronization independently", async () => withFixture(async (f) => {
+    await sql`UPDATE smart_source SET enabled = false, version = version + 1 WHERE id = ${f.source.id}`;
+    const preview = await f.sourcePreparations.previewSourcePreparationPlan({ ...f.bindingInput,
+      audienceProfileVersionIds: [], expectedSourceVersion: f.source.version + 1 }, f.owner.id);
+    expect(preview).toMatchObject({ enabled: true, source: { enabled: false, version: f.source.version + 1 },
+      draftVariants: [{ position: 0, kind: "general", label: "General" }] });
+    expect(preview.draftVariants).toHaveLength(1);
+  }));
+
+  it("requires current source and binding revisions, including an unconfigured source", async () => withFixture(async (f) => {
+    const input = { ...f.bindingInput, expectedSourceVersion: f.source.version };
+    await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...input, expectedSourceVersion: f.source.version + 1 }, f.owner.id))
+      .rejects.toMatchObject({ code: "source_changed" });
+    await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...input, expectedRevision: 1 }, f.owner.id))
+      .rejects.toMatchObject({ code: "binding_changed" });
+    const binding = await f.sourcePreparations.saveSourcePreparationBinding(f.bindingInput, f.owner.id);
+    for (const expectedRevision of [undefined, binding.revision + 1]) {
+      await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...input, expectedRevision }, f.owner.id))
+        .rejects.toMatchObject({ code: "binding_changed" });
+    }
+    await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...input, expectedRevision: binding.revision }, f.owner.id))
+      .resolves.toMatchObject({ currentBindingRevision: binding.revision });
+  }));
+
+  it.each(["viewer", "analyst", "approver"])("refuses preview for a current %s without writer authority", async (role) => withFixture(async (f) => {
+    await sql`UPDATE workspace_membership SET role = ${role} WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.writer.id}`;
+    const before = await preparationFootprint(f.workspace.workspaceId);
+    await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...f.bindingInput, expectedSourceVersion: f.source.version }, f.writer.id))
+      .rejects.toMatchObject({ code: "access_denied" });
+    expect(await preparationFootprint(f.workspace.workspaceId)).toEqual(before);
+  }));
+
+  it("refuses revoked membership and foreign source or profile references", async () => withFixture(async (f) => {
+    const foreign = await makeFixture();
+    try {
+      const input = { ...f.bindingInput, expectedSourceVersion: f.source.version };
+      await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...input, smartSourceId: foreign.source.id }, f.owner.id))
+        .rejects.toMatchObject({ code: "source_unavailable" });
+      await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...input, audienceProfileVersionIds: [foreign.audienceVersionA.id] }, f.owner.id))
+        .rejects.toMatchObject({ code: "audience_unavailable" });
+      await sql`DELETE FROM workspace_membership WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.writer.id}`;
+      await expect(f.sourcePreparations.previewSourcePreparationPlan(input, f.writer.id)).rejects.toMatchObject({ code: "access_denied" });
+    } finally { await foreign.cleanup(); }
+  }));
+
+  it("previews the unchanged disabled safe stop without describing stale references as current", async () => withFixture(async (f) => {
+    const destination = await f.campaigns.saveDestination({ workspaceId: f.workspace.workspaceId, provider: "manual",
+      canonicalUrl: "https://example.test/preview", knownRedirects: [], title: "Preview destination", description: "",
+      contentType: "web_page", identifiers: {}, topics: [], audiences: [], geography: [], status: "published", tracking: {} }, f.owner.id);
+    const configured = { ...f.bindingInput, destinationId: destination.id };
+    const binding = await f.sourcePreparations.saveSourcePreparationBinding(configured, f.owner.id);
+    const input = { ...configured, enabled: false, expectedRevision: binding.revision, expectedSourceVersion: f.source.version };
+    await expect(f.sourcePreparations.previewSourcePreparationPlan(input, f.owner.id)).resolves.toMatchObject({ referenceValidation: "current" });
+    await sql`UPDATE destination SET status = 'draft' WHERE id = ${destination.id}`;
+    await sql`UPDATE audience_profile SET status = 'archived' WHERE id = ${f.audienceA.id}`;
+    const before = await preparationFootprint(f.workspace.workspaceId);
+    const preview = await f.sourcePreparations.previewSourcePreparationPlan(input, f.owner.id);
+    expect(preview).toMatchObject({ enabled: false, referenceValidation: "retained_for_disabled_safe_stop",
+      destination: { title: destination.title, current: false }, draftVariants: [
+        { label: "Source audience B", current: true }, { label: "Source audience A", current: false },
+      ] });
+    expect(await preparationFootprint(f.workspace.workspaceId)).toEqual(before);
+    await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...input, enabled: true }, f.owner.id))
+      .rejects.toMatchObject({ code: "audience_unavailable" });
+    await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...input, audienceProfileVersionIds: [] }, f.owner.id))
+      .rejects.toMatchObject({ code: "destination_unavailable" });
+    const saved = await f.sourcePreparations.saveSourcePreparationBinding(input, f.owner.id);
+    expect(saved).toMatchObject({ enabled: false, revision: binding.revision + 1 });
+  }));
+
+  it("waits for a concurrent binding edit and rejects its stale revision", async () => withFixture(async (f) => {
+    const binding = await f.sourcePreparations.saveSourcePreparationBinding(f.bindingInput, f.owner.id);
+    let release!: () => void;
+    let ready!: (pid: number) => void;
+    const releaseSignal = new Promise<void>((resolve) => { release = resolve; });
+    const readySignal = new Promise<number>((resolve) => { ready = resolve; });
+    const holder = sql.begin(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`source-preparation-binding:${f.workspace.workspaceId}:${f.source.id}`}, 0))`;
+      await tx`UPDATE smart_source_preparation_binding SET name = 'Changed concurrently', revision = revision + 1 WHERE id = ${binding.id}`;
+      ready((await tx<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid);
+      await releaseSignal;
+    });
+    const pid = await readySignal;
+    let result: Promise<unknown> | undefined;
+    try {
+      result = f.sourcePreparations.previewSourcePreparationPlan({ ...f.bindingInput,
+        expectedRevision: binding.revision, expectedSourceVersion: f.source.version }, f.owner.id)
+        .then((value) => value, (error: unknown) => error);
+      await expect.poll(async () => (await sql<{ blocked: boolean }[]>`
+        SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname = current_database()
+          AND ${pid} = ANY(pg_blocking_pids(pid))) AS blocked
+      `)[0]!.blocked, { timeout: 3_000, interval: 25 }).toBe(true);
+      release();
+      await holder;
+      expect(await result).toMatchObject({ code: "binding_changed" });
+    } finally {
+      release();
+      await Promise.allSettled([holder, ...(result ? [result] : [])]);
+    }
+  }), 10_000);
+
+  it("resolves a published Brand label and permits its stale version only for an unchanged disable", async () => withFixture(async (f) => {
+    const profiles = new ProfileRepository(sql);
+    const brand = await profiles.createBrandProfile(finalizationBrandInput(f.workspace.workspaceId), f.owner.id);
+    const version = (await profiles.publishBrandProfile(f.workspace.workspaceId, brand.id, f.owner.id))!.currentVersion!;
+    const configured = { ...f.bindingInput, brandProfileVersionId: version.id };
+    const input = { ...configured, expectedSourceVersion: f.source.version };
+    await expect(f.sourcePreparations.previewSourcePreparationPlan(input, f.owner.id)).resolves.toMatchObject({
+      brandProfile: { name: brand.name, versionId: version.id, versionNumber: 1, current: true },
+    });
+    const binding = await f.sourcePreparations.saveSourcePreparationBinding(configured, f.owner.id);
+    await sql`UPDATE brand_profile SET status = 'archived' WHERE id = ${brand.id}`;
+    await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...input, expectedRevision: binding.revision }, f.owner.id))
+      .rejects.toMatchObject({ code: "brand_unavailable" });
+    await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...input, expectedRevision: binding.revision, enabled: false }, f.owner.id))
+      .resolves.toMatchObject({ referenceValidation: "retained_for_disabled_safe_stop", brandProfile: { current: false } });
+  }));
 
   it("does not backfill, retains audience order, permits the same configuring writer to approve, and completes exact lineage", async () => withFixture(async (f) => {
     const historicalApproval = await approve(f);

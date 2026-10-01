@@ -17,7 +17,7 @@ const timezone = z.string().trim().min(1).max(100).superRefine((value, context) 
   }
 });
 
-export const sourcePreparationBindingBody = z.object({
+const sourcePreparationBindingFields = {
   workspaceId: sourcePreparationUuid,
   expectedRevision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
   enabled: z.boolean(),
@@ -31,7 +31,13 @@ export const sourcePreparationBindingBody = z.object({
   informationDepth: z.enum(INFORMATION_DEPTHS),
   promotionalStrength: z.enum(PROMOTIONAL_STRENGTHS),
   timezone,
-}).strict().superRefine((value, context) => {
+} as const;
+
+function validatePreparationSettings(value: {
+  audienceProfileVersionIds: readonly string[];
+  name: string;
+  description: string;
+}, context: z.RefinementCtx): void {
   if (new Set(value.audienceProfileVersionIds).size !== value.audienceProfileVersionIds.length) {
     context.addIssue({ code: "custom", path: ["audienceProfileVersionIds"], message: "Choose each Audience Profile version only once." });
   }
@@ -40,12 +46,21 @@ export const sourcePreparationBindingBody = z.object({
       context.addIssue({ code: "custom", path: [field], message: "Text cannot contain control characters." });
     }
   }
-});
+}
+
+export const sourcePreparationBindingBody = z.object(sourcePreparationBindingFields).strict()
+  .superRefine(validatePreparationSettings);
+
+export const sourcePreparationPlanPreviewBody = z.object({
+  ...sourcePreparationBindingFields,
+  expectedSourceVersion: z.number().int().positive().max(2_147_483_647),
+}).strict().superRefine(validatePreparationSettings);
 
 export const sourcePreparationBindingPath = z.object({ id: sourcePreparationUuid }).strict();
 export const sourcePreparationBindingQuery = z.object({ workspaceId: sourcePreparationUuid }).strict();
 
 export type SourcePreparationBindingBody = z.infer<typeof sourcePreparationBindingBody>;
+export type SourcePreparationPlanPreviewBody = z.infer<typeof sourcePreparationPlanPreviewBody>;
 
 export function sourcePreparationQuery(request: Request): Record<string, string> {
   const parameters = new URL(request.url).searchParams;

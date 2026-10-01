@@ -2,6 +2,12 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
+## Release 1.27 preparation-plan preview
+
+The current source adds **Preview this setup** to Smart Source preparation settings. It shows the server-normalized proposed configuration, Brand/Destination labels, ordered Audience variants or one General draft, and the future exact-approval/manual-review flow. Previewing creates no records or provider calls; saving remains separate, edits clear the preview, and stale source/binding versions fail closed. Unchanged stale selections can be previewed while disabled so an operator can still stop future preparation safely.
+
+The local 1.27 suite passes 2,055 TypeScript tests across 119 files without skips, all 12 typechecks, lint, both frontend builds and the unchanged 116-migration replay/checksum gate. Browser and native checks are recorded in [Releases](docs/RELEASES.md). Cloud/publication verification is pending; 1.26 remains the latest verified public release until that gate closes. This is not whole-product completion or production deployment. See the [preview contract and variable reference](docs/SOURCE_PREPARATION_PLAN_PREVIEW.md).
+
 ## Release 1.26 verified public source checkpoint
 
 Release 1.26 closes the operator handoff introduced by 1.25. Every immutable Content Package approval receipt now performs a current-membership, exact-workspace/package/approval lookup for the one source-preparation command created in that same approval transaction. The receipt shows authoritative pending, processing, retrying, stopped or completed state; a completed row links only to its immutable preparation receipt. If no command exists, the page says so explicitly and explains that later binding configuration does not backfill the historical approval.

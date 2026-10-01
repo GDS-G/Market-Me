@@ -78,6 +78,7 @@ describe("Smart Source preparation status pages", () => {
       bindingRevision: 2, status: "pending", attemptCount: 0, leaseExpiresAt: "2026-09-15T12:00:00Z", createdAt: "2026-09-15T11:00:00Z", updatedAt: "2026-09-15T11:00:00Z" }]);
     const html = renderToStaticMarkup(await EditSmartSourcePage({ params: Promise.resolve({ id: sourceId }) }));
     const decoded = html.replaceAll("&quot;", '"');
+    expect(decoded).toContain('"sourceVersion":2');
     expect(decoded).toContain('"canWrite":true'); expect(decoded).toContain("Current brand"); expect(decoded).not.toContain("Draft brand");
     expect(decoded).toContain("Current audience"); expect(decoded).not.toContain("Archived audience");
     expect(decoded).toContain("Published destination"); expect(decoded).not.toContain("Draft destination");

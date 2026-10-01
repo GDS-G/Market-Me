@@ -399,7 +399,13 @@ describe.skipIf(!databaseUrl)("PostgreSQL repositories", () => {
         "package-item",
       );
       expect(item).toBeDefined();
-      const work = await repository.claimIngestionEvents(10);
+      // Other integration files create intake events concurrently. Put this
+      // owned fixture first, then claim only it instead of assuming the shared
+      // queue contains fewer than ten events.
+      await sql`UPDATE ingestion_event SET created_at = '1970-01-01T00:00:00Z'::timestamptz
+        WHERE workspace_id = ${workspace.workspaceId} AND smart_source_id = ${source.id}`;
+      const work = await repository.claimIngestionEvents(1);
+      expect(work).toHaveLength(1);
       const event = work.find(
         (candidate) => candidate.smartSourceId === source.id,
       );

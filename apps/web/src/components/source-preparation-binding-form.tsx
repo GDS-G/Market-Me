@@ -7,21 +7,27 @@ import {
   addSourcePreparationAudience,
   initialSourcePreparationBindingValues,
   isScopedSourcePreparationBinding,
+  isScopedSourcePreparationPlanPreview,
   moveSourcePreparationAudience,
   removeSourcePreparationAudience,
   sourcePreparationBindingRequest,
   sourcePreparationBindingRequestPath,
+  sourcePreparationPlanPreviewRequest,
+  sourcePreparationPlanPreviewRequestPath,
   type SourcePreparationBindingScope,
   type SourcePreparationBindingValues,
   type SourcePreparationBindingView,
   type SourcePreparationCommandView,
+  type SourcePreparationPlanPreviewView,
 } from "./source-preparation-binding-request";
 import { SourcePreparationCommandStatus } from "./source-preparation-command-status";
+import { SourcePreparationPlanPreview } from "./source-preparation-plan-preview";
 import styles from "./source-preparation-binding.module.css";
 
 export interface SourcePreparationChoice { id: string; name: string; versionNumber?: number }
 
 export interface SourcePreparationBindingFormProps extends SourcePreparationBindingScope {
+  sourceVersion: number;
   sourceEnabled: boolean;
   canWrite: boolean;
   initialBinding?: SourcePreparationBindingView;
@@ -35,13 +41,14 @@ export function SourcePreparationBindingForm(props: SourcePreparationBindingForm
   const router = useRouter();
   const [binding, setBinding] = useState(props.initialBinding);
   const [values, setValues] = useState<SourcePreparationBindingValues>(() => initialSourcePreparationBindingValues(props.workspaceId, props.initialBinding));
-  const [pending, setPending] = useState(false);
+  const [preview, setPreview] = useState<SourcePreparationPlanPreviewView>();
+  const [pending, setPending] = useState<"preview" | "save">();
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
   async function save() {
     if (!props.canWrite || pending) return;
-    setPending(true); setError(""); setMessage("");
+    setPending("save"); setPreview(undefined); setError(""); setMessage("");
     try {
       const response = await fetch(sourcePreparationBindingRequestPath(props), {
         method: "PUT",
@@ -66,8 +73,44 @@ export function SourcePreparationBindingForm(props: SourcePreparationBindingForm
     } catch {
       setError("The save result is uncertain. Load the current source before trying again; no automatic retry was sent.");
     } finally {
-      setPending(false);
+      setPending(undefined);
     }
+  }
+
+  async function previewPlan() {
+    if (!props.canWrite || pending) return;
+    setPending("preview"); setPreview(undefined); setError(""); setMessage("");
+    try {
+      const response = await fetch(sourcePreparationPlanPreviewRequestPath(props), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: sourcePreparationPlanPreviewRequest(values, props.sourceVersion),
+      });
+      const payload = await response.json().catch(() => undefined);
+      if (!response.ok) {
+        setError(typeof payload?.error?.message === "string"
+          ? `Preview blocked: ${payload.error.message}`
+          : "The current settings could not be previewed.");
+        return;
+      }
+      if (!isScopedSourcePreparationPlanPreview(payload?.data, props) || payload.data.source.version !== props.sourceVersion) {
+        setError("The server returned an invalid preparation preview. Reload this Smart Source before trying again.");
+        return;
+      }
+      setPreview(payload.data);
+      setMessage("Previewed from the current unsaved form values. Saving remains a separate action.");
+    } catch {
+      setError("The preview result is uncertain. No automatic retry was sent and no settings were saved.");
+    } finally {
+      setPending(undefined);
+    }
+  }
+
+  function changeValues(next: SourcePreparationBindingValues) {
+    setValues(next);
+    setPreview(undefined);
+    setError("");
+    setMessage("");
   }
 
   return <>
@@ -75,29 +118,29 @@ export function SourcePreparationBindingForm(props: SourcePreparationBindingForm
       <section className="form-section">
         <div><h2>Approval-linked draft preparation</h2>
           <p>When enabled, each future explicit approval of an exact Content Package from this source durably queues one General Announcement draft-only preparation using the saved settings. Existing approvals are not processed retroactively.</p></div>
-        <fieldset className={styles.fieldset} disabled={!props.canWrite || pending}>
+        <fieldset className={styles.fieldset} disabled={!props.canWrite || Boolean(pending)}>
           <div className="field-grid">
-            <label className="check-field field-wide"><input type="checkbox" checked={values.enabled} onChange={(event) => setValues({ ...values, enabled: event.target.checked })} /><span>Queue a draft-only preparation after each future exact approval</span></label>
-            <label className="field"><span>Campaign name</span><input required maxLength={200} value={values.name} onChange={(event) => setValues({ ...values, name: event.target.value })} /></label>
-            <label className="field"><span>Timezone</span><input required maxLength={100} value={values.timezone} onChange={(event) => setValues({ ...values, timezone: event.target.value })} /><small>For example UTC or America/Chicago. This does not schedule or activate anything.</small></label>
-            <label className="field field-wide"><span>Description (optional)</span><textarea maxLength={5_000} value={values.description} onChange={(event) => setValues({ ...values, description: event.target.value })} /></label>
-            <label className="field"><span>Current published Brand Profile version (optional)</span><select value={values.brandProfileVersionId ?? ""} onChange={(event) => setValues(withOptional(values, "brandProfileVersionId", event.target.value))}>
+            <label className="check-field field-wide"><input type="checkbox" checked={values.enabled} onChange={(event) => changeValues({ ...values, enabled: event.target.checked })} /><span>Queue a draft-only preparation after each future exact approval</span></label>
+            <label className="field"><span>Campaign name</span><input required maxLength={200} value={values.name} onChange={(event) => changeValues({ ...values, name: event.target.value })} /></label>
+            <label className="field"><span>Timezone</span><input required maxLength={100} value={values.timezone} onChange={(event) => changeValues({ ...values, timezone: event.target.value })} /><small>For example UTC or America/Chicago. This does not schedule or activate anything.</small></label>
+            <label className="field field-wide"><span>Description (optional)</span><textarea maxLength={5_000} value={values.description} onChange={(event) => changeValues({ ...values, description: event.target.value })} /></label>
+            <label className="field"><span>Current published Brand Profile version (optional)</span><select value={values.brandProfileVersionId ?? ""} onChange={(event) => changeValues(withOptional(values, "brandProfileVersionId", event.target.value))}>
               <option value="">No Brand Profile</option>
               {values.brandProfileVersionId && !props.brands.some((item) => item.id === values.brandProfileVersionId) && <option value={values.brandProfileVersionId}>Saved Brand version is no longer current</option>}
               {props.brands.map((item) => <option key={item.id} value={item.id}>{choiceLabel(item)}</option>)}
             </select></label>
-            <label className="field"><span>Published Destination (optional)</span><select value={values.destinationId ?? ""} onChange={(event) => setValues(withOptional(values, "destinationId", event.target.value))}>
+            <label className="field"><span>Published Destination (optional)</span><select value={values.destinationId ?? ""} onChange={(event) => changeValues(withOptional(values, "destinationId", event.target.value))}>
               <option value="">No Destination</option>
               {values.destinationId && !props.destinations.some((item) => item.id === values.destinationId) && <option value={values.destinationId}>Saved Destination is no longer published</option>}
               {props.destinations.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
             </select><small>Historical planning context only. External publication still requires a separately approved preview and explicit action.</small></label>
-            <label className="field"><span>Information depth</span><select value={values.informationDepth} onChange={(event) => setValues({ ...values, informationDepth: event.target.value as SourcePreparationBindingValues["informationDepth"] })}>
+            <label className="field"><span>Information depth</span><select value={values.informationDepth} onChange={(event) => changeValues({ ...values, informationDepth: event.target.value as SourcePreparationBindingValues["informationDepth"] })}>
               {INFORMATION_DEPTHS.map((value) => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}
             </select></label>
-            <label className="field"><span>Promotional strength</span><select value={values.promotionalStrength} onChange={(event) => setValues({ ...values, promotionalStrength: event.target.value as SourcePreparationBindingValues["promotionalStrength"] })}>
+            <label className="field"><span>Promotional strength</span><select value={values.promotionalStrength} onChange={(event) => changeValues({ ...values, promotionalStrength: event.target.value as SourcePreparationBindingValues["promotionalStrength"] })}>
               {PROMOTIONAL_STRENGTHS.map((value) => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}
             </select></label>
-            <AudienceOrderEditor values={values} audiences={props.audiences} onChange={setValues} />
+            <AudienceOrderEditor values={values} audiences={props.audiences} onChange={changeValues} />
           </div>
         </fieldset>
       </section>
@@ -109,9 +152,17 @@ export function SourcePreparationBindingForm(props: SourcePreparationBindingForm
       </section>
       {!props.canWrite && <p className="form-help">Read-only access. Owners, admins, and editors can configure approval-linked preparation.</p>}
       {binding && <p className="form-help">Saved binding revision {binding.revision}. Last updated <time dateTime={binding.updatedAt}>{binding.updatedAt}</time>.</p>}
-      <div className="form-actions"><button className="button-primary" type="submit" disabled={!props.canWrite || pending}>{pending ? "Saving binding…" : binding ? "Save preparation binding" : "Create preparation binding"}</button></div>
+      <div className="form-actions">
+        <button className="button-secondary" type="button" disabled={!props.canWrite || Boolean(pending)} onClick={() => void previewPlan()}>
+          {pending === "preview" ? "Previewing setup…" : "Preview this setup"}
+        </button>
+        <button className="button-primary" type="submit" disabled={!props.canWrite || Boolean(pending)}>
+          {pending === "save" ? "Saving binding…" : binding ? "Save preparation binding" : "Create preparation binding"}
+        </button>
+      </div>
       {error && <p className="form-error" role="alert">{error}</p>}
       {message && <p className="form-help" role="status">{message}</p>}
+      {preview && <SourcePreparationPlanPreview preview={preview} />}
     </form>
     <SourcePreparationCommandHistory workspaceId={props.workspaceId} commands={props.commands} />
   </>;

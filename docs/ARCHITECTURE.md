@@ -1,6 +1,12 @@
 # Architecture
 
-## Current verified release: 1.26 exact approval-to-preparation handoff
+## Release 1.27: server-normalized preparation-plan preview
+
+A new authenticated POST preview route shares the binding schema, bounded Origin/JSON transport and General Announcement compiler. `previewSourcePreparationPlan()` holds current writer, source, binding advisory and reference locks while checking the source version and binding revision. It returns an immutable, request-local plan with no persistent or provider side effects. Stable reference lock order is independent from authored Audience display order. An unchanged disabled proposal may retain stale reference IDs; re-enablement or changed selections must pass full current-reference validation.
+
+The server explicitly projects only labels, versions, current-state flags, scope and the compiler-verified draft-only/manual-review plan to the browser. The form treats preview and save as separate pending actions, invalidates its preview on field changes, and remounts across source/binding revisions. No new schema, environment variable, worker or mutable global state is introduced. [Preview contracts](SOURCE_PREPARATION_PLAN_PREVIEW.md) describe shapes, maps, tuples, lock order and rollback; [Releases](RELEASES.md) records verification.
+
+## Previous verified release: 1.26 exact approval-to-preparation handoff
 
 Release 1.26 adds a read path over the existing 1.25 outbox. `getSourcePreparationCommandForApproval(workspaceId, contentPackageId, approvalId, actorUserId)` canonicalizes each UUID, joins current `workspace_membership`, and matches all three durable scopes on `source_preparation_command`. Global uniqueness of `expected_approval_id` guarantees at most one result. The method does not reuse recent-source history, whose bounded result could omit an older receipt, and it does not mutate, claim or retry the command.
 

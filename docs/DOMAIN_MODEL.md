@@ -1,5 +1,13 @@
 # Domain Model and Important Variables
 
+## 1.27 ephemeral preparation-plan model
+
+`SourcePreparationPlanPreviewInput` extends binding settings with the persisted `expectedSourceVersion`; optional `expectedRevision` must exactly match an existing binding and be absent for creation. The actor remains server-supplied. `normalizeBinding()` returns `{normalized, campaign}` from the shared compiler. The transaction-local `prior` and `preservesDisabledReferences` determine whether the exact saved ordered IDs qualify for safe disable. `rootsById` and `versionsById` are per-call maps restoring authored Audience order after stable-order locks.
+
+The frozen result contains source identity/version/synchronization, optional server-only binding revision, proposed enabled state, `referenceValidation`, template metadata, optional Brand/Destination, ordered `draftVariants`, settings and one manual-review step. An empty Audience selection becomes exactly one General variant. `referenceValidation` is `retained_for_disabled_safe_stop` only when an actually stale reference is retained while disabled; otherwise it is `current`. The step's execution-method tuple is exactly `["manual_handoff"]`. Reference UUIDs, binding revision and the internal placeholder package UUID never cross the explicit browser projection.
+
+Component-local `preview` is invalidated by every field change/save and by the workspace/source/version/binding-revision remount key. `pending` is `"preview" | "save" | undefined`; `values`, `binding`, `error` and `message` are temporary UI state, never durable authority. There is no preview table, global dictionary, cache or browser-storage record. Full field and lifetime documentation is in [Preparation-plan preview](SOURCE_PREPARATION_PLAN_PREVIEW.md).
+
 ## 1.26 exact receipt-to-command read model
 
 `getSourcePreparationCommandForApproval(workspaceId, contentPackageId, approvalId, actorUserId)` is an exact, current-membership-scoped read. `workspaceId` selects the tenant, `contentPackageId` prevents a valid approval identifier from being substituted into another package route, `approvalId` selects the globally unique enqueue event, and `actorUserId` must still have membership in that workspace. The normalized local variables `scope`, `contentPackage`, `approval` and `actor` live for one call; no global dictionary, cache, authority token or polling registry is created.

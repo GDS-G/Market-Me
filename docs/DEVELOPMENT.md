@@ -1,5 +1,13 @@
 # Developer Guide
 
+## Release 1.27 preparation-plan preview
+
+The preview is an application-only change with no migration or new environment variable. Read [Preparation-plan preview](SOURCE_PREPARATION_PLAN_PREVIEW.md) for the POST route, request/response contracts, implementation map, variables/collections/lifetimes, safe-disable exception and regression recipe. Readiness remains 116 migrations ending at frozen 0116. Use `market_me_ci` for the full integration suite; the focused preview/source suite additionally permits isolated `market_me_qa_127_*` targets. Never run integration tests against the application database.
+
+Local Docker recovery encountered a stale runtime socket before QA. With Docker fully stopped, only its runtime `run` directory was recoverably renamed; Docker then recreated its sockets and PostgreSQL started normally. Database volumes and the application database were not reset. The actual error was confirmed in Docker logs before the targeted repair; do not apply a blanket factory reset for this symptom.
+
+Package, npm lock and native metadata are synchronized at 1.27.0. No installer is signed or distributed merely by passing local packaging. Exact local/cloud/browser/native evidence and remaining gates are in [Releases](RELEASES.md).
+
 ## Release 1.26 exact approval-to-preparation handoff
 
 Release 1.26 is a read-only extension of the 1.25 source-preparation contract. It adds no migration; release readiness remains exactly 116 migrations ending at frozen `0116_source_preparation_recovery_hardening.sql`. Do not edit migrations 0113–0116.

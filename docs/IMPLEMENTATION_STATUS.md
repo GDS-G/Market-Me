@@ -1,6 +1,10 @@
 # Market Me implementation status
 
-## Current source: Release 1.26 exact approval-to-preparation handoff, 2026-09-15
+## Current source: Release 1.27 preparation-plan preview, 2026-10-01
+
+The current increment adds a side-effect-free server-normalized preview to source preparation configuration. Users can inspect proposed labels, copy settings, future exact-approval/manual-review behavior and ordered Audience/General variants before separately saving. Editing invalidates the preview, stale revisions conflict, and unchanged stale selections remain previewable only while disabled. It adds no execution authority, schema, worker or provider call. Local regression/typecheck/lint/build/migration checks pass; publication evidence is tracked in [Releases](RELEASES.md). The full original specification remains incomplete, particularly guided setup, broader providers/inbox/media, scheduling and production/cross-platform acceptance. [Preview design and variables](SOURCE_PREPARATION_PLAN_PREVIEW.md) describes this bounded improvement.
+
+## Previous public checkpoint: Release 1.26 exact approval-to-preparation handoff, 2026-09-15
 
 Market Me is still being built against the [approved conceptual specification](https://docs.google.com/document/d/1Iidc682xecSknAS8WeaNc1HH4V0ZvcKL_izEiU9Ng_k/edit), including its 23 child specification sections. The local review used the current `market-me-spec-current.md` extract in the task workspace. This document is a current capability/gap map, not a completion certificate. The specification's global acceptance requirements remain the target; implemented subsets do not replace them.
 

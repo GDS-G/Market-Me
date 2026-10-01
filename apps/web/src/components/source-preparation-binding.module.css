@@ -17,6 +17,143 @@
   line-height: 1.55;
 }
 
+.preview {
+  margin-top: 18px;
+  padding: 20px 22px;
+  border-color: #cabee3;
+  background: linear-gradient(180deg, #fcfbff 0%, #f8f5ff 100%);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.previewHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.previewHeader h2,
+.preview h3,
+.preview p {
+  margin-top: 0;
+}
+
+.previewHeader h2 {
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.previewEyebrow {
+  margin-bottom: 4px;
+  color: #6d5b91;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.previewReady,
+.previewPaused {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.previewReady {
+  color: #245c3a;
+  background: #e6f5eb;
+}
+
+.previewPaused {
+  color: #6d5b21;
+  background: #f9efcf;
+}
+
+.preview > p,
+.previewFlow span,
+.previewVariants p,
+.previewBoundary p {
+  color: #6f6875;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.previewFlow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.previewFlow > div {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid #e3ddef;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.previewFlow strong,
+.previewVariants h3,
+.previewBoundary h3 {
+  font-size: 15px;
+}
+
+.previewDetails {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 18px;
+  margin: 0;
+}
+
+.previewDetails > div {
+  min-width: 0;
+  padding: 9px 0;
+  border-top: 1px solid #e9e4ef;
+}
+
+.previewDetails dt {
+  color: #6f6875;
+  font-size: 12px;
+}
+
+.previewDetails dd {
+  margin: 3px 0 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.previewVariants,
+.previewBoundary {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #e3ddef;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.previewVariants ol,
+.previewBoundary ul {
+  margin: 8px 0;
+  padding-left: 22px;
+}
+
+.previewVariants li {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.previewAdvisory {
+  margin-top: 16px;
+  padding: 12px;
+  border-left: 3px solid #b78328;
+  background: #fff8e8;
+}
+
 .audiences {
   min-width: 0;
   margin: 0;
@@ -134,4 +271,6 @@
 @media (max-width: 700px) {
   .availableAudiences { grid-template-columns: 1fr; }
   .orderedAudienceRow { align-items: flex-start; flex-direction: column; }
+  .previewHeader { align-items: flex-start; flex-direction: column; }
+  .previewFlow, .previewDetails { grid-template-columns: 1fr; }
 }

@@ -18,7 +18,7 @@ export const SOURCE_PREPARATION_MAX_ATTEMPTS = 8;
 export type SourcePreparationCommandStatus = "pending" | "processing" | "failed" | "completed" | "dead_letter";
 export type SourcePreparationErrorCode = "invalid_input" | "access_denied" | "source_unavailable"
   | "writer_unavailable" | "brand_unavailable" | "audience_unavailable" | "destination_unavailable"
-  | "binding_unavailable" | "binding_changed";
+  | "binding_unavailable" | "binding_changed" | "source_changed";
 
 export class SourcePreparationError extends Error {
   constructor(readonly code: SourcePreparationErrorCode, message: string) {
@@ -44,6 +44,76 @@ export interface SourcePreparationBindingWrite {
   readonly informationDepth?: InformationDepth;
   readonly promotionalStrength?: PromotionalStrength;
   readonly timezone?: string;
+}
+
+export interface SourcePreparationPlanPreviewInput extends SourcePreparationBindingWrite {
+  /** Required compare-and-swap version of the Smart Source being configured. */
+  readonly expectedSourceVersion: number;
+}
+
+export interface SourcePreparationPlanPreviewReference {
+  readonly versionId: string;
+  readonly name: string;
+  readonly versionNumber: number;
+  /** False only for an unchanged reference retained while safely disabling a binding. */
+  readonly current: boolean;
+}
+
+export type SourcePreparationPlanPreviewDraftVariant = Readonly<{
+  position: number;
+  kind: "general";
+  label: "General";
+}> | Readonly<{
+  position: number;
+  kind: "audience";
+  label: string;
+  audienceProfileVersionId: string;
+  versionNumber: number;
+  current: boolean;
+}>;
+
+export interface SourcePreparationPlanPreview {
+  readonly workspaceId: string;
+  readonly smartSourceId: string;
+  readonly source: Readonly<{
+    id: string;
+    name: string;
+    version: number;
+    enabled: boolean;
+  }>;
+  readonly currentBindingRevision?: number;
+  readonly enabled: boolean;
+  readonly referenceValidation: "current" | "retained_for_disabled_safe_stop";
+  readonly template: Readonly<{
+    key: "general_announcement";
+    version: 1;
+    name: string;
+    description: string;
+  }>;
+  readonly brandProfile?: SourcePreparationPlanPreviewReference;
+  readonly draftVariants: readonly SourcePreparationPlanPreviewDraftVariant[];
+  readonly destination?: Readonly<{
+    id: string;
+    title: string;
+    current: boolean;
+  }>;
+  readonly settings: Readonly<{
+    informationDepth: InformationDepth;
+    promotionalStrength: PromotionalStrength;
+    timezone: string;
+  }>;
+  readonly campaign: Readonly<{
+    objective: "awareness";
+    autonomyMode: "draft_only";
+    steps: readonly Readonly<{
+      id: "review_preparation";
+      name: string;
+      operationType: "request_approval";
+      executionMethods: readonly ["manual_handoff"];
+      approvalRequired: true;
+      scheduleType: "immediate";
+    }>[];
+  }>;
 }
 
 export interface StoredSourcePreparationBinding {
@@ -168,6 +238,12 @@ interface CommandRow {
   completedAt: string | Date | null;
 }
 
+interface ResolvedPreparationReferences {
+  readonly brandProfile?: SourcePreparationPlanPreviewReference;
+  readonly audienceProfiles: readonly SourcePreparationPlanPreviewReference[];
+  readonly destination?: Readonly<{ id: string; title: string; current: boolean }>;
+}
+
 function identifier(value: unknown, field: string): string {
   if (typeof value !== "string" || !UUID.test(value.trim().toLowerCase())) {
     throw new SourcePreparationError("invalid_input", `${field} must be a UUID.`);
@@ -240,7 +316,7 @@ function normalizeBinding(input: SourcePreparationBindingWrite) {
     throw new SourcePreparationError("invalid_input", "Binding expectedRevision must be a positive safe integer.");
   }
   const smartSourceId = identifier(input.smartSourceId, "smartSourceId");
-  const normalized = compileGeneralAnnouncementPreparation({
+  const compiled = compileGeneralAnnouncementPreparation({
     workspaceId: input.workspaceId,
     contentPackageId: PLACEHOLDER_PACKAGE_ID,
     expectedPackageVersion: 1,
@@ -254,8 +330,16 @@ function normalizeBinding(input: SourcePreparationBindingWrite) {
     informationDepth: input.informationDepth,
     promotionalStrength: input.promotionalStrength,
     timezone: input.timezone,
-  }).normalizedInput;
-  return { ...normalized, smartSourceId, enabled: input.enabled, expectedRevision: input.expectedRevision };
+  });
+  return {
+    normalized: {
+      ...compiled.normalizedInput,
+      smartSourceId,
+      enabled: input.enabled,
+      expectedRevision: input.expectedRevision,
+    },
+    campaign: compiled.campaign,
+  };
 }
 
 function validatedLimit(value: number): number {
@@ -283,8 +367,103 @@ async function readBinding(tx: TransactionSql, workspaceId: string, predicate: {
 export class SourcePreparationRepository {
   constructor(private readonly sql: DatabaseClient) {}
 
+  async previewSourcePreparationPlan(input: SourcePreparationPlanPreviewInput,
+    actorUserId: string): Promise<SourcePreparationPlanPreview> {
+    if (!Number.isSafeInteger(input.expectedSourceVersion) || input.expectedSourceVersion < 1
+      || input.expectedSourceVersion > 2_147_483_647) {
+      throw new SourcePreparationError("invalid_input", "Smart Source expectedSourceVersion must be a positive database integer.");
+    }
+    const { normalized, campaign } = normalizeBinding(input);
+    const actorId = identifier(actorUserId, "actorUserId");
+    return this.sql.begin(async (tx) => {
+      // Match save's lock hierarchy so preview cannot authorize against a mix of
+      // writer, source, binding, and reference revisions.
+      await this.lockWriters(tx, normalized.workspaceId, actorId);
+      const source = (await tx<{ id: string; name: string; version: number; enabled: boolean }[]>`
+        SELECT id, name, version, enabled FROM smart_source
+        WHERE id = ${normalized.smartSourceId} AND workspace_id = ${normalized.workspaceId}
+        FOR SHARE
+      `)[0];
+      if (!source) throw new SourcePreparationError("source_unavailable", "Choose a Smart Source in this workspace.");
+      if (source.version !== input.expectedSourceVersion) {
+        throw new SourcePreparationError("source_changed", "The Smart Source changed. Reload it before previewing.");
+      }
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(
+        ${`source-preparation-binding:${normalized.workspaceId}:${normalized.smartSourceId}`}, 0))`;
+      const prior = await readBinding(tx, normalized.workspaceId, { smartSourceId: normalized.smartSourceId });
+      if ((prior && normalized.expectedRevision !== prior.revision)
+        || (!prior && normalized.expectedRevision !== undefined)) {
+        throw new SourcePreparationError("binding_changed", "The preparation binding changed. Reload it before previewing.");
+      }
+      const preservesDisabledReferences = Boolean(prior && !normalized.enabled
+        && (prior.brandProfileVersionId ?? undefined) === normalized.brandProfileVersionId
+        && (prior.destinationId ?? undefined) === normalized.destinationId
+        && sameOrderedIds(prior.audienceProfileVersionIds, normalized.audienceProfileVersionIds));
+      const references = preservesDisabledReferences
+        ? await this.lockRetainedReferences(tx, normalized.workspaceId, normalized.brandProfileVersionId,
+          normalized.audienceProfileVersionIds, normalized.destinationId)
+        : await this.lockReferences(tx, normalized.workspaceId, normalized.brandProfileVersionId,
+          normalized.audienceProfileVersionIds, normalized.destinationId);
+      const draftVariants: readonly SourcePreparationPlanPreviewDraftVariant[] = references.audienceProfiles.length
+        ? references.audienceProfiles.map((audience, position) => Object.freeze({
+          position,
+          kind: "audience" as const,
+          label: audience.name,
+          audienceProfileVersionId: audience.versionId,
+          versionNumber: audience.versionNumber,
+          current: audience.current,
+        }))
+        : [Object.freeze({ position: 0, kind: "general" as const, label: "General" as const })];
+      const step = campaign.steps[0];
+      if (campaign.objective !== "awareness" || campaign.autonomyMode !== "draft_only"
+        || campaign.steps.length !== 1 || !step || step.id !== "review_preparation"
+        || step.operationType !== "request_approval" || step.approvalRequired !== true
+        || step.scheduleType !== "immediate" || step.executionMethods.length !== 1
+        || step.executionMethods[0] !== "manual_handoff") {
+        throw new Error("General announcement preview compiler emitted unsupported campaign authority.");
+      }
+      const referencesCurrent = (!references.brandProfile || references.brandProfile.current)
+        && references.audienceProfiles.every((audience) => audience.current)
+        && (!references.destination || references.destination.current);
+      return Object.freeze({
+        workspaceId: normalized.workspaceId,
+        smartSourceId: normalized.smartSourceId,
+        source: Object.freeze({ ...source }),
+        ...(prior ? { currentBindingRevision: prior.revision } : {}),
+        enabled: normalized.enabled,
+        referenceValidation: referencesCurrent ? "current" : "retained_for_disabled_safe_stop",
+        template: Object.freeze({
+          key: normalized.templateKey,
+          version: normalized.templateVersion,
+          name: normalized.name,
+          description: normalized.description,
+        }),
+        ...(references.brandProfile ? { brandProfile: references.brandProfile } : {}),
+        draftVariants: Object.freeze([...draftVariants]),
+        ...(references.destination ? { destination: references.destination } : {}),
+        settings: Object.freeze({
+          informationDepth: normalized.informationDepth,
+          promotionalStrength: normalized.promotionalStrength,
+          timezone: normalized.timezone,
+        }),
+        campaign: Object.freeze({
+          objective: campaign.objective,
+          autonomyMode: campaign.autonomyMode,
+          steps: Object.freeze([Object.freeze({
+            id: step.id,
+            name: step.name,
+            operationType: step.operationType,
+            executionMethods: Object.freeze([step.executionMethods[0]] as const),
+            approvalRequired: step.approvalRequired,
+            scheduleType: step.scheduleType,
+          })]),
+        }),
+      });
+    });
+  }
+
   async saveSourcePreparationBinding(input: SourcePreparationBindingWrite, actorUserId: string): Promise<StoredSourcePreparationBinding> {
-    const normalized = normalizeBinding(input);
+    const { normalized } = normalizeBinding(input);
     const actorId = identifier(actorUserId, "actorUserId");
     return this.sql.begin(async (tx) => {
       await this.lockWriters(tx, normalized.workspaceId, actorId);
@@ -692,30 +871,41 @@ export class SourcePreparationRepository {
   }
 
   private async lockReferences(tx: TransactionSql, workspaceId: string, brandProfileVersionId: string | undefined,
-    audienceProfileVersionIds: readonly string[], destinationId: string | undefined): Promise<void> {
+    audienceProfileVersionIds: readonly string[], destinationId: string | undefined): Promise<ResolvedPreparationReferences> {
+    let brandProfile: SourcePreparationPlanPreviewReference | undefined;
     if (brandProfileVersionId) {
-      const roots = await tx<{ id: string }[]>`SELECT id FROM brand_profile
+      const roots = await tx<{ id: string; name: string }[]>`SELECT id, name FROM brand_profile
         WHERE workspace_id = ${workspaceId}
           AND id = (SELECT brand_profile_id FROM brand_profile_version WHERE id = ${brandProfileVersionId})
         FOR SHARE`;
       if (!roots[0]) throw new SourcePreparationError("brand_unavailable", "Choose a current published Brand Profile version.");
-      const versions = await tx`SELECT version.id FROM brand_profile_version version
+      const versions = await tx<{ id: string; versionNumber: number }[]>`SELECT version.id, version.version_number FROM brand_profile_version version
         JOIN brand_profile profile ON profile.id = version.brand_profile_id
         WHERE version.id = ${brandProfileVersionId} AND version.brand_profile_id = ${roots[0].id}
           AND version.status = 'published' AND profile.status = 'published'
           AND profile.current_version_id = version.id FOR SHARE OF version`;
       if (!versions[0]) throw new SourcePreparationError("brand_unavailable", "Choose a current published Brand Profile version.");
+      brandProfile = Object.freeze({
+        versionId: versions[0].id,
+        name: roots[0].name,
+        versionNumber: versions[0].versionNumber,
+        current: true,
+      });
     }
+    let audienceProfiles: readonly SourcePreparationPlanPreviewReference[] = [];
     if (audienceProfileVersionIds.length) {
-      const roots = await tx<{ id: string }[]>`
-        SELECT profile.id FROM audience_profile profile
+      const roots = await tx<{ id: string; name: string }[]>`
+        SELECT profile.id, profile.name FROM audience_profile profile
         WHERE profile.workspace_id = ${workspaceId}
           AND profile.id IN (SELECT audience_profile_id FROM audience_profile_version
             WHERE id IN ${tx([...audienceProfileVersionIds])})
         ORDER BY profile.id FOR SHARE
       `;
-      const versions = await tx<{ id: string }[]>`
-        SELECT version.id FROM audience_profile_version version
+      if (roots.length !== audienceProfileVersionIds.length) {
+        throw new SourcePreparationError("audience_unavailable", "Choose current published Audience Profile versions.");
+      }
+      const versions = await tx<{ id: string; audienceProfileId: string; versionNumber: number }[]>`
+        SELECT version.id, version.audience_profile_id, version.version_number FROM audience_profile_version version
         JOIN audience_profile profile ON profile.id = version.audience_profile_id
         WHERE version.id IN ${tx([...audienceProfileVersionIds])}
           AND profile.id IN ${tx(roots.map((root) => root.id))}
@@ -723,14 +913,115 @@ export class SourcePreparationRepository {
           AND profile.current_version_id = version.id AND version.status = 'published'
         ORDER BY version.id FOR SHARE OF version
       `;
-      if (roots.length !== audienceProfileVersionIds.length || versions.length !== audienceProfileVersionIds.length) {
+      if (versions.length !== audienceProfileVersionIds.length) {
         throw new SourcePreparationError("audience_unavailable", "Choose current published Audience Profile versions.");
       }
+      const rootsById = new Map(roots.map((root) => [root.id, root]));
+      const versionsById = new Map(versions.map((version) => [version.id, version]));
+      audienceProfiles = Object.freeze(audienceProfileVersionIds.map((versionId) => {
+        const version = versionsById.get(versionId)!;
+        return Object.freeze({
+          versionId,
+          name: rootsById.get(version.audienceProfileId)!.name,
+          versionNumber: version.versionNumber,
+          current: true,
+        });
+      }));
     }
+    let destination: Readonly<{ id: string; title: string; current: boolean }> | undefined;
     if (destinationId) {
-      const rows = await tx`SELECT id FROM destination WHERE id = ${destinationId}
+      const rows = await tx<{ id: string; title: string }[]>`SELECT id, title FROM destination WHERE id = ${destinationId}
         AND workspace_id = ${workspaceId} AND status = 'published' FOR SHARE`;
       if (!rows[0]) throw new SourcePreparationError("destination_unavailable", "Choose a published Destination in this workspace.");
+      destination = Object.freeze({ ...rows[0], current: true });
     }
+    return {
+      ...(brandProfile ? { brandProfile } : {}),
+      audienceProfiles,
+      ...(destination ? { destination } : {}),
+    };
+  }
+
+  /**
+   * Resolves labels for the exact references already protected by a binding's
+   * restrictive foreign keys. Their current/published state is informational:
+   * an unchanged disable must remain available as a safe stop operation.
+   */
+  private async lockRetainedReferences(tx: TransactionSql, workspaceId: string,
+    brandProfileVersionId: string | undefined, audienceProfileVersionIds: readonly string[],
+    destinationId: string | undefined): Promise<ResolvedPreparationReferences> {
+    let brandProfile: SourcePreparationPlanPreviewReference | undefined;
+    if (brandProfileVersionId) {
+      const roots = await tx<{ id: string; name: string; status: string; currentVersionId: string | null }[]>`
+        SELECT id, name, status, current_version_id FROM brand_profile
+        WHERE workspace_id = ${workspaceId}
+          AND id = (SELECT brand_profile_id FROM brand_profile_version WHERE id = ${brandProfileVersionId})
+        FOR SHARE
+      `;
+      const root = roots[0];
+      if (!root) throw new SourcePreparationError("brand_unavailable", "The saved Brand Profile reference is unavailable.");
+      const versions = await tx<{ id: string; versionNumber: number; status: string }[]>`
+        SELECT id, version_number, status FROM brand_profile_version
+        WHERE id = ${brandProfileVersionId} AND brand_profile_id = ${root.id} FOR SHARE
+      `;
+      const version = versions[0];
+      if (!version) throw new SourcePreparationError("brand_unavailable", "The saved Brand Profile reference is unavailable.");
+      brandProfile = Object.freeze({
+        versionId: version.id,
+        name: root.name,
+        versionNumber: version.versionNumber,
+        current: root.status === "published" && version.status === "published" && root.currentVersionId === version.id,
+      });
+    }
+    let audienceProfiles: readonly SourcePreparationPlanPreviewReference[] = [];
+    if (audienceProfileVersionIds.length) {
+      const roots = await tx<{ id: string; name: string; status: string; currentVersionId: string | null }[]>`
+        SELECT profile.id, profile.name, profile.status, profile.current_version_id
+        FROM audience_profile profile
+        WHERE profile.workspace_id = ${workspaceId}
+          AND profile.id IN (SELECT audience_profile_id FROM audience_profile_version
+            WHERE id IN ${tx([...audienceProfileVersionIds])})
+        ORDER BY profile.id FOR SHARE
+      `;
+      if (roots.length !== audienceProfileVersionIds.length) {
+        throw new SourcePreparationError("audience_unavailable", "A saved Audience Profile reference is unavailable.");
+      }
+      const versions = await tx<{ id: string; audienceProfileId: string; versionNumber: number; status: string }[]>`
+        SELECT id, audience_profile_id, version_number, status FROM audience_profile_version
+        WHERE id IN ${tx([...audienceProfileVersionIds])}
+          AND audience_profile_id IN ${tx(roots.map((root) => root.id))}
+        ORDER BY id FOR SHARE
+      `;
+      if (versions.length !== audienceProfileVersionIds.length) {
+        throw new SourcePreparationError("audience_unavailable", "A saved Audience Profile reference is unavailable.");
+      }
+      const rootsById = new Map(roots.map((root) => [root.id, root]));
+      const versionsById = new Map(versions.map((version) => [version.id, version]));
+      audienceProfiles = Object.freeze(audienceProfileVersionIds.map((versionId) => {
+        const version = versionsById.get(versionId)!;
+        const root = rootsById.get(version.audienceProfileId)!;
+        return Object.freeze({
+          versionId,
+          name: root.name,
+          versionNumber: version.versionNumber,
+          current: root.status === "published" && version.status === "published" && root.currentVersionId === version.id,
+        });
+      }));
+    }
+    let destination: Readonly<{ id: string; title: string; current: boolean }> | undefined;
+    if (destinationId) {
+      const rows = await tx<{ id: string; title: string; status: string }[]>`
+        SELECT id, title, status FROM destination
+        WHERE id = ${destinationId} AND workspace_id = ${workspaceId} FOR SHARE
+      `;
+      const row = rows[0];
+      if (!row) throw new SourcePreparationError("destination_unavailable", "The saved Destination reference is unavailable.");
+      destination = Object.freeze({ id: row.id, title: row.title, current: row.status === "published" });
+    }
+    return {
+      ...(brandProfile ? { brandProfile } : {}),
+      audienceProfiles,
+      ...(destination ? { destination } : {}),
+    };
   }
 }

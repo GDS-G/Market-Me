@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SourcePreparationError } from "@market-me/database";
 import { SOURCE_PREPARATION_BODY_LIMIT_BYTES } from "./source-preparation-api";
+import { preparationPreviewFixture } from "../components/source-preparation-preview.test-fixture";
 
-const mocks = vi.hoisted(() => ({ access: vi.fn(), save: vi.fn(), getForSource: vi.fn(), apiError: vi.fn() }));
+const mocks = vi.hoisted(() => ({ access: vi.fn(), save: vi.fn(), preview: vi.fn(), getForSource: vi.fn(), apiError: vi.fn() }));
 vi.mock("@/server/auth", () => ({ requireWorkspaceAccess: mocks.access }));
 vi.mock("@/server/database", () => ({ getSourcePreparationRepository: () => ({
   saveSourcePreparationBinding: mocks.save,
+  previewSourcePreparationPlan: mocks.preview,
   getSourcePreparationBindingForSource: mocks.getForSource,
 }) }));
 vi.mock("./api-response", () => ({ apiError: mocks.apiError }));
@@ -13,6 +15,7 @@ vi.mock("@/server/source-preparation-api", () => import("./source-preparation-ap
 vi.mock("@/server/source-preparation-schema", () => import("./source-preparation-schema"));
 vi.mock("@/server/source-preparation-view", () => import("./source-preparation-view"));
 import { GET, PUT } from "../app/api/v1/smart-sources/[id]/preparation-binding/route";
+import { POST } from "../app/api/v1/smart-sources/[id]/preparation-binding/preview/route";
 
 const workspaceId = "11111111-1111-4111-8111-111111111111";
 const sourceId = "22222222-2222-4222-8222-222222222222";
@@ -52,8 +55,78 @@ beforeEach(() => {
   vi.stubEnv("APP_BASE_URL", "http://localhost:3119");
   mocks.access.mockResolvedValue({ user: { id: userId }, workspace: { workspaceId } });
   mocks.save.mockResolvedValue(binding);
+  mocks.preview.mockResolvedValue(preparationPreviewFixture);
   mocks.getForSource.mockResolvedValue(binding);
   mocks.apiError.mockImplementation(() => Response.json({ error: { code: "forbidden" } }, { status: 403 }));
+});
+
+function previewRequest(value: unknown = { ...body, expectedSourceVersion: 2 }, origin: string | null = "http://localhost:3119",
+  query = `workspaceId=${workspaceId}`, contentType = "application/json") {
+  return new Request(`http://localhost:3119/api/v1/smart-sources/${sourceId}/preparation-binding/preview?${query}`, {
+    method: "POST", headers: { ...(origin === null ? {} : { origin }), "content-type": contentType },
+    body: typeof value === "string" ? value : JSON.stringify(value),
+  });
+}
+
+describe("Smart Source preparation preview route", () => {
+  afterEach(() => expect(mocks.save).not.toHaveBeenCalled());
+
+  it.each([null, "https://foreign.example", "null", "http://localhost:3119/path"])("rejects Origin %s before parsing or authority lookup", async (origin) => {
+    expect((await POST(previewRequest("{", origin), context("bad"))).status).toBe(403);
+    expect(mocks.access).not.toHaveBeenCalled(); expect(mocks.preview).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { ...body }, { ...body, expectedSourceVersion: 0 }, { ...body, expectedSourceVersion: "2" },
+    { ...body, expectedSourceVersion: 2, writerUserId: userId },
+    { ...body, expectedSourceVersion: 2, currentBindingRevision: 1 },
+    { ...body, expectedSourceVersion: 2, audienceProfileVersionIds: [audienceA, audienceA] },
+    { ...body, expectedSourceVersion: 2, timezone: "Invalid/Timezone" },
+  ])("rejects malformed or authority-bearing preview input", async (value) => {
+    expect((await POST(previewRequest(value), context())).status).toBe(422);
+    expect(mocks.access).not.toHaveBeenCalled(); expect(mocks.preview).not.toHaveBeenCalled();
+  });
+
+  it("bounds transport and requires exact path/query/body scope before database access", async () => {
+    expect((await POST(previewRequest("{"), context())).status).toBe(422);
+    expect((await POST(previewRequest({}, "http://localhost:3119", `workspaceId=${workspaceId}`, "text/plain"), context())).status).toBe(415);
+    expect((await POST(previewRequest("x".repeat(SOURCE_PREPARATION_BODY_LIMIT_BYTES + 1)), context())).status).toBe(413);
+    for (const query of ["", `workspaceId=${bindingId}`, `workspaceId=${workspaceId}&workspaceId=${workspaceId}`, `workspaceId=${workspaceId}&writerUserId=${userId}`]) {
+      expect((await POST(previewRequest(undefined, "http://localhost:3119", query), context())).status).toBe(422);
+    }
+    expect((await POST(previewRequest(), context("bad"))).status).toBe(422);
+    expect(mocks.access).not.toHaveBeenCalled(); expect(mocks.preview).not.toHaveBeenCalled();
+  });
+
+  it("passes normalized settings and CAS versions to only the preview repository method", async () => {
+    const response = await POST(previewRequest({ ...body, expectedRevision: 3, expectedSourceVersion: 2,
+      name: "  Preview   name ", description: " Notes\r\n" }), context());
+    expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(mocks.access).toHaveBeenCalledExactlyOnceWith(workspaceId, "write");
+    expect(mocks.preview).toHaveBeenCalledExactlyOnceWith({ ...body, expectedRevision: 3, expectedSourceVersion: 2,
+      name: "Preview name", description: "Notes", smartSourceId: sourceId }, userId);
+    const payload = await response.json();
+    expect(payload.data.source).toEqual({ name: "Newsroom", version: 2, enabled: false });
+    expect(payload.data.draftVariants.map((item: { label: string }) => item.label)).toEqual(["Community", "Customers"]);
+    for (const hidden of ["versionId", "audienceProfileVersionId", "currentBindingRevision", "writerUserId", "snapshot", "fingerprint"])
+      expect(JSON.stringify(payload)).not.toContain(hidden);
+  });
+
+  it("denies unauthorized users before repository work and never caches error responses", async () => {
+    mocks.access.mockRejectedValue(new Error("No writer permission"));
+    const response = await POST(previewRequest(), context());
+    expect(response.status).toBe(403); expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(mocks.preview).not.toHaveBeenCalled();
+  });
+
+  it.each(["source_changed", "binding_changed", "brand_unavailable", "audience_unavailable", "destination_unavailable"] as const)
+  ("returns safe %s blockers without retrying", async (code) => {
+    mocks.preview.mockRejectedValue(new SourcePreparationError(code, "Reload the current settings."));
+    const response = await POST(previewRequest(), context());
+    expect(response.status).toBe(409); expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ error: { code, message: "Reload the current settings." } });
+    expect(mocks.preview).toHaveBeenCalledTimes(1);
+  });
 });
 afterEach(() => vi.unstubAllEnvs());
 

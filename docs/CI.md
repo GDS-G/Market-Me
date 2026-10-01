@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.27 local gate; cloud verification pending
+
+The local full suite passes 2,055 tests across 119 files without skips: web 659/38, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 968/48, domain 65/3, generation 29/4, ingestion 29/5, media 24/2 and workflows 43/3. All 12 typechecks, lint and both production frontend builds pass. A fresh isolated database applies all 116 migrations ending at 0116 and a checksum rerun skips all 116 unchanged. Frozen 0113–0116 hashes are unchanged. New checks cover zero-write preview, normalization/save equivalence, stale source/binding/reference handling, concurrency, writer roles/tenants, response minimization and exact request/response schemas.
+
+An existing global ingestion-claim fixture assumed it was among ten shared-queue rows; the expanded parallel suite exposed that assumption. The fixture now moves only its owned event to the queue front and claims one row. The complete rerun passes; no production ingestion behavior was changed. Exact reviewed feature/main cloud results and audits must be recorded before calling 1.27 a verified public release.
+
 ## Verified Release 1.26 checkpoint
 
 Release 1.26 changes no migration and reproduces the verified 116-migration ledger ending at frozen 0116. Exact approval-to-command coverage includes historical no-command, pending, completed, byte-identical reapproval separation, package mismatch and revoked membership in live PostgreSQL; both advisory binding-load states, all five minimized browser states and hidden-field exclusion in web tests. The final local suite passes all 2,020 TypeScript tests across 118 files without skips: web 634/37, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 958/48, domain 65/3, generation 29/4, ingestion 29/5, media 24/2 and workflows 43/3. All 12 typechecks, web lint, both production builds, migration replay/checksums, browser acceptance, production smoke, native checks, three Rust tests and Windows packaging also pass.

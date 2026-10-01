@@ -37,7 +37,8 @@ export default async function EditSmartSourcePage({ params }: { params: Promise<
         <Link className="back-link" href="/smart-sources"><ArrowLeft size={14} />Smart Sources</Link>
         <header className="resource-header"><div><p className="eyebrow">Version {source.version}</p><h1>Edit {source.name}</h1><p>Changes create a new configuration version and an audit event.</p></div></header>
         <SmartSourceForm workspaceId={workspace.workspaceId} source={source} connections={connections} contextPacks={contextPacks} companions={companions} />
-        <SourcePreparationBindingForm workspaceId={workspace.workspaceId} smartSourceId={source.id} sourceEnabled={source.enabled}
+        <SourcePreparationBindingForm key={`${workspace.workspaceId}:${source.id}:${source.version}:${binding?.revision ?? 0}`}
+          workspaceId={workspace.workspaceId} smartSourceId={source.id} sourceVersion={source.version} sourceEnabled={source.enabled}
           canWrite={canConfigureSourcePreparation(workspace.role)} initialBinding={binding ? sourcePreparationBindingView(binding) : undefined}
           commands={commands.map(sourcePreparationCommandView)}
           brands={brands.filter((item) => item.status === "published" && item.currentVersion?.status === "published")
