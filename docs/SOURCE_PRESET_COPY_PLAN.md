@@ -1,6 +1,6 @@
 # Explicit preparation-preset reuse on Smart Sources
 
-Status: the 1.31 implementation, full local/native/production/browser gates and initial Google readback are complete; exact cloud gates and publication are pending. [Implementation and variable reference](SOURCE_PRESET_COPY.md) records the contract. The specification's setup progression calls for selecting preparation controls and a reusable template before preview and activation. This increment lets writers copy a saved General Announcement preset into the existing source-preparation editor. It does not claim live source-to-template-version bindings or arbitrary workflow execution.
+Status: Release 1.31 is verified and public on main. Full local/native/production/browser gates, exact feature/main cloud tests/builds/audits and final Google readback pass; [Releases](RELEASES.md) records evidence. [Implementation and variable reference](SOURCE_PRESET_COPY.md) records the contract. The specification's setup progression calls for selecting preparation controls and a reusable template before preview and activation. This increment lets writers copy a saved General Announcement preset into the existing source-preparation editor. It does not claim live source-to-template-version bindings or arbitrary workflow execution.
 
 ## Intended flow
 

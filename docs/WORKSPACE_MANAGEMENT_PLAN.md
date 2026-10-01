@@ -1,0 +1,33 @@
+# Workspace creation and display-name management
+
+Status: next separate implementation after verified Release 1.31 source-preset reuse. Initial models, repository and migration are under development and 44 focused tests pass in isolated QA; no API/UI or release acceptance is claimed yet. Those tests are not included in 1.31 totals. This addresses specification sections 01–02: customers should not require database access to separate client/team workspaces or give the current workspace a meaningful name.
+
+## Scope and non-goals
+
+An existing organization owner may explicitly create a new empty workspace inside that organization. A current workspace owner or administrator may rename that workspace. Creation does not register a new organization, change OIDC provisioning/bootstrap policy, accept invitations, assign another person, copy memberships/content/credentials/templates, change billing, connect providers or enable automation. Organization ownership does not imply read access to every existing workspace. Existing workspace membership remains the data-access boundary.
+
+The new workspace begins with the creator as its only workspace owner and an ordinary default Brand entity, matching existing bootstrap structure without creating a published Brand Profile. Its internal UUID/slug are server-generated and default timezone remains UTC. No source, context, provider connection, AI policy override, preset, package, draft, Campaign, schedule or execution record is copied. The creator deliberately switches using the existing membership-checked selector; creation itself should not silently change the active workspace cookie.
+
+Renaming changes the workspace display name only, not its ID/organization/slug/timezone, Brand/Profile names, content, permissions, source configuration or Campaign history. Show this boundary in the form. Cross-level role editing, owner transfer, organization creation/renaming, workspace deletion, public signup and full agency/billing policy remain separate work.
+
+## Contracts, concurrency and exact recovery
+
+Use a closed, bounded create/rename request union with an explicit private request UUID. Create includes organization UUID and normalized name. Rename includes workspace UUID, expected settings revision and normalized name. Reject inherited/accessor/hidden/symbol/unknown authority fields; normalize Unicode/whitespace, bound names and UTF-8 request bytes, and reject control characters. IDs and optimistic revisions must be validated independently of UI controls.
+
+Add a forward-only migration for a workspace settings revision and immutable actor-private management receipts. A receipt is keyed within its organization, pins target workspace and operation, stores exact canonical request plus original name/revision outcome and creation time, and has composite organization/workspace scope integrity. Updates and individual deletion are prohibited; authorized whole-workspace/organization cascade remains a separate erasure boundary. Preserve all earlier migration checksums.
+
+Recheck and hold current operation-specific authority through each transaction. Serialize the exact organization/request key, compare actor and canonical request before replay, and return the original result without resetting later names or memberships. Creation inserts exactly one workspace/default Brand/creator membership/receipt/minimized audit. Rename locks the current workspace revision and records its bounded before/after display names and revision in audit. Concurrent same-key creates have one winner; changed input or another actor cannot reuse the key; conflicting renames cannot silently merge. Role revocation must either precede and deny the mutation or wait until its authorized transaction completes.
+
+Private receipt lookup requires the original actor and current appropriate authority. Do not expose canonical requests or actors through broad choice/list responses. An exact historical result is not a claim that the current name/membership is unchanged. Workspace/organization erasure can remove receipts; do not claim recovery survives explicit erasure or a database restore that predates the operation.
+
+## Interface and API
+
+Settings shows current workspace revision and a rename form only for workspace owners/admins. Organization-owner creation is a distinct action and explicit organization scope; workspace admins who are not organization owners cannot create sibling workspaces. Read-only roles receive an accurate explanation, not an enabled form. Current membership and organization ownership must come from server reads, not a cookie or client-supplied role.
+
+Use authenticated no-store routes with exact configured Origin for mutation, strict query/body allowlists and streaming byte limits. Persist a bounded versioned exact browser request scoped to user and organization/workspace before sending. An uncertain result freezes edits and offers current-result lookup/exact retry; clearing the local attempt requires acknowledgement that the earlier request may have succeeded. Never generate another key automatically after a timeout. Validate bounded response scope and operation before showing success. Explicitly follow current membership checks when opening or switching to the resulting workspace.
+
+## Acceptance and programmer documentation
+
+Tests cover all organization/workspace role combinations, cross-tenant/privacy denials, strict normalization/transport, deterministic canonical bytes, immutable receipt/cascade protection, exact replay after later rename, six-way create races, stale/conflicting rename races, authority-revocation ordering and zero inherited records/side effects. New workspace isolation must be verified by data reads as well as row counts. Browser checks use named synthetic QA only, including reload/lookup/exact retry, empty new workspace, unchanged current selection, narrow layout and uncertainty handling without altering production access.
+
+Run additive migration/replay/checksum, full regression/static/frontend/native gates, production checks and exact-source feature/main cloud CI/audits. Document important schemas, fields, constants, state/refs, Sets/maps/arrays, cache lifetime, locks, errors, rollout and recovery in repository references and the existing Google development parent/five children. Preserve user pnpm files and previous release acceptance boundaries.

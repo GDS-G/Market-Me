@@ -1,8 +1,8 @@
 # Market Me implementation status
 
-## Release 1.31 candidate: source preparation-preset reuse
+## Current verified source: Release 1.31 source preparation-preset reuse
 
-The writer-scoped chooser and explicit exact-version values copy are implemented with preserved enablement/revision, preview invalidation, stale/archive rejection and ambiguous-save recovery locking. The full local 2,371-test/139-file gate, all static/build/native checks, unsigned packaging, synthetic desktop/mobile/production acceptance and initial Google readback pass; exact cloud gates and publication are pending. [Source copy reference](SOURCE_PRESET_COPY.md) documents implementation and limits. This is not a live source-to-template binding, arbitrary template engine or whole-product completion. No user input is required merely to continue development.
+The writer-scoped chooser and explicit exact-version values copy are implemented with preserved enablement/revision, preview invalidation, stale/archive rejection and ambiguous-save recovery locking. Reviewed runtime `36f97773db69003235a27f671ef199316e0a0b91` is public on main after exact feature/main runs 36933672028/36934237380 passed 2,371 tests/139 files, static/build checks, 118 migrations and both clean audits. Local native/unsigned packaging, synthetic desktop/mobile/production acceptance and final Google readback pass separately. [Source copy reference](SOURCE_PRESET_COPY.md) documents implementation and limits. This is not a live source-to-template binding, arbitrary template engine or whole-product completion. [Workspace creation/name management](WORKSPACE_MANAGEMENT_PLAN.md) is underway separately; no user input is required merely to continue development.
 
 ## Previous verified source: Release 1.30 reusable preparation presets
 

@@ -2,9 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.31 candidate: preset reuse on Smart Sources
+## Release 1.31: preset reuse on Smart Sources
 
-Smart Source writers can explicitly browse, select and acknowledge a saved preset before copying its reusable values into the unsaved preparation editor. Copy preserves enablement and the binding revision; preview and save remain separate. Stale or archived choices fail without overwriting the form, and an uncertain binding save locks further operations until current state is reloaded. [Source copy design and variables](docs/SOURCE_PRESET_COPY.md) documents the complete contract. Full release acceptance is in progress; [Releases](docs/RELEASES.md) separates verified evidence from remaining checks. No whole-product completion or production deployment is claimed.
+Smart Source writers can explicitly browse, select and acknowledge a saved preset before copying its reusable values into the unsaved preparation editor. Copy preserves enablement and the binding revision; preview and save remain separate. Stale or archived choices fail without overwriting the form, and an uncertain binding save locks further operations until current state is reloaded. [Source copy design and variables](docs/SOURCE_PRESET_COPY.md) documents the complete contract.
+
+Reviewed runtime `36f97773db69003235a27f671ef199316e0a0b91` is public on main. Exact [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36933672028) and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36934237380) pass 2,371 tests/139 files, 118 migrations, static/build checks and both clean audits. Local browser/production/native/package gates and Google development-tab verification also pass. This is not whole-product completion or production deployment. [Workspace management](docs/WORKSPACE_MANAGEMENT_PLAN.md) is the next separate increment; see [Releases](docs/RELEASES.md).
 
 ## Previous release: 1.30 reusable preparation presets
 

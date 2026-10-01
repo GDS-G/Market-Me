@@ -6,6 +6,8 @@ Choices GET requires a current workspace writer and strict single-workspace/page
 
 Immediate guards exclude duplicate/conflicting handlers. An unconfirmed save (5xx, transport, invalid/oversized/mismatched success) disables further edits/copy/preview/save until current state is loaded; no retry, rollback assumption or silent merge is used. Reload is not permission to erase history or queued work. [Source preset copy](SOURCE_PRESET_COPY.md) specifies all trust boundaries. No credential, provider request, new permission or deployment change is introduced.
 
+Exact reviewed 1.31 runtime `36f97773db69003235a27f671ef199316e0a0b91` passes both production and full dependency audits with zero vulnerabilities in feature/main runs 36933672028/36934237380. No audit suppression or dependency change is introduced.
+
 ## Release 1.30 preset boundaries
 
 All library reads join current same-workspace membership. Mutations, private receipt lookup and values-copy require current owner/admin/editor access; write transactions lock authority through completion. POST uses exact configured Origin, strict body/query allowlists and bounded streaming JSON. Canonical configuration excludes package/approval/execution/account authority. Exact replay is actor-private and checked before mutable eligibility but after current authorization. Stale root revisions and unavailable/policy-incompatible references fail closed. Archive/restore never erases history or changes existing work.

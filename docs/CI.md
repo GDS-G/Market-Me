@@ -1,10 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.31 local checkpoint; exact cloud gate pending
+## Verified Release 1.31 checkpoint
 
 The complete local gate passes 2,371 TypeScript tests/139 files without skips: web 827/51, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1049/52, domain 128/6, generation 29/4, ingestion 33/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, Next/companion production builds, cargo check, three Rust tests and unsigned Windows packaging pass. Migration checksum replay skips all 118; the isolated CI database returns to zero fixture organizations. Browser desktop/mobile/stale-copy checks, authenticated production preview and native Google topology/text/style readback pass separately.
 
-No dependency upgrade, schema change, new secret or skipped test is introduced. Exact-source feature/main cloud tests/builds/migrations and both audits must pass before promotion is claimed. [Releases](RELEASES.md) records exact local evidence and [Source preset copy](SOURCE_PRESET_COPY.md) specifies contracts and limitations.
+Reviewed runtime `36f97773db69003235a27f671ef199316e0a0b91` passes [feature run 36933672028](https://github.com/GDS-G/Market-Me/actions/runs/36933672028) in 4 minutes 10 seconds and [main run 36934237380](https://github.com/GDS-G/Market-Me/actions/runs/36934237380) in 4 minutes 7 seconds. Main is a verified fast-forward of that exact commit. Both clean Linux jobs install 609 packages/audit 622, apply 118 migrations, reproduce all 2,371 tests/139 files, pass static/build/native-dependency checks/cleanup and both zero-vulnerability audits. Next compile is 13.5/13.7 seconds and 100/100 prerender generation 524/514 ms. No dependency upgrade, new secret, audit suppression or skipped test is introduced. [Releases](RELEASES.md) records separate local/Google evidence and [Source preset copy](SOURCE_PRESET_COPY.md) specifies contracts and limitations. Next-feature workspace-management tests are not part of this release's totals.
 
 ## Verified Release 1.30 checkpoint
 
