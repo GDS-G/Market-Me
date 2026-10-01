@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.28 guided source setup
+## Release 1.29 candidate: bounded source dry test
+
+Saved Smart Sources now offer a metadata-only dry test that explains detected/ignored files, readiness and supporting-file relationships, per-root package candidates, structured Context Pack conflicts and conditional next steps while synchronization stays paused. Cloud mode reads one saved-folder page; local mode honestly labels historical indexed metadata. It makes no AI requests, estimates no future spending, and creates no content, scan, approval or execution records. Unsaved edits, connection diagnostics and later activation remain separate.
+
+Local acceptance passes 2,256 tests/130 files, all typechecks/lint/builds, migration replay, native tests and unsigned Windows packaging, plus synthetic desktop/mobile/reload/stale-version/empty-index and production-mode browser checks. The Google development parent/five child tabs are synchronized and verified. Reviewed-source publication and exact cloud CI are pending. [Source dry-test contract](docs/SOURCE_DRY_TEST.md) documents all fields, limits, collections, state, snapshots, errors and remaining scope. This is not full recursive/item/date-range/content simulation or whole-product completion.
+
+## Previous release: 1.28 guided source setup
 
 New Smart Sources now use a four-step guided setup: choose a connection, explicitly select a folder or paired desktop, choose friendly intake rules, and review the configuration before saving it **paused**. Exact saved requests survive reloads and safely recover/retry without creating another source. Cloud browsing is paginated and scope-bound; local filesystem paths stay in the companion. Saving does not scan, generate, queue, activate or send.
 

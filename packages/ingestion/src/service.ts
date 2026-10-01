@@ -1,4 +1,5 @@
 import { decryptToken, encryptToken, type NormalizedStorageEntry, type StorageConnector } from "@market-me/connectors";
+import { classifySourceIntake } from "@market-me/domain";
 import type {
   ConnectorCursorRecord,
   MarketMeRepository,
@@ -24,37 +25,12 @@ export interface SyncResult {
   inspectedCount: number;
 }
 
-function mimeMatches(allowed: readonly string[], mimeType: string): boolean {
-  if (allowed.length === 0) return true;
-  return allowed.some((pattern) => pattern === mimeType || (pattern.endsWith("/*") && mimeType.startsWith(pattern.slice(0, -1))));
-}
-
-function globExpression(pattern: string): RegExp {
-  const escaped = pattern
-    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-    .replaceAll("**", "\u0000")
-    .replaceAll("*", "[^/]*")
-    .replaceAll("\u0000", ".*");
-  return new RegExp(`^${escaped}$`, "i");
-}
-
-function ignored(patterns: readonly string[], path: string, name: string): boolean {
-  const normalizedPath = path.replaceAll("\\", "/");
-  return patterns.some((pattern) => {
-    const matcher = globExpression(pattern.replaceAll("\\", "/"));
-    return matcher.test(normalizedPath) || matcher.test(name) || matcher.test(`/${normalizedPath.replace(/^\//, "")}`);
-  });
-}
-
 function joinPath(parent: string, name: string): string {
   return `${parent.replace(/\/$/, "")}/${name}`.replace(/\/+/g, "/");
 }
 
 function eligible(source: StoredSmartSource, entry: NormalizedStorageEntry, displayPath: string): boolean {
-  return entry.isFolder || (
-    mimeMatches(source.allowedMimeTypes, entry.mimeType) &&
-    !ignored(source.ignorePatterns, displayPath, entry.name)
-  );
+  return classifySourceIntake(source, entry, displayPath).eligible;
 }
 
 function toSourceItem(
@@ -97,7 +73,7 @@ export class StorageIngestionService {
       accessToken,
       providerLocationId: input.providerLocationId,
     });
-    return { entries: page.entries.slice(0, 25), incompleteSearch: page.incompleteSearch ?? false };
+    return { entries: page.entries.slice(0, 25), incompleteSearch: page.incompleteSearch === true || Boolean(page.nextPageToken) || page.entries.length > 25 };
   }
 
   async getConnectionAccessToken(workspaceId: string, connectionId: string): Promise<{

@@ -1,5 +1,11 @@
 # Backup and Recovery Runbook
 
+## Release 1.29 dry-test recovery
+
+No sample result is persisted or authoritative. After a timeout, invalid response, membership change or stale-version conflict, reload the saved source and explicitly test again. Do not enable synchronization, change approval/preparation state, erase receipts or create a new source to recover a failed sample. A local empty/stale index is not proof the computer folder is empty. Unavailable or oversized context returns no partial interpretation; review current published selections and bounded configuration instead.
+
+No database rollback/migration is needed for this feature. Deploy/restore matching web/domain/database/ingestion code while preserving source and context data, all 117 frozen migrations, existing setup receipts and preparation history. Read-only locks never span network calls. Existing provider-credential refresh may still update its encrypted token snapshot; retain normal connection backups/security. The [dry-test contract](SOURCE_DRY_TEST.md) enumerates errors, cache lifetimes and exact revalidation boundaries.
+
 ## Release 1.28 guided setup recovery
 
 Preserve `smart_source_setup_receipt` together with its source, location and actor. An uncertain create must retain the original workspace/request/actor/canonical bytes: look up the receipt or retry the exact POST. Null lookup is not proof that another transaction failed. Do not mint a new request ID automatically, remove a receipt or reset a later source version/enabled state. Browser sessionStorage is a convenience, not the backup authority; if it is lost, inspect existing sources before intentionally starting a separate setup.

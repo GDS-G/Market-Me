@@ -1,5 +1,11 @@
 # Architecture
 
+## Release 1.29: bounded metadata dry test
+
+The saved-source page sends an explicit workspace/version/location index to a no-store, same-origin POST. `SourceSampleRepository` captures current writer, source, location, published context and preparation state under a short repeatable-read transaction. Provider I/O runs only after that transaction closes; cloud sources read one exact folder page and local sources use a bounded historical index. `runSourceSample` rechecks scope after credential refresh and again before returning a strict minimized result. Source/configuration/context changes fail closed; no test receipt, audit, sync, index, package or execution write is introduced.
+
+Shared pure filtering/readiness/context resolution explains observed inclusion and uncertainty. Ordinary wildcard matching uses a non-backtracking implementation with historical behavior regression tests; the legacy 25-entry diagnostic now marks pagination/slicing as incomplete. The UI keeps a memory-only scoped result with duplicate-action locking, abort-on-unmount, bounded JSON and clear non-activation/cost limits. See [Source dry test](SOURCE_DRY_TEST.md) for the exact dataflow, fingerprint contents, registry error brand, collections, caches and unresolved specification scope. Schema remains 117 migrations; no new dependency, environment variable or provider scope is required.
+
 ## Release 1.28: guided source creation and exact recovery
 
 The new-source route loads only current writer-eligible connection, companion and published Context Pack choices. A four-step client sends a closed, canonical domain input to a dedicated source-setup repository, which checks current writer/reference state under ordered locks and atomically inserts one paused source, location, immutable receipt and minimized audit. Exact actor/request replay returns only historical creation evidence; it never re-enables or rewrites the source. Session storage preserves the exact request before any POST so uncertain outcomes can be checked or retried after reload.

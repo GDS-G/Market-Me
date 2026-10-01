@@ -211,9 +211,10 @@ export function SmartSourceForm({
       {(message || error) && <div className={error ? "form-message form-error" : "form-message form-success"} role="status">{error || message}</div>}
       <div className="form-actions">
         {source?.storageConnectionId && <button className="button-secondary" disabled={pending} onClick={runSync} type="button">Sync now</button>}
-        {source && <button className="button-secondary" disabled={pending} onClick={runTest} type="button">Test configuration</button>}
+        {source && <button className="button-secondary" disabled={pending} onClick={runTest} type="button">Run connection diagnostic</button>}
         <button className="button-primary" disabled={pending} type="submit">{pending ? "Working…" : source ? "Save changes" : "Create Smart Source"}</button>
       </div>
+      {source && <p className="form-help">Connection diagnostics are saved in test history. Use the separate dry test below for item-level inclusion, readiness and context explanations.</p>}
     </form>
   );
 }

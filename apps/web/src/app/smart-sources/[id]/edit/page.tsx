@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { SmartSourceForm } from "@/components/smart-source-form";
+import { SourceSamplePanel } from "@/components/source-sample-panel";
 import { SourcePreparationBindingForm } from "@/components/source-preparation-binding-form";
 import { canConfigureSourcePreparation } from "@/components/source-preparation-binding-request";
 import { WorkspaceShell } from "@/components/workspace-shell";
@@ -45,6 +46,9 @@ export default async function EditSmartSourcePage({ params, searchParams }: {
         <Link className="back-link" href="/smart-sources"><ArrowLeft size={14} />Smart Sources</Link>
         <header className="resource-header"><div><p className="eyebrow">Version {source.version}</p><h1>Edit {source.name}</h1><p>Changes create a new configuration version and an audit event.</p></div></header>
         <SmartSourceForm workspaceId={workspace.workspaceId} source={source} connections={connections} contextPacks={contextPacks} companions={companions} />
+        <SourceSamplePanel key={`${workspace.workspaceId}:${source.id}:${source.version}`} workspaceId={workspace.workspaceId}
+          smartSourceId={source.id} sourceVersion={source.version} provider={source.provider} locations={source.locations.map(({ displayPath }) => ({ displayPath }))}
+          canWrite={canConfigureSourcePreparation(workspace.role)} />
         <SourcePreparationBindingForm key={`${workspace.workspaceId}:${source.id}:${source.version}:${binding?.revision ?? 0}`}
           workspaceId={workspace.workspaceId} smartSourceId={source.id} sourceVersion={source.version} sourceEnabled={source.enabled}
           canWrite={canConfigureSourcePreparation(workspace.role)} initialBinding={binding ? sourcePreparationBindingView(binding) : undefined}

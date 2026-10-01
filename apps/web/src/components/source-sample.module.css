@@ -1,0 +1,25 @@
+.panel { margin-top: 24px; padding: 26px; min-width: 0; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.panel h2 { font-size: 23px; line-height: 1.25; margin: 4px 0 12px; }
+.panel h3 { margin: 22px 0 10px; font-size: 17px; }
+.panel p { margin: 9px 0 14px; }
+.heading, .itemHeading { display: flex; align-items: start; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.badge { background: #eee7f7; color: #56327d; border-radius: 20px; padding: 4px 11px; font-size: 12px; font-weight: 650; }
+.coverage, .boundary { background: #f5f1fa; border: 1px solid #dfd5eb; padding: 16px; border-radius: 10px; }
+.actions { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; }
+.actions label { display: grid; gap: 6px; flex: 1; min-width: 0; font-weight: 600; }
+.actions select { max-width: 100%; padding: 12px; border: 1px solid #b8acc8; border-radius: 8px; font: inherit; background: white; }
+.actions button { min-height: 44px; }
+.runButton { padding: 11px 18px; border: 1px solid #6b3c9e; border-radius: 9px; background: #6b3c9e; color: white; font: inherit; font-weight: 650; cursor: pointer; }
+.runButton:disabled { opacity: .6; cursor: default; }
+.panel :focus-visible { outline: 3px solid #9461c4; outline-offset: 3px; }
+.error { background: #fff0ed; color: #812619; padding: 14px; border-radius: 8px; }
+.result { margin-top: 26px; border-top: 1px solid #ded6e8; padding-top: 4px; }
+.counts { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin: 20px 0; }
+.counts div { padding: 14px; border: 1px solid #e0d8ea; border-radius: 10px; display: grid; }
+.counts strong { font-size: 25px; color: #5a3780; }
+.counts span { font-size: 12px; }
+.items { list-style: none; padding: 0; display: grid; gap: 10px; max-height: 700px; overflow: auto; }
+.items li { border: 1px solid #e2dbe9; border-radius: 10px; padding: 16px; min-width: 0; }
+.path, .related { font-size: 12px; color: #675872; }
+.boundary { margin-top: 20px; }
+@media (max-width: 700px) { .panel { padding: 18px; } .counts { grid-template-columns: repeat(2,minmax(0,1fr)); } .actions { align-items: stretch; flex-direction: column; } }

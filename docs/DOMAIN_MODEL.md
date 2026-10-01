@@ -1,5 +1,11 @@
 # Domain Model and Important Variables
 
+## 1.29 source sample and explanation model
+
+`SourceSampleItem` is bounded metadata with capture-local key/parent identities; `SourceIntakeDecision` reports the first MIME/path exclusion while treating folders separately. `SourceSampleExplanation` has an ordered visible index, label/path/MIME, six-state outcome, reason, optional settled age, related-item indexes and missing requirements. `SourceSampleSimulation` holds a supplied evaluation time, coverage, derived counts, zero actual test AI requests and null/unestimated future cost. One root is one potential package: related-file readiness is not asset merging.
+
+The internal capture includes exact source/location/context/preparation state plus a temporary SHA-256 fingerprint, but the strict browser view removes all provider keys, fact values, instructions, fingerprints and execution authority. Important constants, Maps, Sets, token/typed-array lists, dictionaries, optional-field semantics, local state/ref lifetimes and development repository-cache/error-registry identities are documented in [Source dry test](SOURCE_DRY_TEST.md). No durable sample entity or migration exists.
+
 ## 1.28 guided setup values, collections and receipts
 
 `SourceSetupInput` contains workspace/request UUIDs, name, provider/connection, one location, recursive/readiness/settling rules, optional supporting-file count/marker, file-type and excluded-folder sets, Context Pack root/current-version pairs and draft/review behavior. Closed nested validation rejects authority fields. Canonical normalization orders set choices, lowercases UUIDs and normalizes text; `compileSourceSetup()` maps frozen MIME/exclusion dictionaries to existing source fields and fixes `enabled: false`. Context version pairs are creation-time preconditions, not permanent processing pins.

@@ -1,5 +1,11 @@
 # Security and Integration Controls
 
+## Release 1.29 source-sample boundaries
+
+The metadata dry test requires explicit UUID workspace/source scope, saved source version/location, current writer, exact configured Origin, strict bounded JSON and no query authority. Coherent capture locks active references and published context, then releases all transactions before provider I/O. The existing credential refresh CAS remains in force; checks after refresh and before return reject lost membership, revoked references or changed configuration. The browser receives no credentials, provider URLs/cursors/IDs, raw context instructions/values, storage paths beyond approved display metadata, internal fingerprints or approval/command capability.
+
+Item/count/string/context/response/work bounds prevent unbounded interpretation. Normal wildcard patterns use non-backtracking matching; unsupported legacy `?`/NUL expressions fail dry testing rather than silently changing meaning. A server-only symbol brand distinguishes safe internal errors retained across hot reload from provider errors that merely copy a name. Unknown SQL/provider errors are sanitized and not logged verbatim. The operation does not generate, approve, prepare, activate or send. See [the detailed contract](SOURCE_DRY_TEST.md) for limits and historical-local/partial-cloud caveats; final release audit evidence remains pending until exact CI completes.
+
 ## Release 1.28 guided setup boundaries
 
 Setup creation and recovery require a current owner/admin/editor and exact workspace scope; a creating actor's private receipt cannot be read/replayed by another writer. The database transaction locks current authority/references and fixes initial state to paused, atomically storing one source/location/receipt/minimized audit. Exact retry does not reset later edits or reactivate anything. Receipt mutation and individual deletion are blocked; authorized whole-workspace erasure remains separate. Canonical request JSON stays private, and the browser receives only a closed historical receipt.

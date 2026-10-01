@@ -1914,7 +1914,7 @@ export class MarketMeRepository {
       SELECT smart_source_id, provider_location_id, display_path
       FROM smart_source_location
       WHERE smart_source_id IN ${this.sql(ids)}
-      ORDER BY created_at
+      ORDER BY created_at, id
     `;
     return rows.map((row) => ({
       ...row,

@@ -1,6 +1,6 @@
 # Smart Source dry-test implementation plan
 
-Status: planned next increment after guided setup 1.28; not implemented or accepted by this document.
+Status: the bounded metadata-only increment is implemented on `codex/source-dry-test` as 1.29. Final local regression, frontend/native builds, unsigned packaging, synthetic browser/production-mode checks and Google development-tab readback pass; exact cloud CI and reviewed-source publication remain pending. [Source dry-test contract](SOURCE_DRY_TEST.md) records implemented behavior. The larger specification boundary below remains the target, not a completion claim.
 
 ## Specification and acceptance target
 

@@ -11,6 +11,7 @@ export * from "./campaign-preparation-template";
 export * from "./campaign-preparation-repository";
 export * from "./source-preparation-repository";
 export * from "./source-setup-repository";
+export * from "./source-sample-repository";
 export * from "./campaign-finalization-template";
 export * from "./campaign-finalization-repository";
 export * from "./exact-preview-fingerprint";

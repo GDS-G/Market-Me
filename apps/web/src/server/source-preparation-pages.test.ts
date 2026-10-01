@@ -20,6 +20,7 @@ vi.mock("@/server/database", () => ({
 }));
 vi.mock("@/components/workspace-shell", () => ({ WorkspaceShell: ({ children }: { children: ReactNode }) => createElement("main", {}, children) }));
 vi.mock("@/components/smart-source-form", () => ({ SmartSourceForm: () => createElement("form", {}, "Source fields") }));
+vi.mock("@/components/source-sample-panel", () => ({ SourceSamplePanel: (props: unknown) => createElement("section", { "data-sample-props": JSON.stringify(props) }, "Source dry test") }));
 vi.mock("@/components/source-preparation-binding-form", () => ({ SourcePreparationBindingForm: (props: unknown) => createElement("section", { "data-preparation-props": JSON.stringify(props) }, "Preparation binding") }));
 vi.mock("@/components/source-preparation-binding-request", () => import("../components/source-preparation-binding-request"));
 vi.mock("@/server/source-preparation-schema", () => import("./source-preparation-schema"));
@@ -83,6 +84,7 @@ describe("Smart Source preparation status pages", () => {
     expect(decoded).toContain("Current audience"); expect(decoded).not.toContain("Archived audience");
     expect(decoded).toContain("Published destination"); expect(decoded).not.toContain("Draft destination");
     expect(decoded).not.toContain("writerUserId"); expect(decoded).not.toContain("expectedApprovalId"); expect(decoded).not.toContain("leaseExpiresAt");
+    expect(decoded).toContain("Source dry test"); expect(decoded).not.toContain("providerLocationId");
     expect(mocks.binding).toHaveBeenCalledExactlyOnceWith(workspaceId, sourceId, userId);
     expect(mocks.commands).toHaveBeenCalledExactlyOnceWith(workspaceId, sourceId, userId);
   });

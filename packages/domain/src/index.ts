@@ -1,4 +1,6 @@
 export * from "./source-setup";
+export * from "./source-intake-filter";
+export * from "./source-sample-simulation";
 
 export const INFORMATION_DEPTHS = [
   "minimal",

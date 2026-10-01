@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.29 candidate gates
+
+Final local integration passes 2,256 TypeScript tests/130 files with no skips, including metadata simulation/capture/transport/rendering, hot-reload-safe errors, cloud-reference checks, context byte/instruction changes and authority-rule precedence. All 12 typechecks, lint and both frontend builds pass. Isolated `market_me_ci` returns to zero fixture organizations. Package/native metadata is 1.29.0. No dependency upgrade or schema migration is introduced; fresh browser QA applies the same 117 migrations, and replay skips all 117 unchanged.
+
+Synthetic Chrome acceptance confirms paused mixed-file and empty-index results, reload invalidation, stale-version rejection/recovery and responsive layout. Before/after SQL proves dry testing creates no settings/content/history/command writes. Separate local gates pass native check/three Rust tests, unsigned NSIS packaging and authenticated production-mode sampling; production readiness remains honestly incomplete. Google development-tab readback passes. This is not live Google/Graph or current local filesystem acceptance. Reviewed-source publication and exact feature/main Linux CI/audits are pending and must not be inferred from the preceding release. The documentation-only 1.28 follow-up `bcd899e` separately passed feature run 36921034617 and main run 36921034378.
+
 ## Verified Release 1.28 checkpoint
 
 The final local suite passes **2,161 TypeScript tests across 124 files without skips**: web 714/41, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 986/49, domain 97/4, generation 29/4, ingestion 30/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, the 96-route Next.js production build and 18-module companion build pass. Native check, three Rust tests, unsigned Windows NSIS packaging and production/authenticated-browser checks pass separately; they are not inferred from Linux CI.

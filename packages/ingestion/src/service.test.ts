@@ -26,6 +26,16 @@ const source: StoredSmartSource = {
 };
 
 describe("StorageIngestionService", () => {
+  it.each(["continuation", "truncated", "provider"])("marks legacy 25-entry sampling partial for %s", async (reason) => {
+    const key = randomBytes(32).toString("base64");
+    const repository = { getStorageConnection: vi.fn(async () => ({ id: "connection-1", workspaceId: "workspace-1", provider: "google_drive", status: "active", scopes: [],
+      encryptedAccessToken: encryptToken("synthetic", key) })) } as unknown as MarketMeRepository;
+    const connector = { listFolderPage: vi.fn(async () => ({ entries: Array.from({ length: reason === "truncated" ? 26 : 1 }, (_, index) => ({ providerItemId: String(index) })),
+      ...(reason === "continuation" ? { nextPageToken: "next" } : {}), incompleteSearch: reason === "provider" })) } as unknown as StorageConnector;
+    const result = await new StorageIngestionService(repository, { tokenEncryptionKey: key, connectorFor: () => connector })
+      .sampleLocation({ workspaceId: "workspace-1", connectionId: "connection-1", providerLocationId: "root" });
+    expect(result.incompleteSearch).toBe(true); expect(result.entries.length).toBeLessThanOrEqual(25);
+  });
   it("recursively discovers eligible Google Drive files and saves a cursor", async () => {
     const key = randomBytes(32).toString("base64");
     const applySourceItemChanges = vi.fn(async (input: { upserts: readonly { isFolder: boolean; name: string }[] }) => ({

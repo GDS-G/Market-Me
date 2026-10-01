@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.29 source dry-test development
+
+Read [Source dry test](SOURCE_DRY_TEST.md) before changing metadata classification, context precedence or snapshot revalidation. Package/npm-lock/native metadata are 1.29.0 with third-party dependency versions unchanged. Schema/readiness remains 117/latest frozen 0117. Run focused `source-sample` web tests, domain filter/simulation tests, ingestion regression and the live `source-sample-repository.integration.test.ts` suite; the latter accepts only `market_me_ci` or `market_me_qa_129_*`. The complete suite still requires `market_me_ci` and verified cleanup. Missing database configuration/skipped cases are not acceptance.
+
+The POST is a read-only domain-content operation despite using existing credential refresh. Keep remote access outside transactions, reject stale results, and never call synchronization or package preparation to fill a sample. Local mode must remain explicitly historical; a paired worker does not grant arbitrary path access. Development retains repository instances across hot reload, so use the branded `isSourceSampleError` guard rather than relying on class-instance equality across module versions. Build, native, production-mode, browser, cloud audit and Google documentation gates are recorded in [Releases](RELEASES.md); final 1.29 evidence is still being assembled.
+
 ## Release 1.28 guided source setup
 
 Read [Guided source setup](GUIDED_SOURCE_SETUP.md) for the complete implementation/variable reference, API, browser recovery and regression recipe. Package/native metadata are 1.28.0. Apply additive `0117_guided_source_setup.sql` before matching web code; readiness requires 117/latest 0117. SHA-256 is `54201e3cf4317bd37a3d47114f7d57eaabde421de32070c9c7587b75e0d50fa4`; the migration is frozen after verification. Earlier 0113–0116 checksums remain unchanged. A fresh QA database has 137 public base tables, and immediate replay applies none/skips all 117.
