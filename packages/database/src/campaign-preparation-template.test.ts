@@ -4,6 +4,7 @@ import {
   CAMPAIGN_PREPARATION_LIMITS,
   CampaignPreparationTemplateValidationError,
   compileGeneralAnnouncementPreparation,
+  normalizeCampaignPreparationSettings,
 } from "./campaign-preparation-template";
 
 const workspaceId = "11111111-1111-4111-8111-111111111111";
@@ -13,6 +14,43 @@ const audienceA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const audienceB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const destinationId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const required = { workspaceId, contentPackageId, expectedPackageVersion: 1 };
+
+describe("reusable values-only preparation settings", () => {
+  it("shares all normalization with the existing compiler without package or execution authority", () => {
+    const settings = normalizeCampaignPreparationSettings({ name: "  Cafe\u0301\n launch ", description: " Note\r\nDetails ",
+      brandProfileVersionId, audienceProfileVersionIds: [audienceB, audienceA], destinationId,
+      informationDepth: "detailed", promotionalStrength: "light", timezone: " America/Chicago " });
+    const compiled = compileGeneralAnnouncementPreparation({ ...required, ...settings });
+    const { workspaceId: _workspace, contentPackageId: _package, expectedPackageVersion: _version, ...copied } = compiled.normalizedInput;
+    expect(copied).toEqual(settings);
+    expect(settings.name).toBe("Café launch");
+    expect(settings.description).toBe("Note\nDetails");
+    expect(settings.audienceProfileVersionIds).toEqual([audienceB, audienceA]);
+    expect(Object.isFrozen(settings)).toBe(true);
+    expect(Object.isFrozen(settings.audienceProfileVersionIds)).toBe(true);
+  });
+  it("retains exact historical canonical bytes for preparation replay", () => {
+    const input = { ...required, name: "Launch", description: "Reviewed", brandProfileVersionId,
+      audienceProfileVersionIds: [audienceB, audienceA], destinationId, informationDepth: "contextual", promotionalStrength: "informational", timezone: "UTC" };
+    const expected = JSON.stringify({ templateKey: "general_announcement", templateVersion: 1,
+      workspaceId, contentPackageId, expectedPackageVersion: 1, name: "Launch", description: "Reviewed",
+      brandProfileVersionId, audienceProfileVersionIds: [audienceB, audienceA], destinationId,
+      informationDepth: "contextual", promotionalStrength: "informational", timezone: "UTC" });
+    expect(compileGeneralAnnouncementPreparation(input).canonicalPayload).toBe(expected);
+  });
+  it.each(["workspaceId", "contentPackageId", "expectedPackageVersion", "actorUserId", "idempotencyKey", "expectedReviewFingerprint",
+    "autonomyMode", "steps", "accountId", "schedule", "previewId"])("refuses %s authority in a settings preset", (field) => {
+    expect(() => normalizeCampaignPreparationSettings({ [field]: "not-settings" })).toThrow(CampaignPreparationTemplateValidationError);
+  });
+  it("refuses getters, prototypes and unsupported compiler versions", () => {
+    let read = false;
+    expect(() => normalizeCampaignPreparationSettings({ get name() { read = true; return "x"; } })).toThrow();
+    expect(read).toBe(false);
+    expect(() => normalizeCampaignPreparationSettings(Object.create({ name: "Inherited" }))).toThrow();
+    expect(() => normalizeCampaignPreparationSettings({ templateVersion: 2 })).toThrow();
+    expect(() => normalizeCampaignPreparationSettings({ templateKey: "external_send" })).toThrow();
+  });
+});
 
 describe("General Announcement planning compiler", () => {
   it("emits an ordinary valid graph that cannot execute, with safe explicit defaults", () => {

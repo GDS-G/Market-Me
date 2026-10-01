@@ -1,5 +1,11 @@
 # Architecture
 
+## Release 1.30: immutable preparation values library
+
+The Campaign area now has a membership-scoped library of preset roots, immutable settings versions and actor-private durable mutation receipts. Shared General Announcement normalization preserves the existing compiler's canonical bytes. Ordered authority/root/reference locks and exact request replay protect concurrent writes; a separate readonly copy transaction rechecks current root revision, archive state, references and policy. Browser copy is an explicit acknowledgement and values replacement, not execution or a live binding. Existing package/approval proof remains unchanged, and saved recovery attempts block copy.
+
+Additive migration 0118 brings schema/readiness to 118. No new service, provider call, credential, dependency or environment variable is introduced. [Preparation presets](PREPARATION_PRESETS.md) documents the source map, API, transaction order, invariants, browser lifecycle and limits. Arbitrary workflow templates and source bindings to template versions remain separate work.
+
 ## Release 1.29: bounded metadata dry test
 
 The saved-source page sends an explicit workspace/version/location index to a no-store, same-origin POST. `SourceSampleRepository` captures current writer, source, location, published context and preparation state under a short repeatable-read transaction. Provider I/O runs only after that transaction closes; cloud sources read one exact folder page and local sources use a bounded historical index. `runSourceSample` rechecks scope after credential refresh and again before returning a strict minimized result. Source/configuration/context changes fail closed; no test receipt, audit, sync, index, package or execution write is introduced.

@@ -2,8 +2,13 @@ import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ user: vi.fn(), workspace: vi.fn(), packages: vi.fn(), brands: vi.fn(), audiences: vi.fn(), destinations: vi.fn(), get: vi.fn(), draft: vi.fn(), campaigns: vi.fn(), runs: vi.fn(), receipts: vi.fn(), drafts: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: vi.fn(), workspace: vi.fn(), packages: vi.fn(), brands: vi.fn(), audiences: vi.fn(), destinations: vi.fn(), get: vi.fn(), draft: vi.fn(), campaigns: vi.fn(), runs: vi.fn(), receipts: vi.fn(), drafts: vi.fn(), presetGet: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error("redirect:" + path); }, notFound: () => { throw new Error("not-found"); } }));
+vi.mock("server-only", () => ({}));
+vi.mock("@/server/preparation-preset-pages", () => import("./preparation-preset-pages"));
+vi.mock("./auth", () => ({ getAuthenticatedUser: mocks.user }));
+vi.mock("./active-workspace", () => ({ getActiveWorkspace: mocks.workspace }));
+vi.mock("./database", () => ({ getCampaignRepository: () => ({ listDestinations: mocks.destinations }), getProfileRepository: () => ({ listBrandProfiles: mocks.brands, listAudienceProfiles: mocks.audiences }) }));
 vi.mock("@/server/auth", () => ({ getAuthenticatedUser: mocks.user }));
 vi.mock("@/server/active-workspace", () => ({ getActiveWorkspace: mocks.workspace }));
 vi.mock("@/server/database", () => ({
@@ -12,6 +17,7 @@ vi.mock("@/server/database", () => ({
   getCampaignRepository: () => ({ listDestinations: mocks.destinations, listCampaigns: mocks.campaigns, listCampaignInstances: mocks.runs }),
   getCampaignPreparationRepository: () => ({ get: mocks.get, listForWorkspace: mocks.receipts }),
   getDraftRepository: () => ({ get: mocks.draft, list: mocks.drafts }),
+  getPreparationPresetRepository: () => ({ get: mocks.presetGet }),
 }));
 vi.mock("@/components/workspace-shell", () => ({ WorkspaceShell: ({ children }: { children: ReactNode }) => createElement("main", {}, children) }));
 vi.mock("@/components/campaign-preparation-request", () => import("../components/campaign-preparation-request"));
@@ -39,6 +45,16 @@ beforeEach(() => {
 });
 
 describe("preparation entry authorization", () => {
+  it("requires explicit workspace/preset/version/revision and passes only a candidate, never auto-applied configuration", async () => {
+    mocks.presetGet.mockResolvedValue({ root: { id: receiptId, revision: 4, archived: false }, version: { title: "Saved preset", versionNumber: 1, configuration: { name: "Never auto apply" } } });
+    const html = renderToStaticMarkup(await PreparePage({ searchParams: Promise.resolve({ workspaceId, presetId: receiptId, presetVersion: "1", presetRevision: "3" }) }));
+    expect(mocks.presetGet).toHaveBeenCalledWith(workspaceId, receiptId, userId, 1);
+    expect(html).toContain("Saved preset"); expect(html).toContain("&quot;revision&quot;:3"); expect(html).not.toContain("Never auto apply");
+    for (const query of [{ presetId: receiptId, presetVersion: "1", presetRevision: "3" }, { workspaceId: packageId, presetId: receiptId, presetVersion: "1", presetRevision: "3" },
+      { workspaceId, presetId: receiptId, presetVersion: ["1", "1"], presetRevision: "3" }, { workspaceId, presetId: receiptId, presetVersion: "1", presetRevision: "0" }]) {
+      await expect(PreparePage({ searchParams: Promise.resolve(query) })).rejects.toThrow("not-found");
+    }
+  });
   it.each(["owner", "admin", "editor"])("offers %s only approved packages and current published profiles", async (role) => {
     mocks.workspace.mockResolvedValue({ workspaceId, workspaceName: "QA", role });
     mocks.brands.mockResolvedValue([{ name: "Published Brand", status: "published", currentVersion: { id: "brand-good", versionNumber: 2, status: "published" } }, { name: "Draft Brand", status: "draft", currentVersion: { id: "brand-bad", versionNumber: 1, status: "published" } }]);

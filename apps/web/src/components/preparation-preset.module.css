@@ -1,0 +1,25 @@
+.editor { display: grid; gap: 24px; min-width: 0; }
+.fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 18px; }
+.fieldset:disabled { opacity: .7; }
+.notice { padding: 22px; border: 1px solid #ded7ed; border-radius: 14px; background: #faf8ff; overflow-wrap: anywhere; }
+.notice h2 { font-size: 19px; margin: 0 0 10px; }
+.notice p { line-height: 1.6; margin: 10px 0; }
+.actions { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 16px 0; }
+.actions label { display: grid; gap: 8px; min-width: 0; }
+.actions input { max-width: 100%; padding: 10px; border: 1px solid #d6cfe0; border-radius: 8px; }
+.actions button, .notice > button { background: #fff; border: 1px solid #aa96c7; color: #4d2f71; padding: 10px 16px; border-radius: 9px; cursor: pointer; }
+.actions button:disabled, .notice > button:disabled { opacity: .55; cursor: default; }
+.audiences { border: 1px solid #ded7ed; border-radius: 10px; padding: 16px; min-width: 0; }
+.audiences label { display: flex; gap: 8px; margin-top: 10px; overflow-wrap: anywhere; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); gap: 16px; }
+.card { border: 1px solid #ded7ed; background: white; border-radius: 14px; padding: 22px; min-width: 0; overflow-wrap: anywhere; }
+.card h2 { margin: 12px 0; font-size: 21px; }
+.card p { line-height: 1.6; }
+.details { padding: 24px; margin-bottom: 24px; overflow-wrap: anywhere; line-height: 1.65; }
+.details h2 { font-size: 20px; font-weight: 600; margin-bottom: 14px; }
+.details p + p { margin-top: 12px; }
+.details a { text-decoration: underline; text-underline-offset: 3px; }
+.details > a { margin: 18px 0 6px; text-decoration: none; }
+.details ol { display: grid; gap: 12px; padding-left: 20px; }
+.details time { display: block; color: #696575; font-size: 13px; }
+@media (max-width:600px) { .notice,.card,.details { padding: 16px; } .actions { align-items: stretch; } .actions label { width: 100%; } }

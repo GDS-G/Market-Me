@@ -51,6 +51,10 @@ export interface NormalizedCampaignPreparationInput {
   readonly timezone: string;
 }
 
+/** Reusable values only. Package, request, actor and approval authority are excluded. */
+export type CampaignPreparationSettings = Omit<NormalizedCampaignPreparationInput,
+  "workspaceId" | "contentPackageId" | "expectedPackageVersion">;
+
 export interface CompiledCampaignPreparation {
   readonly normalizedInput: NormalizedCampaignPreparationInput;
   /** Fixed-key JSON, suitable for server-side hashing; not itself an idempotency record. */
@@ -80,20 +84,22 @@ const INPUT_FIELDS: ReadonlySet<string> = new Set([
   "name", "description", "brandProfileVersionId", "audienceProfileVersionIds", "destinationId",
   "informationDepth", "promotionalStrength", "timezone",
 ]);
+const SETTINGS_FIELDS: ReadonlySet<string> = new Set([...INPUT_FIELDS]
+  .filter((field) => !["workspaceId", "contentPackageId", "expectedPackageVersion"].includes(field)));
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function invalid(field: string, code: CampaignPreparationTemplateIssue["code"], message: string): never {
   throw new CampaignPreparationTemplateValidationError({ field, code, message });
 }
 
-function record(value: unknown): Record<string, unknown> {
+function record(value: unknown, allowedFields = INPUT_FIELDS): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype) {
     invalid("input", "invalid_input", "Provide an ordinary JSON object containing preparation settings.");
   }
   // Do not invoke getters, inherit authority fields, call toJSON, or spread an untrusted object.
   const descriptors = Object.getOwnPropertyDescriptors(value);
   for (const key of Reflect.ownKeys(descriptors)) {
-    if (typeof key !== "string" || !INPUT_FIELDS.has(key)) {
+    if (typeof key !== "string" || !allowedFields.has(key)) {
       invalid("input", "unsupported_field", "The preparation contains an unsupported field.");
     }
     const descriptor = descriptors[key]!;
@@ -185,34 +191,21 @@ function timezone(value: unknown): string {
  */
 export function compileGeneralAnnouncementPreparation(input: unknown): CompiledCampaignPreparation {
   const raw = record(input);
-  if (raw.templateKey !== undefined && raw.templateKey !== GENERAL_ANNOUNCEMENT_TEMPLATE_KEY) {
-    invalid("templateKey", "unsupported_template", "Choose the supported General Announcement template.");
-  }
-  if (raw.templateVersion !== undefined && raw.templateVersion !== GENERAL_ANNOUNCEMENT_TEMPLATE_VERSION) {
-    invalid("templateVersion", "unsupported_template", "This Campaign template version is not supported.");
-  }
+  assertTemplate(raw);
   if (typeof raw.expectedPackageVersion !== "number" || !Number.isInteger(raw.expectedPackageVersion)
     || raw.expectedPackageVersion < 1 || raw.expectedPackageVersion > CAMPAIGN_PREPARATION_LIMITS.packageVersion) {
     invalid("expectedPackageVersion", "invalid_package_version", "Choose a positive Content Package revision within the database integer range.");
   }
-  const audienceProfileVersionIds = audienceReferences(raw.audienceProfileVersionIds);
-  const brandProfileVersionId = optionalReference(raw.brandProfileVersionId, "brandProfileVersionId");
-  const destinationId = optionalReference(raw.destinationId, "destinationId");
-  // Deliberate field order: caller object-key order never changes canonical bytes.
+  const { templateKey, templateVersion, ...settings } = normalizeSettings(raw);
+  const { brandProfileVersionId, destinationId, audienceProfileVersionIds } = settings;
+  // Preserve the historical canonical field order exactly: existing receipts
+  // compare these bytes during replay, including after this refactor.
   const normalizedInput: NormalizedCampaignPreparationInput = Object.freeze({
-    templateKey: GENERAL_ANNOUNCEMENT_TEMPLATE_KEY,
-    templateVersion: GENERAL_ANNOUNCEMENT_TEMPLATE_VERSION,
+    templateKey, templateVersion,
     workspaceId: reference(raw.workspaceId, "workspaceId"),
     contentPackageId: reference(raw.contentPackageId, "contentPackageId"),
     expectedPackageVersion: raw.expectedPackageVersion,
-    name: text(raw.name, "name", "General announcement", CAMPAIGN_PREPARATION_LIMITS.nameCharacters, true),
-    description: text(raw.description, "description", "", CAMPAIGN_PREPARATION_LIMITS.descriptionCharacters),
-    ...(brandProfileVersionId ? { brandProfileVersionId } : {}),
-    audienceProfileVersionIds: Object.freeze(audienceProfileVersionIds),
-    ...(destinationId ? { destinationId } : {}),
-    informationDepth: choice(raw.informationDepth, "informationDepth", INFORMATION_DEPTHS, "contextual"),
-    promotionalStrength: choice(raw.promotionalStrength, "promotionalStrength", PROMOTIONAL_STRENGTHS, "informational"),
-    timezone: timezone(raw.timezone),
+    ...settings,
   });
   const campaign: Readonly<CampaignDraftWrite> = Object.freeze({
     workspaceId: normalizedInput.workspaceId,
@@ -239,4 +232,39 @@ export function compileGeneralAnnouncementPreparation(input: unknown): CompiledC
     })]),
   });
   return Object.freeze({ normalizedInput, canonicalPayload: JSON.stringify(normalizedInput), campaign });
+}
+
+/** Pure values-only normalization shared by reusable presets and preparation. */
+export function normalizeCampaignPreparationSettings(input: unknown): CampaignPreparationSettings {
+  const raw = record(input, SETTINGS_FIELDS);
+  assertTemplate(raw);
+  return normalizeSettings(raw);
+}
+
+function assertTemplate(raw: Record<string, unknown>): void {
+  if (raw.templateKey !== undefined && raw.templateKey !== GENERAL_ANNOUNCEMENT_TEMPLATE_KEY) {
+    invalid("templateKey", "unsupported_template", "Choose the supported General Announcement template.");
+  }
+  if (raw.templateVersion !== undefined && raw.templateVersion !== GENERAL_ANNOUNCEMENT_TEMPLATE_VERSION) {
+    invalid("templateVersion", "unsupported_template", "This Campaign template version is not supported.");
+  }
+}
+
+function normalizeSettings(raw: Record<string, unknown>): CampaignPreparationSettings {
+  const audienceProfileVersionIds = audienceReferences(raw.audienceProfileVersionIds);
+  const brandProfileVersionId = optionalReference(raw.brandProfileVersionId, "brandProfileVersionId");
+  const destinationId = optionalReference(raw.destinationId, "destinationId");
+  // Deliberate field order: caller object-key order never changes canonical bytes.
+  return Object.freeze({
+    templateKey: GENERAL_ANNOUNCEMENT_TEMPLATE_KEY,
+    templateVersion: GENERAL_ANNOUNCEMENT_TEMPLATE_VERSION,
+    name: text(raw.name, "name", "General announcement", CAMPAIGN_PREPARATION_LIMITS.nameCharacters, true),
+    description: text(raw.description, "description", "", CAMPAIGN_PREPARATION_LIMITS.descriptionCharacters),
+    ...(brandProfileVersionId ? { brandProfileVersionId } : {}),
+    audienceProfileVersionIds: Object.freeze(audienceProfileVersionIds),
+    ...(destinationId ? { destinationId } : {}),
+    informationDepth: choice(raw.informationDepth, "informationDepth", INFORMATION_DEPTHS, "contextual"),
+    promotionalStrength: choice(raw.promotionalStrength, "promotionalStrength", PROMOTIONAL_STRENGTHS, "informational"),
+    timezone: timezone(raw.timezone),
+  });
 }

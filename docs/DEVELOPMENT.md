@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.30 preset development
+
+Read [Preparation presets](PREPARATION_PRESETS.md) before changing shared normalization, library operations or preparation copy. Package/npm-lock/native metadata are 1.30.0; third-party versions and user pnpm files are unchanged. Apply additive frozen `0118_preparation_presets.sql` before matching code; readiness requires 118/latest 0118. SHA-256 is `2fb25d013baf8ec51a2743161a3ee3b059f1559147f892dff9f885c07f8d5934`. Existing 0117 remains unchanged.
+
+Use isolated `market_me_ci` for the full suite; focused preset integration additionally permits only `market_me_qa_130_*`. Run strict model/compiler canonical-byte tests, live repository races/privacy/cascade/paging/copy checks and web route/page/recovery tests. A values copy must remain zero-write, explicit and unable to replace a saved preparation attempt. Preserve old immutable history and retry keys during rollout/recovery. Local gates and the pending exact-source cloud/Google acceptance are tracked in [Releases](RELEASES.md); no dependency, secret, provider permission or worker addition is needed.
+
 ## Release 1.29 source dry-test development
 
 Read [Source dry test](SOURCE_DRY_TEST.md) before changing metadata classification, context precedence or snapshot revalidation. Package/npm-lock/native metadata are 1.29.0 with third-party dependency versions unchanged. Schema/readiness remains 117/latest frozen 0117. Run focused `source-sample` web tests, domain filter/simulation tests, ingestion regression and the live `source-sample-repository.integration.test.ts` suite; the latter accepts only `market_me_ci` or `market_me_qa_129_*`. The complete suite still requires `market_me_ci` and verified cleanup. Missing database configuration/skipped cases are not acceptance.

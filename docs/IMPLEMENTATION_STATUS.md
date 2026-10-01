@@ -1,6 +1,12 @@
 # Market Me implementation status
 
-## Current verified source: Release 1.29 metadata dry test
+## Current candidate: Release 1.30 reusable preparation presets
+
+The implemented shared library provides immutable General Announcement values, historical version reads/clones, archive/restore, exact private request recovery and an explicit values-only copy into preparation. Saved recovery attempts cannot be overwritten; copied values preserve package selection and approval proof while clearing absent optional references. Current membership, revision, publication and policy eligibility are enforced. [Full implementation/variable reference](PREPARATION_PRESETS.md) and [original scope plan](PREPARATION_PRESETS_PLAN.md) describe what this does and does not implement.
+
+Local acceptance passes 2,339 tests/135 files without skips, all typechecks/lint/builds, migration 0118/replay, browser/production checks and unsigned Windows native packaging. Google synchronization and exact reviewed-source cloud publication remain pending until recorded in [Releases](RELEASES.md). Whole-product scope remains incomplete: this is not arbitrary workflow authoring, source/template-version binding, public/cross-workspace sharing, automatic execution or live-provider acceptance. No user input is needed merely to continue development.
+
+## Previous verified source: Release 1.29 metadata dry test
 
 The saved-source editor now offers a bounded, non-activating dry test using one explicit cloud folder page or the historical local index. Shared intake filters and the existing readiness/context-fact resolvers produce item reasons, related-file groups, per-root package proposals, published context/version summaries, conflicts and conditional next steps. Current writer and coherent source/reference snapshots are checked before and after provider I/O; no content or execution records are created. Strict request/response limits and browser scope checks reject stale or oversized results.
 

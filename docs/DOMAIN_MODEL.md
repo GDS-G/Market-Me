@@ -1,5 +1,11 @@
 # Domain Model and Important Variables
 
+## 1.30 preset roots, immutable versions and private receipts
+
+`CampaignPreparationSettings` contains only compiler key/version, Campaign name/description/timezone, optional exact Brand version, ordered Audience versions, optional Destination and copy controls. It excludes workspace/package/review/account/approval/execution authority. `PreparationPresetRequest` is a strict create/revise/clone/archive/restore union. The root owns current revision/latest-version/archive state; immutable versions own canonical settings/hash and optional historical clone origin; workspace/request-key receipts retain exact actor-private outcomes for safe replay.
+
+The frozen limit object is title 120, notes 2,000, request 32,768 UTF-8 bytes, list 50 and history 20. Recovery storage is user/workspace scoped, versioned and limited to 40,960 bytes; streamed responses are limited to 65,536. SQL constraints, browser states/refs, repository caches, symbol branding, request fields, tuples/Sets/ordered arrays and all important variables are documented in [Preparation presets](PREPARATION_PRESETS.md). Version history never grants current eligibility.
+
 ## 1.29 source sample and explanation model
 
 `SourceSampleItem` is bounded metadata with capture-local key/parent identities; `SourceIntakeDecision` reports the first MIME/path exclusion while treating folders separately. `SourceSampleExplanation` has an ordered visible index, label/path/MIME, six-state outcome, reason, optional settled age, related-item indexes and missing requirements. `SourceSampleSimulation` holds a supplied evaluation time, coverage, derived counts, zero actual test AI requests and null/unestimated future cost. One root is one potential package: related-file readiness is not asset merging.

@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.30 candidate checkpoint
+
+The local suite passes 2,339 TypeScript tests/135 files without skips: web 795/47, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1049/52, domain 128/6, generation 29/4, ingestion 33/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, both production builds, cargo check, three Rust tests and unsigned Windows packaging pass. Fresh QA applies 118 migrations and replay skips all 118; the full test database returns to zero organizations. Browser tests verify lifecycle/recovery/history, copy isolation, stale rejection and narrow layout; production checks confirm authenticated copy and protected unauthenticated access.
+
+Exact reviewed-source feature/main CI and dependency audit results are pending; local checks do not imply a cloud pass. See [Releases](RELEASES.md) for publication evidence and [Preparation presets](PREPARATION_PRESETS.md) for test/data-boundary details. No test skip, audit suppression, dependency upgrade or new secret is introduced.
+
 ## Verified Release 1.29 checkpoint
 
 Final local integration passes 2,256 TypeScript tests/130 files with no skips, including metadata simulation/capture/transport/rendering, hot-reload-safe errors, cloud-reference checks, context byte/instruction changes and authority-rule precedence. All 12 typechecks, lint and both frontend builds pass. Isolated `market_me_ci` returns to zero fixture organizations. Package/native metadata is 1.29.0. No dependency upgrade or schema migration is introduced; fresh browser QA applies the same 117 migrations, and replay skips all 117 unchanged.

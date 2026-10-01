@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.29: bounded source dry test
+## Release 1.30 candidate: reusable preparation presets
+
+The workspace preset library now saves immutable General Announcement settings, supports version history, historical cloning and archive/restore, and explicitly copies values into review-first preparation. It never changes existing Campaigns, substitutes package approval or creates execution authority. Browser recovery preserves exact private requests across reloads. [Preset implementation and variable reference](docs/PREPARATION_PRESETS.md) covers the complete contracts, constants, collections, state, limits, locks and rollout.
+
+Local acceptance passes 2,339 tests/135 files, typechecks/lint/builds, 118 migrations/replay, real desktop/mobile/recovery/stale-copy checks, production smoke and native checks/tests/unsigned Windows packaging. Google documentation and exact-source cloud CI/publication are being completed; this is a candidate, not a published or whole-product completion claim. See [Releases](docs/RELEASES.md).
+
+## Previous release: 1.29 bounded source dry test
 
 Saved Smart Sources now offer a metadata-only dry test that explains detected/ignored files, readiness and supporting-file relationships, per-root package candidates, structured Context Pack conflicts and conditional next steps while synchronization stays paused. Cloud mode reads one saved-folder page; local mode honestly labels historical indexed metadata. It makes no AI requests, estimates no future spending, and creates no content, scan, approval or execution records. Unsaved edits, connection diagnostics and later activation remain separate.
 

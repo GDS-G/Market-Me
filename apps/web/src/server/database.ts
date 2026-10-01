@@ -18,6 +18,7 @@ import {
   SourcePreparationRepository,
   SourceSetupRepository,
   SourceSampleRepository,
+  PreparationPresetRepository,
 } from "@market-me/database";
 import { getServerConfiguration } from "./config";
 
@@ -40,6 +41,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
     sourcePreparations: SourcePreparationRepository;
     sourceSetups: SourceSetupRepository;
     sourceSamples: SourceSampleRepository;
+    preparationPresets: PreparationPresetRepository;
   };
 };
 
@@ -120,6 +122,10 @@ export function getSourceSampleRepository(): SourceSampleRepository {
   return getRepositories().sourceSamples;
 }
 
+export function getPreparationPresetRepository(): PreparationPresetRepository {
+  return getRepositories().preparationPresets;
+}
+
 function getRepositories(): {
   core: MarketMeRepository;
   campaigns: CampaignRepository;
@@ -138,6 +144,7 @@ function getRepositories(): {
   sourcePreparations: SourcePreparationRepository;
   sourceSetups: SourceSetupRepository;
   sourceSamples: SourceSampleRepository;
+  preparationPresets: PreparationPresetRepository;
 } {
   if (databaseGlobal.marketMeDatabase) return databaseGlobal.marketMeDatabase;
   const databaseUrl = getServerConfiguration().databaseUrl;
@@ -161,6 +168,7 @@ function getRepositories(): {
     sourcePreparations: new SourcePreparationRepository(sql),
     sourceSetups: new SourceSetupRepository(sql),
     sourceSamples: new SourceSampleRepository(sql),
+    preparationPresets: new PreparationPresetRepository(sql),
   };
   if (process.env.NODE_ENV !== "production")
     databaseGlobal.marketMeDatabase = repositories;

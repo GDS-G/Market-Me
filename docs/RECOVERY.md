@@ -1,5 +1,11 @@
 # Backup and Recovery Runbook
 
+## Release 1.30 preset recovery
+
+Retain preset roots, all immutable versions and private request receipts together. After response loss, check the saved workspace/request result or retry the exact original request; a missing result is not proof another transaction failed. Never delete historical rows or automatically issue another key to recover. Explicit acknowledgement is required before clearing tab-local recovery. If browser storage is lost, inspect library history before intentionally starting a separate request.
+
+Revision conflicts require reload/review, not silent merge. Archived roots may be restored without erasing versions, but old profile pins must still pass current checks before copying or saving. Copy failures leave preparation fields unchanged; saved preparation recovery always takes precedence. Apply 0118 forward after backup/drain; do not edit its checksum or roll back by deleting tables. [Preparation presets](PREPARATION_PRESETS.md) documents schema/state and matching-code rollout. No provider-side rollback is required because these operations perform no provider action.
+
 ## Release 1.29 dry-test recovery
 
 No sample result is persisted or authoritative. After a timeout, invalid response, membership change or stale-version conflict, reload the saved source and explicitly test again. Do not enable synchronization, change approval/preparation state, erase receipts or create a new source to recover a failed sample. A local empty/stale index is not proof the computer folder is empty. Unavailable or oversized context returns no partial interpretation; review current published selections and bounded configuration instead.

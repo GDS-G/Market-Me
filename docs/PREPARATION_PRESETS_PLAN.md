@@ -1,6 +1,6 @@
 # Reusable preparation presets
 
-Status: next implementation design after the 1.29 bounded source dry test. Not implemented or released yet. The approved specification calls for reusable, cloneable, editable, shared and versioned campaign templates. This increment will deliver reusable **preparation settings** for the existing General Announcement compiler; it will not relabel those settings as a complete arbitrary workflow-template engine.
+Status: implemented in the 1.30 candidate; final release acceptance/publication remains tracked in [Releases](RELEASES.md). [Implementation and variable reference](PREPARATION_PRESETS.md) documents the resulting contracts. The approved specification calls for reusable, cloneable, editable, shared and versioned campaign templates. This increment delivers reusable **preparation settings** for the existing General Announcement compiler; it does not relabel those settings as a complete arbitrary workflow-template engine.
 
 ## User outcome and boundary
 

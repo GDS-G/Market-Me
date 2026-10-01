@@ -1,10 +1,16 @@
 # Security and Integration Controls
 
+## Release 1.30 preset boundaries
+
+All library reads join current same-workspace membership. Mutations, private receipt lookup and values-copy require current owner/admin/editor access; write transactions lock authority through completion. POST uses exact configured Origin, strict body/query allowlists and bounded streaming JSON. Canonical configuration excludes package/approval/execution/account authority. Exact replay is actor-private and checked before mutable eligibility but after current authorization. Stale root revisions and unavailable/policy-incompatible references fail closed. Archive/restore never erases history or changes existing work.
+
+The browser persists exact scoped requests before POST, validates bounded responses and cannot overwrite a saved preparation attempt with preset values. SQL immutability/composite-scope/hash constraints provide defense in depth; unknown errors are sanitized. No provider or credential access occurs. [Preparation presets](PREPARATION_PRESETS.md) specifies limits, lock order, error branding and all trust boundaries. Exact 1.30 cloud audits remain pending until the reviewed commit is verified.
+
 ## Release 1.29 source-sample boundaries
 
 The metadata dry test requires explicit UUID workspace/source scope, saved source version/location, current writer, exact configured Origin, strict bounded JSON and no query authority. Coherent capture locks active references and published context, then releases all transactions before provider I/O. The existing credential refresh CAS remains in force; checks after refresh and before return reject lost membership, revoked references or changed configuration. The browser receives no credentials, provider URLs/cursors/IDs, raw context instructions/values, storage paths beyond approved display metadata, internal fingerprints or approval/command capability.
 
-Item/count/string/context/response/work bounds prevent unbounded interpretation. Normal wildcard patterns use non-backtracking matching; unsupported legacy `?`/NUL expressions fail dry testing rather than silently changing meaning. A server-only symbol brand distinguishes safe internal errors retained across hot reload from provider errors that merely copy a name. Unknown SQL/provider errors are sanitized and not logged verbatim. The operation does not generate, approve, prepare, activate or send. See [the detailed contract](SOURCE_DRY_TEST.md) for limits and historical-local/partial-cloud caveats; final release audit evidence remains pending until exact CI completes.
+Item/count/string/context/response/work bounds prevent unbounded interpretation. Normal wildcard patterns use non-backtracking matching; unsupported legacy `?`/NUL expressions fail dry testing rather than silently changing meaning. A server-only symbol brand distinguishes safe internal errors retained across hot reload from provider errors that merely copy a name. Unknown SQL/provider errors are sanitized and not logged verbatim. The operation does not generate, approve, prepare, activate or send. See [the detailed contract](SOURCE_DRY_TEST.md) for limits and historical-local/partial-cloud caveats; exact 1.29 feature/main CI both passed production and full audits with zero vulnerabilities, as recorded in [Releases](RELEASES.md).
 
 ## Release 1.28 guided setup boundaries
 

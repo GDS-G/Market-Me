@@ -10,6 +10,7 @@ import {
 } from "./campaign-preparation-request";
 import styles from "./campaign-preparation-form.module.css";
 import { ApprovedPackageReviewPicker } from "./approved-package-review-picker";
+import { presetErrorMessage,presetPayloadData,presetVersionSchema,readPresetResponse } from "./preparation-preset-contract";
 
 export interface PreparationPackageChoice { id: string; title: string; version: number }
 export interface PreparationProfileChoice { id: string; name: string; versionNumber: number }
@@ -19,6 +20,7 @@ export interface PreparationFormProps extends PreparationScope {
   brands: readonly PreparationProfileChoice[];
   audiences: readonly PreparationProfileChoice[];
   destinations: readonly { id: string; title: string }[];
+  preset?: { id: string; title: string; revision: number; versionNumber: number; archived: boolean };
 }
 const subscribeHydration = () => () => {};
 const browserSnapshot = () => true;
@@ -56,8 +58,32 @@ function PreparationEditor(props: PreparationFormProps) {
   const [message, setMessage] = useState("");
   const [existingId, setExistingId] = useState<string>();
   const [pending, setPending] = useState(false);
+  const [copyPending, setCopyPending] = useState(false);
   const [resetConfirmed, setResetConfirmed] = useState(false);
+  const copySelectionKey = JSON.stringify(props.preset ?? null);
+  const [copyAcknowledgement, setCopyAcknowledgement] = useState("");
+  const copyConfirmed = copyAcknowledgement === copySelectionKey;
   const inFlight = useRef(false);
+
+  async function copyPreset() {
+    if (!props.preset || props.preset.archived || !copyConfirmed || inFlight.current || attempt || storageError) return;
+    inFlight.current = true; setPending(true); setCopyPending(true); setError(""); setMessage("");
+    try {
+      const response = await fetch(`/api/v1/preparation-presets/${props.preset.id}/copy-settings`, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ workspaceId: props.workspaceId, expectedRevision: props.preset.revision, versionNumber: props.preset.versionNumber }) });
+      const payload = await readPresetResponse(response);
+      if (!response.ok) { setError(presetErrorMessage(payload, "The preset is unavailable. Reload and review its current version.")); return; }
+      const copied = presetVersionSchema.parse(presetPayloadData(payload));
+      if (copied.workspaceId !== props.workspaceId || copied.presetId !== props.preset.id || copied.versionNumber !== props.preset.versionNumber) throw new Error("Mismatched preset copy.");
+      // Rebuild settings, not a spread over old optional references: absence in
+      // the preset must clear the old Brand/Destination and audience selections.
+      setValues(previous => ({ workspaceId: props.workspaceId, contentPackageId: previous.contentPackageId,
+        expectedPackageVersion: previous.expectedPackageVersion, ...copied.configuration }));
+      setCopyAcknowledgement("");
+      setMessage(`Copied “${copied.title}” v${copied.versionNumber}. Review the editable settings before preparing. Package selection and its exact review are unchanged; no preparation request was sent.`);
+    } catch { setError("No validated preset settings were copied. Your current preparation settings were preserved."); }
+    finally { inFlight.current = false; setPending(false); setCopyPending(false); }
+  }
 
   function reset() {
     if (!resetConfirmed || inFlight.current) return;
@@ -115,6 +141,15 @@ function PreparationEditor(props: PreparationFormProps) {
   }
 
   return <form className="resource-form" onSubmit={(event) => { event.preventDefault(); void run(false); }}>
+    {props.preset && <section className={styles.notice} aria-label="Copy preparation preset">
+      <h2>Selected preset: {props.preset.title} · v{props.preset.versionNumber}</h2>
+      <p>Copying replaces the unsaved reusable settings below, but never a saved recovery attempt, package selection, package approval, Campaign or source binding. Later preset changes do not follow these copied values.</p>
+      {props.preset.archived ? <p>This preset is archived; restore it before making a new copy.</p> : <>
+        <label className="checkbox-row"><input type="checkbox" checked={copyConfirmed} disabled={pending || Boolean(attempt) || Boolean(storageError)} onChange={event => setCopyAcknowledgement(event.target.checked ? copySelectionKey : "")} />Replace my unsaved reusable preparation settings with this saved preset version.</label>
+        <button type="button" disabled={pending || Boolean(attempt) || Boolean(storageError) || !copyConfirmed} onClick={() => void copyPreset()}>Copy preset settings into this form</button>
+      </>}
+      <Link href="/campaigns/presets">Review preset library</Link>
+    </section>}
     {(attempt || storageError) && <section className={styles.notice} aria-labelledby="saved-preparation-heading">
       <h2 id="saved-preparation-heading">Saved preparation attempt</h2>
       <p>The choices below are frozen for this attempt, including package revision {attempt?.input.expectedPackageVersion ?? "unknown"}. Retrying reuses the same key and settings; it does not request another campaign.</p>
@@ -137,14 +172,14 @@ function PreparationEditor(props: PreparationFormProps) {
       onReview={(review) => { setReviewFingerprint(review?.reviewFingerprint ?? ""); if (review) setValues((previous) => ({ ...previous, expectedPackageVersion: review.version })); }} />}
     <div className="form-actions">
       <button type="submit" className="button-primary" disabled={pending || Boolean(storageError) || (!attempt && (!reviewFingerprint || !props.packages.some((item) => item.id === values.contentPackageId)))}>
-        {pending ? "Checking preparation…" : attempt ? "Retry same preparation" : "Prepare campaign and drafts"}
+        {copyPending ? "Copying preset settings…" : pending ? "Checking preparation…" : attempt ? "Retry same preparation" : "Prepare campaign and drafts"}
       </button>
       <Link href="/content-packages">Review packages</Link>
     </div>
     {storageError && <p className="form-error" role="alert">{storageError}</p>}
     {error && <div className="form-error" role="alert"><p>{error}</p>{fieldErrors.length > 0 && <ul>{fieldErrors.map((field) => <li key={field}>{field}</li>)}</ul>}{existingId && <Link href={preparationResultPath(existingId, props.workspaceId)}>Open existing preparation</Link>}</div>}
     {message && <p className="form-help" role="status">{message}</p>}
-    {pending && <p className="form-help" role="status">Checking your saved preparation request. Do not start another attempt while this request is pending.</p>}
+    {pending && <p className="form-help" role="status">{copyPending ? "Validating and copying reusable settings only. No campaign preparation request is being sent." : "Checking your saved preparation request. Do not start another attempt while this request is pending."}</p>}
     <p className="form-help">Only preparation choices and an attempt ID are saved in this browser tab, scoped to your user and workspace. No credentials are stored. Closing the tab clears its recovery copy; the server receipt remains available.</p>
   </form>;
 }
