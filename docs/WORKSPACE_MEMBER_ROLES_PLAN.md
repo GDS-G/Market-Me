@@ -1,0 +1,33 @@
+# Existing workspace member role management
+
+Status: next separate increment after Release 1.32 workspace creation/name management. This is a design plan, not implemented or accepted functionality. It addresses the original specification's workspace administration, independent roles and audited permission changes. Existing exact-email invitations already assign non-owner roles; the missing customer-facing operation is adjusting an already admitted collaborator's workspace role without database access.
+
+## Bounded authority and exclusions
+
+Use the established six workspace roles and their current server-side capabilities; do not silently introduce the specification's larger future role taxonomy. A current workspace owner or administrator may explicitly change another current, non-owner member among admin, editor, approver, analyst and viewer. Existing invitation administration already permits those non-owner role grants. Show plain-language effects before confirmation.
+
+No owner assignment, owner demotion/transfer, self-role change, membership creation/removal, organization role change, invitation acceptance, user profile edit, account/identity linkage, billing or cross-workspace grant belongs to this increment. Protect all owner rows and the actor from the UI operation, rather than assuming the last remaining owner can be safely inferred during concurrent changes. More granular brand/account/campaign/action permissions and organizational policy remain separate product work.
+
+Building this interface does not authorize changing any real person's production permissions. Tests and browser acceptance use explicitly named synthetic local fixtures only. A consequential real grant still requires the appropriate user authorization.
+
+## Durable state, exact intent and locks
+
+Add a positive membership role revision in a forward migration. It should advance on any actual role update, including trusted administrative updates outside this new endpoint, so a stale editor cannot miss a revoke-and-regrant cycle. Do not rewrite existing roles, membership creation times or workspace/user identity. Review existing invitation/identity writes and regression fixtures for compatibility before freezing the migration.
+
+Use one closed canonical request containing workspaceId, targetUserId, requestId, expectedRevision, newRole and a bounded required reason. Actor identity comes from the authenticated session, never the request. Validate UUIDs, role enum, revision, reason Unicode/control/byte limits and unknown/accessor/hidden fields. Record previousRole, newRole, resulting target revision, request/target/workspace, reason, original actor, canonical bytes and creation time in an immutable actor-private receipt. Expose only the minimized original outcome and reason needed for recovery, not credentials or another actor's request history.
+
+Current actor authority and target membership must be locked coherently through commit. Use deterministic membership row ordering to avoid two administrators deadlocking while changing each other's roles; review interaction with existing invitation locks and Release 1.32 rename/create membership locks. Avoid acquiring a workspace row lock before a membership lock when the existing workspace rename transaction uses the opposite order. Serialize exact workspace/request identity and compare original actor/canonical input before replay. A prior exact receipt returns its original outcome without overwriting subsequent legitimate role changes; current administration authority remains necessary to recover it.
+
+For new work, reject owner/self targets, owner as the requested role, missing/foreign target, unchanged role, stale revision and revision exhaustion. Update exactly the existing membership role/revision and insert receipt plus minimized audit atomically, including source interface and before/after roles. Do not create or delete memberships, reassign content, cancel unrelated work or relink identities. Current privilege checks in downstream operations must continue reading current membership; review any capability snapshots that could otherwise remain stale after a role change.
+
+## API, UI and recovery
+
+Team should render current members, roles and only server-authorized change controls. Role explanations must describe current implementation, not promise future granular permissions. Selecting a role is not a grant: require review of the exact member/current role/new role and explicit acknowledgement before the mutation. Existing invitation controls remain separate.
+
+Provide authenticated no-store, configured-Origin mutation with strict scope and streamed byte limits plus actor-private result lookup. Version browser recovery by user/workspace and preserve one exact pending request before sending. No uncertain response may silently generate another key or overwrite another member's retained request. Strict response validation must match workspace, target, request, expected resulting revision and roles. Freeze edits while a request is retained; offer read-only lookup/exact retry and acknowledged local clearing followed by a fresh current-membership read. Success describes the original outcome, not perpetual access or today's role.
+
+## Acceptance and documentation
+
+Cover independent actor/target role matrices, owner/self/foreign denial, membership revision and immutable-receipt SQL guards, changed-key reuse, historical replay after later role changes, current-authority revocation, two-admin row-order races, stale concurrent target edits, exact request retry, zero membership count change and representative downstream authority checks. Test API transport, bounded browser recovery, real desktop/narrow layout and production-mode access on named synthetic QA only.
+
+Run the complete local/cloud/static/native/migration gates, not just the new tests. Preserve frozen migrations and user pnpm files. Maintain the repository programmer reference and the existing Google development parent/five child tabs with all fields, constants, collections, state/refs, lock ordering, revision behavior, rollout, recovery, release evidence and remaining limitations. No release-boundary pause is required when this work remains within the approved specification.

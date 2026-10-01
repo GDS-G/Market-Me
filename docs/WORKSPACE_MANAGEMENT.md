@@ -1,6 +1,6 @@
 # Workspace creation, naming and exact request recovery
 
-Release 1.32 implementation reference. Local full regression/build/native-package, production and synthetic browser acceptance pass. Exact-source cloud verification and final Google documentation readback remain in progress. See [release evidence](RELEASES.md) for final acceptance, and [scope plan](WORKSPACE_MANAGEMENT_PLAN.md) for the original boundaries. This feature does not complete organization administration or the full product specification.
+Release 1.32 implementation reference. Local full regression/build/native-package, production and synthetic browser acceptance pass. Reviewed runtime `fcecaf2a401bb24e3f4b49e4e917c94cc7cedb08` is public on main after exact feature/main cloud verification; both reproduce 2,486 tests/144 files, 119 migrations and both zero-vulnerability audits. Final Google native readback preserves all 30 tabs and prior text/styles. See [release evidence](RELEASES.md) for acceptance, and [scope plan](WORKSPACE_MANAGEMENT_PLAN.md) for the original boundaries. This feature does not complete organization administration or the full product specification.
 
 ## Ownership and scope
 

@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.32 candidate: workspace creation and naming
+## Release 1.32: workspace creation and naming
 
 Organization owners can create empty workspaces; workspace owners/admins can rename their current workspace. Permissions remain independent, no members/content/connections are inherited, and exact private request recovery prevents duplicate creates after response loss. Stable membership ordering keeps no-cookie selection independent of new or renamed labels. [Workspace management design and variables](docs/WORKSPACE_MANAGEMENT.md) documents the contract.
 
-Local acceptance passes 2,486 tests/144 files, all typechecks/lint/builds, 119 migrations/replay, browser/production checks and unsigned Windows packaging. Exact-source cloud verification and final Google readback are in progress; this is not yet a released-source or production-deployment claim. See [Releases](docs/RELEASES.md).
+Reviewed runtime `fcecaf2a401bb24e3f4b49e4e917c94cc7cedb08` is public on main. Exact [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36937229177) and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36937683974) pass 2,486 tests/144 files, 119 migrations, static/build checks and both zero-vulnerability audits. Local browser/production/native/package gates and Google development-tab verification pass separately. This is not whole-product completion or production deployment. [Existing-member role editing](docs/WORKSPACE_MEMBER_ROLES_PLAN.md) is the next separate increment; see [Releases](docs/RELEASES.md).
 
 ## Previous release: 1.31 preset reuse on Smart Sources
 

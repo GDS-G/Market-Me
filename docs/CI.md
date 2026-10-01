@@ -1,8 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.32 candidate checkpoint
+## Verified Release 1.32 checkpoint
 
-The full local gate passes 2,486 TypeScript tests/144 files without skips: web 895/54, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1096/54, domain 128/6, generation 29/4, ingestion 33/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, Next/companion builds, cargo check and three Rust tests pass. CI applies additive 0119, replay applies none/skips all 119, and fixture organizations return to zero. Browser/production recovery and unsigned Windows packaging pass separately. Exact-source feature/main cloud jobs and audits remain pending; earlier-release runs are not substitute evidence.
+The full local gate passes 2,486 TypeScript tests/144 files without skips: web 895/54, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1096/54, domain 128/6, generation 29/4, ingestion 33/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, Next/companion builds, cargo check and three Rust tests pass. CI applies additive 0119, replay applies none/skips all 119, and fixture organizations return to zero. Browser/production recovery, unsigned Windows packaging and Google native readback pass separately.
+
+Exact runtime `fcecaf2a401bb24e3f4b49e4e917c94cc7cedb08` passes [feature run 36937229177](https://github.com/GDS-G/Market-Me/actions/runs/36937229177) in 4 minutes 9 seconds and [main run 36937683974](https://github.com/GDS-G/Market-Me/actions/runs/36937683974) in 4 minutes 20 seconds. Main was fast-forwarded to the exact reviewed commit. Both clean Linux jobs install 609 packages/audit 622, apply all 119 migrations, reproduce the full 2,486-test/144-file split, pass static/build/native-dependency checks and cleanup, and report zero vulnerabilities in both production/full audits. Next compilation is 14.0/14.4 seconds, with 102/102 generation in 466/483 ms. No dependency upgrade, audit suppression or test skip was introduced. Next-increment member-role tests are not included in these totals.
 
 Prior 1.31 documentation-only commit `b48217f9d4e52b84eae58d2488aabfa36b2dbbc4` separately passed feature/main runs 36935019681/36935019598; those jobs do not include 1.32 code.
 
