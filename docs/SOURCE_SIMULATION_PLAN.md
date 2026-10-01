@@ -1,6 +1,6 @@
 # Smart Source dry-test implementation plan
 
-Status: the bounded metadata-only increment is implemented on `codex/source-dry-test` as 1.29. Final local regression, frontend/native builds, unsigned packaging, synthetic browser/production-mode checks and Google development-tab readback pass; exact cloud CI and reviewed-source publication remain pending. [Source dry-test contract](SOURCE_DRY_TEST.md) records implemented behavior. The larger specification boundary below remains the target, not a completion claim.
+Status: the bounded metadata-only increment is published as 1.29. Reviewed commit `6d7592fcace50a8a40960ab49a3fa34e8088590e` is on main with exact feature/main cloud runs 36925952746/36926643029 passing 2,256 tests/130 files and both clean audits. Local frontend/native builds, unsigned packaging, migration replay, synthetic browser/production-mode checks and Google development-tab readback also pass. [Source dry-test contract](SOURCE_DRY_TEST.md) records implemented behavior. The larger specification boundary below remains the target, not a completion claim.
 
 ## Specification and acceptance target
 

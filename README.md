@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.29 candidate: bounded source dry test
+## Release 1.29: bounded source dry test
 
 Saved Smart Sources now offer a metadata-only dry test that explains detected/ignored files, readiness and supporting-file relationships, per-root package candidates, structured Context Pack conflicts and conditional next steps while synchronization stays paused. Cloud mode reads one saved-folder page; local mode honestly labels historical indexed metadata. It makes no AI requests, estimates no future spending, and creates no content, scan, approval or execution records. Unsaved edits, connection diagnostics and later activation remain separate.
 
-Local acceptance passes 2,256 tests/130 files, all typechecks/lint/builds, migration replay, native tests and unsigned Windows packaging, plus synthetic desktop/mobile/reload/stale-version/empty-index and production-mode browser checks. The Google development parent/five child tabs are synchronized and verified. Reviewed-source publication and exact cloud CI are pending. [Source dry-test contract](docs/SOURCE_DRY_TEST.md) documents all fields, limits, collections, state, snapshots, errors and remaining scope. This is not full recursive/item/date-range/content simulation or whole-product completion.
+Reviewed source `6d7592fcace50a8a40960ab49a3fa34e8088590e` is public on `main`. Exact [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36925952746) and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36926643029) pass **2,256 tests/130 files**, all typechecks/lint/builds, 117 migrations and both zero-vulnerability audits. Separate local gates cover migration replay, native tests, unsigned Windows packaging and synthetic desktop/mobile/reload/stale-version/empty-index/production-mode browser checks. The Google development parent/five child tabs are synchronized and verified. [Source dry-test contract](docs/SOURCE_DRY_TEST.md) documents all fields, limits, collections, state, snapshots, errors and remaining scope. This is not full recursive/item/date-range/content simulation or whole-product completion. [Reusable preparation presets](docs/PREPARATION_PRESETS_PLAN.md) are the next bounded increment.
 
 ## Previous release: 1.28 guided source setup
 

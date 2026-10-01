@@ -1,10 +1,12 @@
 # Cloud continuous integration
 
-## Release 1.29 candidate gates
+## Verified Release 1.29 checkpoint
 
 Final local integration passes 2,256 TypeScript tests/130 files with no skips, including metadata simulation/capture/transport/rendering, hot-reload-safe errors, cloud-reference checks, context byte/instruction changes and authority-rule precedence. All 12 typechecks, lint and both frontend builds pass. Isolated `market_me_ci` returns to zero fixture organizations. Package/native metadata is 1.29.0. No dependency upgrade or schema migration is introduced; fresh browser QA applies the same 117 migrations, and replay skips all 117 unchanged.
 
-Synthetic Chrome acceptance confirms paused mixed-file and empty-index results, reload invalidation, stale-version rejection/recovery and responsive layout. Before/after SQL proves dry testing creates no settings/content/history/command writes. Separate local gates pass native check/three Rust tests, unsigned NSIS packaging and authenticated production-mode sampling; production readiness remains honestly incomplete. Google development-tab readback passes. This is not live Google/Graph or current local filesystem acceptance. Reviewed-source publication and exact feature/main Linux CI/audits are pending and must not be inferred from the preceding release. The documentation-only 1.28 follow-up `bcd899e` separately passed feature run 36921034617 and main run 36921034378.
+Synthetic Chrome acceptance confirms paused mixed-file and empty-index results, reload invalidation, stale-version rejection/recovery and responsive layout. Before/after SQL proves dry testing creates no settings/content/history/command writes. Separate local gates pass native check/three Rust tests, unsigned NSIS packaging and authenticated production-mode sampling; production readiness remains honestly incomplete. Google development-tab readback passes. This is not live Google/Graph or current local filesystem acceptance.
+
+Exact reviewed commit `6d7592fcace50a8a40960ab49a3fa34e8088590e` passes [feature run 36925952746](https://github.com/GDS-G/Market-Me/actions/runs/36925952746) in 4 minutes 47 seconds and [main run 36926643029](https://github.com/GDS-G/Market-Me/actions/runs/36926643029) in 3 minutes 42 seconds. Both install 609 packages/audit 622, apply 117 migrations, reproduce the exact 2,256-test/130-file split without skips, pass all type/lint/build/native-dependency steps and cleanup, and report zero vulnerabilities in both audits. Main is a verified fast-forward of that exact commit; no cloud-only correction or new credential was needed. The preceding documentation-only 1.28 follow-up `bcd899e` separately passed runs 36921034617/36921034378 and is not used as 1.29 proof.
 
 ## Verified Release 1.28 checkpoint
 
