@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.30 candidate: reusable preparation presets
+## Release 1.30: reusable preparation presets
 
 The workspace preset library now saves immutable General Announcement settings, supports version history, historical cloning and archive/restore, and explicitly copies values into review-first preparation. It never changes existing Campaigns, substitutes package approval or creates execution authority. Browser recovery preserves exact private requests across reloads. [Preset implementation and variable reference](docs/PREPARATION_PRESETS.md) covers the complete contracts, constants, collections, state, limits, locks and rollout.
 
-Local acceptance passes 2,339 tests/135 files, typechecks/lint/builds, 118 migrations/replay, real desktop/mobile/recovery/stale-copy checks, production smoke and native checks/tests/unsigned Windows packaging. Google documentation and exact-source cloud CI/publication are being completed; this is a candidate, not a published or whole-product completion claim. See [Releases](docs/RELEASES.md).
+Reviewed source `0a8f765f4a6cc1d8eadc37cbee40cae7dc940b4c` is public on main. Exact [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36930715654) and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36931307176) pass 2,339 tests/135 files, typechecks/lint/builds, 118 migrations and both zero-vulnerability audits. Separate local gates cover migration replay, desktop/mobile/recovery/stale-copy browser checks, production smoke and native checks/tests/unsigned Windows packaging. The Google development parent/five child tabs are synchronized and verified. This is not whole-product completion; [Smart Source preset reuse](docs/SOURCE_PRESET_COPY_PLAN.md) is the next bounded integration. See [Releases](docs/RELEASES.md).
 
 ## Previous release: 1.29 bounded source dry test
 

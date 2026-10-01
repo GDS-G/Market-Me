@@ -1,8 +1,8 @@
 # Releases and Roadmap
 
-## 1.30.0 - Reusable preparation presets (candidate)
+## 1.30.0 - Reusable preparation presets
 
-Status: implemented with final local regression, migration, browser/production, native/package gates and Google development-tab synchronization/readback passed. Exact reviewed-source cloud CI/audits and public release are pending. This is a versioned settings-library increment, not whole-product completion.
+Status: reviewed source is public on main with final local regression, migration, browser/production, native/package gates, Google development-tab synchronization/readback and exact feature/main cloud CI/audits passed. This is a versioned settings-library increment, not whole-product completion.
 
 - Adds shared same-workspace preset roots, immutable General Announcement configuration versions, selected-version cloning, archive/restore, current-reference/policy checks and actor-private exact retry receipts. Earlier versions and copied Campaign preparation values never change. A separate explicit readonly copy preserves package selection/exact approval proof and cannot replace saved preparation recovery. No provider, credential, automatic preparation, approval, activation or send is introduced.
 - Frozen additive migration `0118_preparation_presets.sql` has SHA-256 `2fb25d013baf8ec51a2743161a3ee3b059f1559147f892dff9f885c07f8d5934`; readiness expects 118/latest 0118. Fresh QA applied all 118, replay applied none/skipped all 118, and frozen 0117 remains unchanged. Immutable-history guards, workspace cascade, role/tenant privacy, concurrent exact creates/competing revisions and zero-write copy pass in live PostgreSQL.
@@ -13,6 +13,10 @@ Status: implemented with final local regression, migration, browser/production, 
 - [Preparation presets](PREPARATION_PRESETS.md) documents every important request/receipt/configuration/schema field, constants, ordered collections, cache/error identity, browser state/refs, storage and response limits, locks/replay, errors, recovery and rollout. Workspace/npm/native metadata are 1.30.0; dependencies and user pnpm files are unchanged. Arbitrary workflow templates, source bindings to preset versions and cross-workspace sharing/export remain open.
 
 The final full regression rerun after presentation/message corrections reproduces all 2,339 tests/135 files without skips. Google native readback at revision `ANLCKQl1gJUzwe5svkf-6a8X2jZvXQ89Q3fjH_w_JHB6tTR1TJO1iRQ_hdHHt7INdrFZmlumrChtcu5aLizQZQFdVnL_uG-uZs6KJQVVAg` verifies 46 new paragraphs across the development parent and five children, correct heading/body-bullet styles, and unchanged prior paragraphs/styles and all 30-tab titles/order/parents. The previously unavailable advisory file-backed bridge has a Windows-path incompatibility; revision-guarded direct native read/write/readback is the documented fallback. No file-backed control scan or rendered-PDF verification is claimed.
+
+Exact reviewed runtime commit `0a8f765f4a6cc1d8eadc37cbee40cae7dc940b4c` passed [feature run 36930715654](https://github.com/GDS-G/Market-Me/actions/runs/36930715654) in 4 minutes 24 seconds, was fast-forwarded without divergence to public main, then passed [main run 36931307176](https://github.com/GDS-G/Market-Me/actions/runs/36931307176) in 3 minutes 58 seconds. Both clean Linux jobs installed 609 packages/audited 622, applied all 118 migrations, reproduced the exact 2,339-test/135-file split, passed every type/lint/build/native-dependency/cleanup step and both production/full audits with zero vulnerabilities. Next compilation took 14.7/13.3 seconds; generation was 99/99 in 600/510 ms. No cloud-only source fix was needed. [Smart Source preset reuse](SOURCE_PRESET_COPY_PLAN.md) is being developed separately and is not included in this release's verification totals.
+
+Final Google publication readback revision `ANLCKQm5ygiJ4-psVhUj6smTxtaJoTLdU3L9041S3dF7cNes3Ixkta-ltIU4z7CfnXMhStul8DX2GbM0qdj-jW5mALV4xuWmOAAgkmSO0A` verifies exact runtime/feature/main/audit evidence, all six engineering sections and unchanged prior paragraphs/styles/bullets and 30-tab topology. Verification remains native connector readback, not a rendered-PDF or file-backed control-scan claim.
 
 ## 1.29.0 - Bounded Smart Source metadata dry test
 

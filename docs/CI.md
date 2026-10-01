@@ -1,10 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.30 candidate checkpoint
+## Verified Release 1.30 checkpoint
 
 The local suite passes 2,339 TypeScript tests/135 files without skips: web 795/47, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1049/52, domain 128/6, generation 29/4, ingestion 33/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, both production builds, cargo check, three Rust tests and unsigned Windows packaging pass. Fresh QA applies 118 migrations and replay skips all 118; the full test database returns to zero organizations. Browser tests verify lifecycle/recovery/history, copy isolation, stale rejection and narrow layout; production checks confirm authenticated copy and protected unauthenticated access.
 
-Exact reviewed-source feature/main CI and dependency audit results are pending; local checks do not imply a cloud pass. See [Releases](RELEASES.md) for publication evidence and [Preparation presets](PREPARATION_PRESETS.md) for test/data-boundary details. No test skip, audit suppression, dependency upgrade or new secret is introduced.
+Exact reviewed runtime `0a8f765f4a6cc1d8eadc37cbee40cae7dc940b4c` passed [feature run 36930715654](https://github.com/GDS-G/Market-Me/actions/runs/36930715654) in 4 minutes 24 seconds, was fast-forwarded without divergence to public main and passed [main run 36931307176](https://github.com/GDS-G/Market-Me/actions/runs/36931307176) in 3 minutes 58 seconds. Both clean Linux jobs installed 609 packages/audited 622, applied all 118 migrations, reproduced the 2,339-test/135-file split, passed all typechecks/lint/builds/native-dependency loading/cleanup and both zero-vulnerability audits. Next compilation took 14.7/13.3 seconds; generation was 99/99 in 600/510 ms. No test skip, audit suppression, dependency upgrade or new secret was introduced. See [Releases](RELEASES.md) for publication evidence and [Preparation presets](PREPARATION_PRESETS.md) for test/data-boundary details. Next-increment local source-copy tests are not part of these 1.30 totals.
 
 ## Verified Release 1.29 checkpoint
 

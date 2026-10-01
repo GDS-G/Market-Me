@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Current candidate: Release 1.30 reusable preparation presets
+## Current verified source: Release 1.30 reusable preparation presets
 
 The implemented shared library provides immutable General Announcement values, historical version reads/clones, archive/restore, exact private request recovery and an explicit values-only copy into preparation. Saved recovery attempts cannot be overwritten; copied values preserve package selection and approval proof while clearing absent optional references. Current membership, revision, publication and policy eligibility are enforced. [Full implementation/variable reference](PREPARATION_PRESETS.md) and [original scope plan](PREPARATION_PRESETS_PLAN.md) describe what this does and does not implement.
 
-Local acceptance passes 2,339 tests/135 files without skips, all typechecks/lint/builds, migration 0118/replay, browser/production checks and unsigned Windows native packaging. Google synchronization and exact reviewed-source cloud publication remain pending until recorded in [Releases](RELEASES.md). Whole-product scope remains incomplete: this is not arbitrary workflow authoring, source/template-version binding, public/cross-workspace sharing, automatic execution or live-provider acceptance. No user input is needed merely to continue development.
+Local acceptance passes 2,339 tests/135 files without skips, all typechecks/lint/builds, migration 0118/replay, browser/production checks and unsigned Windows native packaging. Google development-tab readback preserves all 30 tabs and prior content/styles. Reviewed source `0a8f765f4a6cc1d8eadc37cbee40cae7dc940b4c` is public on main; exact feature/main cloud runs 36930715654/36931307176 reproduce the tests/builds/118 migrations and both clean audits. [Releases](RELEASES.md) records the evidence. Whole-product scope remains incomplete: this is not arbitrary workflow authoring, source/template-version binding, public/cross-workspace sharing, automatic execution or live-provider acceptance. [Explicit Smart Source preset reuse](SOURCE_PRESET_COPY_PLAN.md) is being developed separately; its tests are not included in the 1.30 totals. No user input is needed merely to continue development.
 
 ## Previous verified source: Release 1.29 metadata dry test
 
