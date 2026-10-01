@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.34 candidate local checkpoint
+
+Final local gate: 2,780 TypeScript tests/153 files, no skips. Split: web 1035/59, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1250/58, domain 128/6, generation 29/4, ingestion 33/5, media 24/2, workflows 43/3. All 12 typechecks, lint, both frontend builds, cargo check and three Rust tests pass. Full regression was repeated after accessibility/plural refinements: Next compile 2.5 s, TypeScript 3.0 s, 104/104 generation 411 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms.
+
+Fresh QA applies all 120 migrations; replay applies none/skips all 120. Final CI cleanup leaves zero organizations and 120 migration entries. Synthetic desktop/mobile/keyboard/refresh, production authentication and unsigned packaging pass separately. Exact-source feature/main cloud test/build/audit runs and Google synchronization remain pending. Prior 1.33 docs-only runs 36941438858/36941441683 do not verify this runtime.
+
 ## Verified Release 1.33 checkpoint
 
 Final local gate: 2,647 TypeScript tests/149 files, no skips. Split: web 974/57, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1178/56, domain 128/6, generation 29/4, ingestion 33/5, media 24/2, workflows 43/3. All 12 typechecks/lint, both frontend builds, cargo check and three Rust tests pass. The full gate was rerun after the saved-request presentation refinement: Next compile 2.7 s, TypeScript 11.2 s and 103/103 generation 416 ms. Fresh QA applies all 120 migrations and replays unchanged; local CI adds only 0120 to prior 119 and retains zero organizations after the suite. Synthetic browser, production-mode authentication/exact recovery, unsigned package and final Google readback gates pass separately.

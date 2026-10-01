@@ -51,5 +51,7 @@ describe("active workspace selection", () => {
   it("allows section roots without retaining a previous record or filter", () => {
     expect(workspaceSwitchReturnPath("/campaigns")).toBe("/campaigns");
     expect(workspaceSwitchReturnPath("/settings")).toBe("/settings");
+    expect(workspaceSwitchReturnPath("/getting-started")).toBe("/getting-started");
+    expect(workspaceSwitchReturnPath("/getting-started?workspaceId=foreign")).toBe("/");
   });
 });

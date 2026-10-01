@@ -1,5 +1,11 @@
 # Domain Model and Important Variables
 
+## Release 1.34 snapshot and guidance models
+
+`WorkspaceStartSnapshot` contains workspace ID, current membership role, observation time and 18 nonnegative safe-integer counts enumerated by frozen `WORKSPACE_START_COUNT_KEYS`. Sources, package lifecycle, unarchived drafts/current Campaign plans, runs and pending queues have independent filters. Paused runs overlap open/attention; pending queues are workspace-wide, not assigned-to-me. Counts expose neither content nor private request identity and cannot prove connected progress.
+
+Strict UUID/count/timestamp/role projection rejects malformed or missing values rather than coercing zero. `WORKSPACE_START_STAGE_KEYS` orders source/package/prepare/review/launch/monitor. Frozen role descriptions, writer/reviewer lists, signal labels, optional-tool objects and returned guide/action/stage objects are presentation data only. Local variables retain no cross-request state; development-global repositories retain only SQL, not snapshot authority. [Full reference](WORKSPACE_START_GUIDE.md) records every type, tuple/dictionary/array, filter, branch and lifetime. No schema or domain mutation is introduced.
+
 ## Release 1.33 membership role revisions and receipts
 
 `workspace_membership.role_revision` starts at 1 and advances exactly once for each real role change, including trusted administrative SQL. Membership workspace/user/creation identity is immutable on update; unchanged roles cannot move the counter. `workspace_member_role_receipt` records exact workspace/request/target/actor, before/after non-owner roles, resulting revision, required reason, canonical JSON and server creation time. History survives membership removal and can cascade only with workspace erasure; referenced user deletion is restricted.

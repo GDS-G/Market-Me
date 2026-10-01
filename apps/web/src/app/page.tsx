@@ -6,6 +6,7 @@ import { getAuthenticatedUser } from "@/server/auth";
 import { getActiveWorkspace } from "@/server/active-workspace";
 import { getCampaignRepository, getDraftRepository, getRepository } from "@/server/database";
 import { formatDashboardTime, summarizeWorkspace } from "@/server/dashboard-data";
+import startGuideStyles from "./getting-started/start-guide.module.css";
 
 export default async function Home() {
   const user = await getAuthenticatedUser();
@@ -33,9 +34,14 @@ export default async function Home() {
           <div><p className="eyebrow">Your workspace</p><h1>Overview</h1><p>Saved content, workflow runs, and decisions for {workspace.workspaceName}. Refresh to see the latest state.</p></div>
           <div className="heading-actions">
             <Link className="button-secondary resource-button" href="/calendar"><CalendarDays size={16} />View calendar</Link>
-            {canWrite && <Link className="button-primary resource-button" href="/campaigns/new"><Plus size={16} />Create campaign</Link>}
+            {canWrite && <Link className="button-primary resource-button" href="/campaigns/prepare"><Plus size={16} />Prepare campaign</Link>}
           </div>
         </header>
+
+        <section className={startGuideStyles.entry} aria-labelledby="start-guide-heading">
+          <div><h2 id="start-guide-heading">From a folder to reviewed content</h2><p>Find your next step using saved workspace state and your current role.</p></div>
+          <Link className="button-secondary resource-button" prefetch={false} href="/getting-started">Open the start guide <ArrowUpRight size={16} aria-hidden="true" /></Link>
+        </section>
 
         <section className="metric-grid" aria-label="Workspace summary">
           <MetricCard icon={FolderKanban} tone="violet" label="Enabled sources" value={summary.enabledSources} note={`${sources.length} configured · not a health check`} href="/smart-sources" />

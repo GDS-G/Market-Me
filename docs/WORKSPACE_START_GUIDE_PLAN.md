@@ -1,6 +1,6 @@
 # Workspace start guide
 
-Status: planned next increment after the reviewed 1.33 runtime. This is a bounded usability improvement toward specification sections 01 and 23, not completion of their full nontechnical setup or end-to-end acceptance.
+Status: Release 1.34 passes final local acceptance after the reviewed 1.33 runtime; exact cloud/publication and Google documentation gates remain in progress. [The programmer reference](WORKSPACE_START_GUIDE.md) records fields, filters, guidance precedence, page/accessibility behavior, lifecycle and boundaries. This is a bounded usability improvement toward specification sections 01 and 23, not completion of their full nontechnical setup or end-to-end acceptance.
 
 ## Purpose and scope
 

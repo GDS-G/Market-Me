@@ -21,6 +21,7 @@ import {
   PreparationPresetRepository,
   WorkspaceManagementRepository,
   WorkspaceMemberRoleRepository,
+  WorkspaceStartRepository,
 } from "@market-me/database";
 import { getServerConfiguration } from "./config";
 
@@ -46,6 +47,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
     preparationPresets: PreparationPresetRepository;
     workspaceManagement: WorkspaceManagementRepository;
     workspaceMemberRoles: WorkspaceMemberRoleRepository;
+    workspaceStart: WorkspaceStartRepository;
   };
 };
 
@@ -138,6 +140,10 @@ export function getWorkspaceMemberRoleRepository(): WorkspaceMemberRoleRepositor
   return getRepositories().workspaceMemberRoles;
 }
 
+export function getWorkspaceStartRepository(): WorkspaceStartRepository {
+  return getRepositories().workspaceStart;
+}
+
 function getRepositories(): {
   core: MarketMeRepository;
   campaigns: CampaignRepository;
@@ -159,6 +165,7 @@ function getRepositories(): {
   preparationPresets: PreparationPresetRepository;
   workspaceManagement: WorkspaceManagementRepository;
   workspaceMemberRoles: WorkspaceMemberRoleRepository;
+  workspaceStart: WorkspaceStartRepository;
 } {
   if (databaseGlobal.marketMeDatabase) return databaseGlobal.marketMeDatabase;
   const databaseUrl = getServerConfiguration().databaseUrl;
@@ -185,6 +192,7 @@ function getRepositories(): {
     preparationPresets: new PreparationPresetRepository(sql),
     workspaceManagement: new WorkspaceManagementRepository(sql),
     workspaceMemberRoles: new WorkspaceMemberRoleRepository(sql),
+    workspaceStart: new WorkspaceStartRepository(sql),
   };
   if (process.env.NODE_ENV !== "production")
     databaseGlobal.marketMeDatabase = repositories;

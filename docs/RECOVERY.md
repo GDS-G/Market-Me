@@ -1,5 +1,11 @@
 # Backup and Recovery Runbook
 
+## Release 1.34 display recovery
+
+Use Refresh saved state or a full reload after source/content/member changes. Guidance is transient observation, not durable completion or authorization. Query failures must remain errors; inspect normal service/database diagnostics and current membership. Never enable sources, change approvals, erase receipts or replay execution to repair a display issue.
+
+No recovery key, browser storage or backup set is added. Deploy/revert matching guide/navigation/web/database code, restart processes and retain all 120 frozen migrations/domain data. Ordinary login and workspace-selection state remains separate. [Start guide reference](WORKSPACE_START_GUIDE.md) records consistency and operation limits.
+
 ## Release 1.33 member-role request recovery
 
 Keep membership role revisions, immutable private receipts and audits together. Check or retry the exact retained user/workspace request after uncertainty; never silently generate a replacement key. Historical replay returns the original before/after roles without resetting later changes, and current actor administration is still required. Missing results or transport failures do not prove rollback. Do not delete receipts or decrement revisions.

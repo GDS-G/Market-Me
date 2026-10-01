@@ -1,5 +1,11 @@
 # Security and Integration Controls
 
+## Release 1.34 guidance boundary
+
+The server owns actor/workspace scope; the guide accepts no query authority. Current membership, role and counts share one SELECT snapshot, without organization-owner fallback, result cache, secret selection or provider access. Malformed projections/storage failures never invent an empty healthy workspace. SQL read-only execution and foreign/revoked membership are tested. Counts omit content/private identifiers but remain tenant-confidential.
+
+Fresh-role shortcuts confer no permission: later operations recheck current membership and exact approval/execution prerequisites. Snapshots can become stale after their statement; refresh reloads them. No count, status label, completed run or internally published plan proves external delivery or safe launch. [Start guide reference](WORKSPACE_START_GUIDE.md) describes the boundaries. Exact-source cloud audits remain pending; no dependency, permission or credential is added.
+
 ## Release 1.33 member-role authority
 
 Only a current workspace owner/admin can change another current non-owner's role. Self, owner assignment/demotion, organization roles and membership lifecycle are excluded. Existing invitation authority already permits all five non-owner roles. Actor/target row locks use one deterministic order; current authority remains held through role/revision/receipt/audit commit. A revoked actor cannot replay or recover. Exact actor-private request identity rejects changed payload reuse, and stale loaded revisions cannot overwrite later changes.

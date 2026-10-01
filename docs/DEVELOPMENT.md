@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.34 Start here development
+
+Read [Start guide](WORKSPACE_START_GUIDE.md) before changing counts, precedence or role navigation. Own metadata is 1.34.0 without dependency upgrades. No migration, environment variable, secret or worker is added; preserve the 120-file ledger ending in frozen 0120 and deploy matching web/database code. Restart development after repository factory/class changes. Preserve user pnpm files.
+
+Focused coverage is 72 database/model tests and 61 new web guide/page tests, plus existing selection coverage. Focused integration allows only `market_me_ci` or `market_me_qa_134_*`; full regression uses isolated CI. Browser QA uses four synthetic role-specific workspaces, controlled paused-source addition and refresh, with zero execution/provider activity. Cover read-only transactions, lifecycle filters, fresh roles, foreign/revoked membership, failure propagation and narrow/keyboard behavior. Local and exact-cloud/documentation evidence belongs in [Releases](RELEASES.md).
+
 ## Release 1.33 member-role development
 
 Read [Member-role management](WORKSPACE_MEMBER_ROLES.md) before changing roles, locks or recovery. Own package/npm/native metadata is 1.33.0, without third-party upgrades or user pnpm edits. Apply frozen `0120_workspace_member_roles.sql` (SHA-256 `3b993c63971ae6d74ee7c6ca1f30682c6859be13f9b1e2b72f63d7add4e6abe4`) and deploy matching code; readiness is 120/latest 0120. Restart the development server after repository factory/class changes. Drain pending mutations before trusted SQL membership lifecycle changes/restores; new product deletion/rejoin work needs an incarnation-aware design.

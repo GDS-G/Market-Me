@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   BookOpenCheck,
   CalendarDays,
+  Compass,
   FileStack,
   FilePenLine,
   FolderKanban,
@@ -27,6 +28,7 @@ import {
 
 const navigation = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/getting-started", label: "Start here", icon: Compass },
   { href: "/smart-sources", label: "Smart Sources", icon: FolderKanban },
   { href: "/context-packs", label: "Context Packs", icon: BookOpenCheck },
   { href: "/content-packages", label: "Content Packages", icon: FileStack },

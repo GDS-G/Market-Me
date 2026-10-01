@@ -1,6 +1,12 @@
 # Market Me implementation status
 
-## Current verified source: Release 1.33 existing-member role management
+## Current candidate: Release 1.34 read-only Start here guide
+
+The selected workspace now has a role-aware six-stage map, saved-state next-action guidance, collaborator handoffs and optional supporting tools. Overview favors review-first preparation; safe workspace switching preserves only the section root. One membership-scoped statement supplies current role and 18 aggregate counts without writes or inferred per-item lineage. [Programmer reference](WORKSPACE_START_GUIDE.md) inventories fields, filters, collections, priorities, cache lifetime and boundaries.
+
+Final local acceptance passes 2,780 tests/153 files, static/build/native checks, fresh/replayed 120 migrations, synthetic desktop/mobile/refresh, production authentication and unsigned packaging. Exact-source feature/main cloud checks and Google synchronization remain pending. This is a bounded usability improvement, not the full setup wizard, semantic intelligence, connected per-package launch journey, hosted deployment or whole-product completion. No input is needed merely to continue development.
+
+## Previous verified source: Release 1.33 existing-member role management
 
 Current workspace owner/admin administration now has a reviewed existing-member role editor with reasons, revision/authority locks, immutable actor-private receipts and exact local recovery. Owner/self/organization roles and membership lifecycle operations remain excluded. Reviewed runtime `8385b1fa7d423b451ba6590cee116c38ed58c3d6` is public on main after exact feature/main runs 36940430047/36940894216 pass 2,647 tests/149 files, 120 migrations, static/build checks and both clean audits. Local native/package, synthetic desktop/mobile, production authentication/recovery and final Google readback pass separately. [Member-role reference](WORKSPACE_MEMBER_ROLES.md) records models, locks, variables and boundaries. A [read-only Start here guide](WORKSPACE_START_GUIDE_PLAN.md) is the next separate increment toward nontechnical workflow usability. The broader product is not complete or deployed.
 

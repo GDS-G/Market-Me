@@ -1,5 +1,11 @@
 # Architecture
 
+## Release 1.34 read-only workspace guidance
+
+The authenticated `/getting-started` server page resolves active membership, rejects query overrides and calls `WorkspaceStartRepository.getSnapshot` with server-owned actor/workspace IDs. One parameterized SELECT combines current membership with seven same-workspace lateral aggregate groups and statement time. A strict frozen DTO feeds a pure guidance mapper; no mutation API, worker, provider call or browser persistence is added. Missing scope fails closed; database failures are not empty-success states.
+
+The mapper provides role-aware next navigation plus six persistent stages. Counts are observations, not joined lineage or eligibility. Fresh repository role controls shortcuts; each destination rechecks authority. Plain-anchor refresh requests fresh evidence. Overview/navigation/safe switching integrate the guide; explicit list semantics, native optional disclosure and responsive styles support keyboard/narrow layouts. [Start guide reference](WORKSPACE_START_GUIDE.md) specifies consistency, precedence, lifetime, SQL costs and limits.
+
 ## Release 1.33 existing-member administration
 
 Team loads a current membership-scoped 50-row page and fresh administration flags. Its client editor requires review/acknowledgement of one existing non-owner target, proposed role and reason. A closed Origin-checked no-store endpoint delegates to `WorkspaceMemberRoleRepository`; an exact GET retrieves only the original actor's receipt while current administration remains valid. Invitation controls remain separate.
