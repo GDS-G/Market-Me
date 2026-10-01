@@ -21,6 +21,11 @@ async function counts(scope:string){return (await sql`SELECT
   (SELECT count(*)::int FROM audit_event WHERE workspace_id=${scope}) AS audits,
   (SELECT count(*)::int FROM campaign WHERE workspace_id=${scope}) AS campaigns,
   (SELECT count(*)::int FROM content_package WHERE workspace_id=${scope}) AS packages,
+  (SELECT count(*)::int FROM smart_source WHERE workspace_id=${scope}) AS sources,
+  (SELECT count(*)::int FROM smart_source_preparation_binding WHERE workspace_id=${scope}) AS bindings,
+  (SELECT count(*)::int FROM campaign_preparation WHERE workspace_id=${scope}) AS preparations,
+  (SELECT count(*)::int FROM content_draft WHERE workspace_id=${scope}) AS drafts,
+  (SELECT count(*)::int FROM publication_action WHERE workspace_id=${scope}) AS publications,
   (SELECT count(*)::int FROM source_preparation_command WHERE workspace_id=${scope}) AS commands`)[0];}
 function action(f:Fixture,presetId:string,operation:"archive"|"restore",expectedRevision:number){return{operation,workspaceId:f.workspace.workspaceId,requestId:randomUUID(),presetId,expectedRevision};}
 

@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.31 source preset integration
+
+Package/npm-lock/native metadata is 1.31.0. No third-party dependency or migration changes are required; frozen 0118/readiness remains 118. Preserve user pnpm files. [Source preset copy](SOURCE_PRESET_COPY.md) covers query/response bounds, exact version/revision selection, preserved control fields, optional clearing, local lifecycle and uncertainty handling.
+
+Run all workspaces against isolated `market_me_ci`, not application data. Existing preset integration now includes source/binding/preparation/draft/publication counters in zero-write acceptance. Browser checks distinguish copy/preview from a separate binding save or enablement; no previously unexecuted QA mutation is authorized by this feature. Full local/native/production/cloud/Google evidence is tracked in [Releases](RELEASES.md).
+
 ## Release 1.30 preset development
 
 Read [Preparation presets](PREPARATION_PRESETS.md) before changing shared normalization, library operations or preparation copy. Package/npm-lock/native metadata are 1.30.0; third-party versions and user pnpm files are unchanged. Apply additive frozen `0118_preparation_presets.sql` before matching code; readiness requires 118/latest 0118. SHA-256 is `2fb25d013baf8ec51a2743161a3ee3b059f1559147f892dff9f885c07f8d5934`. Existing 0117 remains unchanged.

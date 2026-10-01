@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { INFORMATION_DEPTHS, PROMOTIONAL_STRENGTHS } from "@market-me/domain";
 import {
   addSourcePreparationAudience,
   initialSourcePreparationBindingValues,
-  isScopedSourcePreparationBinding,
   isScopedSourcePreparationPlanPreview,
   moveSourcePreparationAudience,
   removeSourcePreparationAudience,
@@ -23,6 +22,10 @@ import {
 import { SourcePreparationCommandStatus } from "./source-preparation-command-status";
 import { SourcePreparationPlanPreview } from "./source-preparation-plan-preview";
 import styles from "./source-preparation-binding.module.css";
+import { SourcePresetPicker } from "./source-preset-picker";
+import { copySourcePresetValues, parseSourcePresetVersion, type SourcePresetChoice } from "./source-preset-copy";
+import { presetErrorMessage, presetPayloadData, readPresetResponse } from "./preparation-preset-contract";
+import { readSourcePreparationSaveResult } from "./source-preparation-save-result";
 
 export interface SourcePreparationChoice { id: string; name: string; versionNumber?: number }
 
@@ -42,12 +45,47 @@ export function SourcePreparationBindingForm(props: SourcePreparationBindingForm
   const [binding, setBinding] = useState(props.initialBinding);
   const [values, setValues] = useState<SourcePreparationBindingValues>(() => initialSourcePreparationBindingValues(props.workspaceId, props.initialBinding));
   const [preview, setPreview] = useState<SourcePreparationPlanPreviewView>();
-  const [pending, setPending] = useState<"preview" | "save">();
+  const [pending, setPending] = useState<"preview" | "save" | "copy">();
+  const [saveUncertain, setSaveUncertain] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const inFlight = useRef(false);
+  const mounted = useRef(false);
+  const copyController = useRef<AbortController | undefined>(undefined);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; copyController.current?.abort(); };
+  }, []);
+
+  async function copyPreset(selected: SourcePresetChoice): Promise<boolean> {
+    if (!props.canWrite || saveUncertain || inFlight.current || selected.archived) return false;
+    inFlight.current = true; setPending("copy"); setError(""); setMessage("");
+    const controller = new AbortController(); copyController.current = controller;
+    try {
+      const response = await fetch(`/api/v1/preparation-presets/${selected.id}/copy-settings`, {
+        method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal,
+        body: JSON.stringify({ workspaceId: props.workspaceId, expectedRevision: selected.revision, versionNumber: selected.versionNumber }),
+      });
+      const payload = await readPresetResponse(response);
+      if (!mounted.current || controller.signal.aborted) return false;
+      if (!response.ok) { setError(presetErrorMessage(payload, "This preset could not be copied. Your source settings are unchanged.")); return false; }
+      const version = parseSourcePresetVersion(presetPayloadData(payload), props.workspaceId, selected);
+      setValues(current => copySourcePresetValues(current, version.configuration));
+      setPreview(undefined);
+      setMessage(`Copied “${version.title}” v${version.versionNumber} into this form only. Enablement and binding revision are unchanged. Review and preview the settings, then save separately if intended.`);
+      return true;
+    } catch {
+      if (mounted.current && !controller.signal.aborted) setError("No validated preset values were copied. Your source settings and preview are unchanged.");
+      return false;
+    } finally {
+      inFlight.current = false; copyController.current = undefined;
+      if (mounted.current) setPending(undefined);
+    }
+  }
 
   async function save() {
-    if (!props.canWrite || pending) return;
+    if (!props.canWrite || saveUncertain || inFlight.current) return;
+    inFlight.current = true;
     setPending("save"); setPreview(undefined); setError(""); setMessage("");
     try {
       const response = await fetch(sourcePreparationBindingRequestPath(props), {
@@ -55,30 +93,32 @@ export function SourcePreparationBindingForm(props: SourcePreparationBindingForm
         headers: { "content-type": "application/json" },
         body: sourcePreparationBindingRequest(values),
       });
-      const payload = await response.json().catch(() => undefined);
-      if (!response.ok) {
-        setError(typeof payload?.error?.message === "string" ? payload.error.message : "The preparation binding was not saved.");
+      const result = await readSourcePreparationSaveResult(response, props);
+      if (!mounted.current) return;
+      if (result.kind !== "saved") {
+        setSaveUncertain(result.kind === "uncertain");
+        setError(result.message);
         return;
       }
-      if (!isScopedSourcePreparationBinding(payload?.data, props)) {
-        setError("The server returned an invalid preparation binding. Check the current source before saving again.");
-        return;
-      }
-      setBinding(payload.data);
-      setValues(initialSourcePreparationBindingValues(props.workspaceId, payload.data));
-      setMessage(payload.data.enabled
+      setBinding(result.binding);
+      setValues(initialSourcePreparationBindingValues(props.workspaceId, result.binding));
+      setMessage(result.binding.enabled
         ? "Saved. Only a future explicit approval transition can queue a draft-only preparation with these settings."
         : "Disabled for future approval transitions. Commands already queued remain durable and are not canceled.");
       router.refresh();
     } catch {
+      if (!mounted.current) return;
+      setSaveUncertain(true);
       setError("The save result is uncertain. Load the current source before trying again; no automatic retry was sent.");
     } finally {
-      setPending(undefined);
+      inFlight.current = false;
+      if (mounted.current) setPending(undefined);
     }
   }
 
   async function previewPlan() {
-    if (!props.canWrite || pending) return;
+    if (!props.canWrite || saveUncertain || inFlight.current) return;
+    inFlight.current = true;
     setPending("preview"); setPreview(undefined); setError(""); setMessage("");
     try {
       const response = await fetch(sourcePreparationPlanPreviewRequestPath(props), {
@@ -87,6 +127,7 @@ export function SourcePreparationBindingForm(props: SourcePreparationBindingForm
         body: sourcePreparationPlanPreviewRequest(values, props.sourceVersion),
       });
       const payload = await response.json().catch(() => undefined);
+      if (!mounted.current) return;
       if (!response.ok) {
         setError(typeof payload?.error?.message === "string"
           ? `Preview blocked: ${payload.error.message}`
@@ -100,9 +141,11 @@ export function SourcePreparationBindingForm(props: SourcePreparationBindingForm
       setPreview(payload.data);
       setMessage("Previewed from the current unsaved form values. Saving remains a separate action.");
     } catch {
+      if (!mounted.current) return;
       setError("The preview result is uncertain. No automatic retry was sent and no settings were saved.");
     } finally {
-      setPending(undefined);
+      inFlight.current = false;
+      if (mounted.current) setPending(undefined);
     }
   }
 
@@ -115,10 +158,16 @@ export function SourcePreparationBindingForm(props: SourcePreparationBindingForm
 
   return <>
     <form className="resource-form" onSubmit={(event) => { event.preventDefault(); void save(); }}>
+      {props.canWrite && <SourcePresetPicker key={`${props.workspaceId}:${props.smartSourceId}:${props.sourceVersion}:${binding?.revision ?? 0}`}
+        workspaceId={props.workspaceId} smartSourceId={props.smartSourceId} disabled={Boolean(pending) || saveUncertain} onCopy={copyPreset} />}
+      {saveUncertain && <section className={styles.notice} aria-label="Uncertain preparation binding save">
+        <h2>Load current settings before continuing</h2><p>A previous save may have succeeded. Preset copying, preview and further saves are locked until this page loads current server state. Existing queued work is not changed.</p>
+        <button type="button" onClick={() => window.location.reload()}>Reload current source settings</button>
+      </section>}
       <section className="form-section">
         <div><h2>Approval-linked draft preparation</h2>
           <p>When enabled, each future explicit approval of an exact Content Package from this source durably queues one General Announcement draft-only preparation using the saved settings. Existing approvals are not processed retroactively.</p></div>
-        <fieldset className={styles.fieldset} disabled={!props.canWrite || Boolean(pending)}>
+        <fieldset className={styles.fieldset} disabled={!props.canWrite || Boolean(pending) || saveUncertain}>
           <div className="field-grid">
             <label className="check-field field-wide"><input type="checkbox" checked={values.enabled} onChange={(event) => changeValues({ ...values, enabled: event.target.checked })} /><span>Queue a draft-only preparation after each future exact approval</span></label>
             <label className="field"><span>Campaign name</span><input required maxLength={200} value={values.name} onChange={(event) => changeValues({ ...values, name: event.target.value })} /></label>
@@ -153,10 +202,10 @@ export function SourcePreparationBindingForm(props: SourcePreparationBindingForm
       {!props.canWrite && <p className="form-help">Read-only access. Owners, admins, and editors can configure approval-linked preparation.</p>}
       {binding && <p className="form-help">Saved binding revision {binding.revision}. Last updated <time dateTime={binding.updatedAt}>{binding.updatedAt}</time>.</p>}
       <div className="form-actions">
-        <button className="button-secondary" type="button" disabled={!props.canWrite || Boolean(pending)} onClick={() => void previewPlan()}>
+        <button className="button-secondary" type="button" disabled={!props.canWrite || Boolean(pending) || saveUncertain} onClick={() => void previewPlan()}>
           {pending === "preview" ? "Previewing setup…" : "Preview this setup"}
         </button>
-        <button className="button-primary" type="submit" disabled={!props.canWrite || Boolean(pending)}>
+        <button className="button-primary" type="submit" disabled={!props.canWrite || Boolean(pending) || saveUncertain}>
           {pending === "save" ? "Saving binding…" : binding ? "Save preparation binding" : "Create preparation binding"}
         </button>
       </div>

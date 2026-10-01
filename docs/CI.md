@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.31 local checkpoint; exact cloud gate pending
+
+The complete local gate passes 2,371 TypeScript tests/139 files without skips: web 827/51, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1049/52, domain 128/6, generation 29/4, ingestion 33/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, Next/companion production builds, cargo check, three Rust tests and unsigned Windows packaging pass. Migration checksum replay skips all 118; the isolated CI database returns to zero fixture organizations. Browser desktop/mobile/stale-copy checks, authenticated production preview and native Google topology/text/style readback pass separately.
+
+No dependency upgrade, schema change, new secret or skipped test is introduced. Exact-source feature/main cloud tests/builds/migrations and both audits must pass before promotion is claimed. [Releases](RELEASES.md) records exact local evidence and [Source preset copy](SOURCE_PRESET_COPY.md) specifies contracts and limitations.
+
 ## Verified Release 1.30 checkpoint
 
 The local suite passes 2,339 TypeScript tests/135 files without skips: web 795/47, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1049/52, domain 128/6, generation 29/4, ingestion 33/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, both production builds, cargo check, three Rust tests and unsigned Windows packaging pass. Fresh QA applies 118 migrations and replay skips all 118; the full test database returns to zero organizations. Browser tests verify lifecycle/recovery/history, copy isolation, stale rejection and narrow layout; production checks confirm authenticated copy and protected unauthenticated access.

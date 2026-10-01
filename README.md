@@ -2,7 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.30: reusable preparation presets
+## Release 1.31 candidate: preset reuse on Smart Sources
+
+Smart Source writers can explicitly browse, select and acknowledge a saved preset before copying its reusable values into the unsaved preparation editor. Copy preserves enablement and the binding revision; preview and save remain separate. Stale or archived choices fail without overwriting the form, and an uncertain binding save locks further operations until current state is reloaded. [Source copy design and variables](docs/SOURCE_PRESET_COPY.md) documents the complete contract. Full release acceptance is in progress; [Releases](docs/RELEASES.md) separates verified evidence from remaining checks. No whole-product completion or production deployment is claimed.
+
+## Previous release: 1.30 reusable preparation presets
 
 The workspace preset library now saves immutable General Announcement settings, supports version history, historical cloning and archive/restore, and explicitly copies values into review-first preparation. It never changes existing Campaigns, substitutes package approval or creates execution authority. Browser recovery preserves exact private requests across reloads. [Preset implementation and variable reference](docs/PREPARATION_PRESETS.md) covers the complete contracts, constants, collections, state, limits, locks and rollout.
 

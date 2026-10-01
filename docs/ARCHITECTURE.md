@@ -1,5 +1,11 @@
 # Architecture
 
+## Release 1.31: explicit source preset copy
+
+The source-preparation editor has a writer-only, current-workspace chooser backed by a bounded/minimized no-store GET route. Explicit selection and version-scoped acknowledgement call the existing readonly exact-revision copy endpoint. Strict browser validation replaces reusable fields, preserves enablement/workspace/binding revision and clears the old preview; no durable preset relationship or execution authority is introduced. Immediate guards serialize copy/preview/save, obsolete reads are canceled, and ambiguous binding writes require authoritative reload.
+
+There is no schema, dependency, service, worker, secret or environment addition; readiness remains 118. [Source preset copy](SOURCE_PRESET_COPY.md) documents API projections, state/ref lifetimes, immutable-version rules, bounds and recovery. Broader template authoring and activation remain separate requirements.
+
 ## Release 1.30: immutable preparation values library
 
 The Campaign area now has a membership-scoped library of preset roots, immutable settings versions and actor-private durable mutation receipts. Shared General Announcement normalization preserves the existing compiler's canonical bytes. Ordered authority/root/reference locks and exact request replay protect concurrent writes; a separate readonly copy transaction rechecks current root revision, archive state, references and policy. Browser copy is an explicit acknowledgement and values replacement, not execution or a live binding. Existing package/approval proof remains unchanged, and saved recovery attempts block copy.

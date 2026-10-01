@@ -1,5 +1,11 @@
 # Domain Model and Important Variables
 
+## 1.31 source preset choice and save-confirmation models
+
+`SourcePresetChoice` holds root ID, observed revision, immutable version number, bounded title and archive state. `SourcePresetChoices` adds exact workspace/page, lookahead and up to 50 unique choices. Consent includes the full validated choice and source/workspace scope. Pure copying retains only workspace, optional expected binding revision and enabled from the existing form, then replaces strict reusable settings and ordered Audience values. Absent optional references are cleared.
+
+`SourcePreparationSaveResult` distinguishes confirmed scoped binding, definitive denial and uncertain transport/body/server outcomes. Uncertainty is a UI recovery lock, not a new durable receipt. [Source preset copy](SOURCE_PRESET_COPY.md) inventories every important field, constant, Set/array, local state/ref, bound and inherited global/cache behavior. No new database entity exists.
+
 ## 1.30 preset roots, immutable versions and private receipts
 
 `CampaignPreparationSettings` contains only compiler key/version, Campaign name/description/timezone, optional exact Brand version, ordered Audience versions, optional Destination and copy controls. It excludes workspace/package/review/account/approval/execution authority. `PreparationPresetRequest` is a strict create/revise/clone/archive/restore union. The root owns current revision/latest-version/archive state; immutable versions own canonical settings/hash and optional historical clone origin; workspace/request-key receipts retain exact actor-private outcomes for safe replay.

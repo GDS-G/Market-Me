@@ -1,5 +1,11 @@
 # Backup and Recovery Runbook
 
+## Release 1.31 source preset recovery
+
+Copy failures retain current form values and any earlier preview. Refresh after stale/archive rejection, select and acknowledge again, then explicitly copy; never substitute a newer version automatically. Preset edits do not follow copied settings or existing bindings. Source synchronization and approval-linked enablement remain independent and unchanged by copying.
+
+If a binding save is uncertain, the editor freezes preparation changes and offers a full current-state reload. An earlier save may have committed; load its current revision before further action. Do not retry a changed proposal automatically, reset enabled flags, or delete commands/receipts. No new schema or backup set is required. [Source preset copy](SOURCE_PRESET_COPY.md) documents classification and lifecycle behavior.
+
 ## Release 1.30 preset recovery
 
 Retain preset roots, all immutable versions and private request receipts together. After response loss, check the saved workspace/request result or retry the exact original request; a missing result is not proof another transaction failed. Never delete historical rows or automatically issue another key to recover. Explicit acknowledgement is required before clearing tab-local recovery. If browser storage is lost, inspect library history before intentionally starting a separate request.
