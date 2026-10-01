@@ -94,4 +94,16 @@ describe("Smart Source preparation status pages", () => {
     await expect(EditSmartSourcePage({ params: Promise.resolve({ id: "bad" }) })).rejects.toThrow("not-found");
     expect(mocks.source).toHaveBeenCalledTimes(1);
   });
+
+  it.each(["bad", userId, [workspaceId, workspaceId]])("rejects a changed or ambiguous receipt workspace before loading a source", async (requestedWorkspace) => {
+    await expect(EditSmartSourcePage({ params: Promise.resolve({ id: sourceId }),
+      searchParams: Promise.resolve({ workspaceId: requestedWorkspace }) })).rejects.toThrow("not-found");
+    expect(mocks.source).not.toHaveBeenCalled(); expect(mocks.binding).not.toHaveBeenCalled();
+  });
+
+  it("accepts the receipt workspace only when it matches the active workspace", async () => {
+    const html = renderToStaticMarkup(await EditSmartSourcePage({ params: Promise.resolve({ id: sourceId }),
+      searchParams: Promise.resolve({ workspaceId }) }));
+    expect(html).toContain("Edit Newsroom"); expect(mocks.source).toHaveBeenCalledExactlyOnceWith(workspaceId, sourceId);
+  });
 });

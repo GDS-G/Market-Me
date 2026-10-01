@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.28 guided source setup
+
+Read [Guided source setup](GUIDED_SOURCE_SETUP.md) for the complete implementation/variable reference, API, browser recovery and regression recipe. Package/native metadata are 1.28.0. Apply additive `0117_guided_source_setup.sql` before matching web code; readiness requires 117/latest 0117. SHA-256 is `54201e3cf4317bd37a3d47114f7d57eaabde421de32070c9c7587b75e0d50fa4`; the migration is frozen after verification. Earlier 0113–0116 checksums remain unchanged. A fresh QA database has 137 public base tables, and immediate replay applies none/skips all 117.
+
+Use `market_me_ci` for the whole live-database test suite; the focused new setup suite additionally accepts only `market_me_qa_128_*`. Do not apply fixture cleanup to the application database. No new dependency, environment variable or provider scope is needed. Back up, drain setup/credential-refresh requests, apply the forward migration, deploy matching database/ingestion/web code, confirm readiness and test paused creation/recovery. Keep history intact during recovery; never delete a receipt to retry creation. Existing source edits and source-bound preparation are independent workflows. Exact local/cloud/native/production/browser and documentation evidence belongs in [Releases](RELEASES.md).
+
 ## Release 1.27 preparation-plan preview
 
 The preview is an application-only change with no migration or new environment variable. Read [Preparation-plan preview](SOURCE_PREPARATION_PLAN_PREVIEW.md) for the POST route, request/response contracts, implementation map, variables/collections/lifetimes, safe-disable exception and regression recipe. Readiness remains 116 migrations ending at frozen 0116. Use `market_me_ci` for the full integration suite; the focused preview/source suite additionally permits isolated `market_me_qa_127_*` targets. Never run integration tests against the application database.

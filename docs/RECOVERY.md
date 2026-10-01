@@ -1,5 +1,11 @@
 # Backup and Recovery Runbook
 
+## Release 1.28 guided setup recovery
+
+Preserve `smart_source_setup_receipt` together with its source, location and actor. An uncertain create must retain the original workspace/request/actor/canonical bytes: look up the receipt or retry the exact POST. Null lookup is not proof that another transaction failed. Do not mint a new request ID automatically, remove a receipt or reset a later source version/enabled state. Browser sessionStorage is a convenience, not the backup authority; if it is lost, inspect existing sources before intentionally starting a separate setup.
+
+After restoring the complete database, deploy matching migration-0117-aware code and verify readiness 117/latest 0117. Receipt updates/deletes are protected while the workspace exists; whole-workspace erasure is a separately authorized operation. Keep the credential-refresh compare-and-set fence in any forward repair. [Guided source setup](GUIDED_SOURCE_SETUP.md) documents identity, lock order, retention and operator states; [Releases](RELEASES.md) records verification.
+
 ## Release 1.26 approval-handoff recovery note
 
 Release 1.26 adds no recoverable relation, column, migration, queue state or provider side effect. Restore and reconcile the 1.25 binding/command/preparation data exactly as described below. The approval receipt panel is a projection: it joins current membership to exact restored `workspace_id`, `content_package_id` and `expected_approval_id`, then minimizes the result. Do not synthesize a missing command so the UI shows progress; atomic approval/enqueue semantics mean absence is historical evidence that no command was recorded for that receipt.

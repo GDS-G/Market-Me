@@ -11,12 +11,20 @@ import { getCampaignRepository, getCompanionRepository, getProfileRepository, ge
 import { sourcePreparationUuid } from "@/server/source-preparation-schema";
 import { sourcePreparationBindingView, sourcePreparationCommandView } from "@/server/source-preparation-view";
 
-export default async function EditSmartSourcePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditSmartSourcePage({ params, searchParams }: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ workspaceId?: string | string[] }>;
+}) {
   const user = await getAuthenticatedUser();
   if (!user) redirect("/login");
   const repository = getRepository();
   const workspace = await getActiveWorkspace(user.id);
   if (!workspace) redirect("/login");
+  const requestedWorkspace = (await searchParams)?.workspaceId;
+  if (requestedWorkspace !== undefined) {
+    const scope = sourcePreparationUuid.safeParse(requestedWorkspace);
+    if (!scope.success || scope.data !== workspace.workspaceId) notFound();
+  }
   const sourceId = sourcePreparationUuid.safeParse((await params).id);
   if (!sourceId.success) notFound();
   const source = await repository.getSmartSource(workspace.workspaceId, sourceId.data);

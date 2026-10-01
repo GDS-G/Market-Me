@@ -1,3 +1,5 @@
+export * from "./source-setup";
+
 export const INFORMATION_DEPTHS = [
   "minimal",
   "teaser",

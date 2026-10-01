@@ -81,7 +81,7 @@ describe("StorageIngestionService", () => {
 
   it("refreshes an expired token before sampling a location", async () => {
     const key = randomBytes(32).toString("base64");
-    const updateStorageConnectionTokens = vi.fn(async () => undefined);
+    const updateStorageConnectionTokens = vi.fn(async () => true);
     const repository = {
       getStorageConnection: vi.fn(async () => ({
         id: "connection-1",
@@ -106,5 +106,18 @@ describe("StorageIngestionService", () => {
     const service = new StorageIngestionService(repository, { tokenEncryptionKey: key, connectorFor: () => connector });
     await service.sampleLocation({ workspaceId: "workspace-1", connectionId: "connection-1", providerLocationId: "root" });
     expect(updateStorageConnectionTokens).toHaveBeenCalledOnce();
+    expect(updateStorageConnectionTokens).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "workspace-1", provider: "google_drive",
+      expectedEncryptedAccessToken: expect.any(String), expectedEncryptedRefreshToken: expect.any(String) }));
+  });
+
+  it("does not browse or use a refreshed token when authorization changed before credential persistence", async () => {
+    const key = randomBytes(32).toString("base64");
+    const repository = { getStorageConnection: vi.fn(async () => ({ id: "connection-1", workspaceId: "workspace-1", provider: "google_drive",
+      status: "active", scopes: [], encryptedAccessToken: encryptToken("old", key), encryptedRefreshToken: encryptToken("refresh", key),
+      accessTokenExpiresAt: new Date(Date.now() - 1000).toISOString() })), updateStorageConnectionTokens: vi.fn(async () => false) } as unknown as MarketMeRepository;
+    const connector = { refreshAccessToken: vi.fn(async () => ({ accessToken: "new", tokenType: "Bearer", scopes: [] })), listFolderPage: vi.fn() } as unknown as StorageConnector;
+    const service = new StorageIngestionService(repository, { tokenEncryptionKey: key, connectorFor: () => connector });
+    await expect(service.sampleLocation({ workspaceId: "workspace-1", connectionId: "connection-1", providerLocationId: "root" })).rejects.toThrow("changed during token refresh");
+    expect(connector.listFolderPage).not.toHaveBeenCalled();
   });
 });

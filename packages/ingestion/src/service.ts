@@ -356,13 +356,18 @@ export class StorageIngestionService {
     if (!connection.encryptedRefreshToken) throw new Error("Storage connection requires reauthorization");
     const refreshToken = decryptToken(connection.encryptedRefreshToken, key);
     const tokenSet = await connector.refreshAccessToken(refreshToken);
-    await this.repository.updateStorageConnectionTokens({
+    const saved = await this.repository.updateStorageConnectionTokens({
       connectionId: connection.id,
+      workspaceId: connection.workspaceId,
+      provider: connection.provider,
+      expectedEncryptedAccessToken: connection.encryptedAccessToken,
+      expectedEncryptedRefreshToken: connection.encryptedRefreshToken,
       encryptedAccessToken: encryptToken(tokenSet.accessToken, key),
       encryptedRefreshToken: tokenSet.refreshToken ? encryptToken(tokenSet.refreshToken, key) : undefined,
       scopes: tokenSet.scopes,
       accessTokenExpiresAt: tokenSet.expiresAt,
     });
+    if (!saved) throw new Error("Storage connection changed during token refresh; retry using its current authorization");
     return tokenSet.accessToken;
   }
 }

@@ -1,5 +1,13 @@
 # Cloud continuous integration
 
+## Release 1.28 local gate; cloud verification pending
+
+The final local suite passes **2,161 TypeScript tests across 124 files without skips**: web 714/41, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 986/49, domain 97/4, generation 29/4, ingestion 30/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, the 96-route Next.js production build and 18-module companion build pass. Native check, three Rust tests, unsigned Windows NSIS packaging and production/authenticated-browser checks pass separately; they are not inferred from Linux CI.
+
+A fresh disposable database applies 117 migrations and contains 137 public base tables. Immediate replay skips all 117 unchanged; frozen 0113–0116 hashes match, and new frozen 0117 has SHA-256 `54201e3cf4317bd37a3d47114f7d57eaabde421de32070c9c7587b75e0d50fa4`. The full test database returns to zero fixture organizations. Setup integration verifies one winner among six concurrent exact creates, changed-input/actor conflicts, stale references, historical replay, current role/tenant privacy, immutable history, whole-workspace cascade and credential-refresh fencing. Browser/provider pagination contracts are tested with synthetic data, not live OAuth accounts.
+
+Exact reviewed feature/main cloud runs and both dependency audits must complete before publication is called verified. This entry currently records local evidence only. The workflow itself needs no new secret, provider credential, permission or dependency. [Releases](RELEASES.md) is the publication ledger.
+
 ## Verified Release 1.27 checkpoint
 
 The local full suite passes 2,055 tests across 119 files without skips: web 659/38, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 968/48, domain 65/3, generation 29/4, ingestion 29/5, media 24/2 and workflows 43/3. All 12 typechecks, lint and both production frontend builds pass. A fresh isolated database applies all 116 migrations ending at 0116 and a checksum rerun skips all 116 unchanged. Frozen 0113–0116 hashes are unchanged. New checks cover zero-write preview, normalization/save equivalence, stale source/binding/reference handling, concurrency, writer roles/tenants, response minimization and exact request/response schemas.

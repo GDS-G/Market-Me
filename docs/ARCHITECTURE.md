@@ -1,5 +1,11 @@
 # Architecture
 
+## Release 1.28: guided source creation and exact recovery
+
+The new-source route loads only current writer-eligible connection, companion and published Context Pack choices. A four-step client sends a closed, canonical domain input to a dedicated source-setup repository, which checks current writer/reference state under ordered locks and atomically inserts one paused source, location, immutable receipt and minimized audit. Exact actor/request replay returns only historical creation evidence; it never re-enables or rewrites the source. Session storage preserves the exact request before any POST so uncertain outcomes can be checked or retried after reload.
+
+Cloud folder selection explicitly reads one provider page through the existing ingestion connector. Encrypted ten-minute cursors bind actor/workspace/connection/provider/folder, and metadata is minimized after a second writer check. Storage refresh is compare-and-set against the exact active credential snapshot. No new dependency, environment variable, worker, generation or execution authority is introduced. Migration 0117/readiness 117 adds receipt integrity/retention; existing advanced editing and preparation stay separate. [Guided source setup](GUIDED_SOURCE_SETUP.md) specifies the dataflow, lock order, UI states, lifetimes, rollout and limitations.
+
 ## Release 1.27: server-normalized preparation-plan preview
 
 A new authenticated POST preview route shares the binding schema, bounded Origin/JSON transport and General Announcement compiler. `previewSourcePreparationPlan()` holds current writer, source, binding advisory and reference locks while checking the source version and binding revision. It returns an immutable, request-local plan with no persistent or provider side effects. Stable reference lock order is independent from authored Audience display order. An unchanged disabled proposal may retain stale reference IDs; re-enablement or changed selections must pass full current-reference validation.

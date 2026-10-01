@@ -728,21 +728,29 @@ export class MarketMeRepository {
 
   async updateStorageConnectionTokens(input: {
     connectionId: string;
+    workspaceId: string;
+    provider: StorageConnectionSecrets["provider"];
+    expectedEncryptedAccessToken: string;
+    expectedEncryptedRefreshToken?: string;
     encryptedAccessToken: string;
     encryptedRefreshToken?: string;
     scopes: readonly string[];
     accessTokenExpiresAt?: Date;
-  }): Promise<void> {
-    await this.sql`
+  }): Promise<boolean> {
+    const changed = await this.sql`
       UPDATE storage_connection SET
         encrypted_access_token = ${input.encryptedAccessToken},
         encrypted_refresh_token = COALESCE(${input.encryptedRefreshToken ?? null}, encrypted_refresh_token),
         scopes = ${[...input.scopes]},
         access_token_expires_at = ${input.accessTokenExpiresAt ?? null},
-        status = 'active',
         updated_at = now()
-      WHERE id = ${input.connectionId}
+      WHERE id = ${input.connectionId} AND workspace_id = ${input.workspaceId}
+        AND provider = ${input.provider} AND status = 'active'
+        AND encrypted_access_token = ${input.expectedEncryptedAccessToken}
+        AND encrypted_refresh_token IS NOT DISTINCT FROM ${input.expectedEncryptedRefreshToken ?? null}
+      RETURNING id
     `;
+    return changed.length === 1;
   }
 
   async getConnectorCursor(

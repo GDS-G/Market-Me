@@ -1,5 +1,11 @@
 # Domain Model and Important Variables
 
+## 1.28 guided setup values, collections and receipts
+
+`SourceSetupInput` contains workspace/request UUIDs, name, provider/connection, one location, recursive/readiness/settling rules, optional supporting-file count/marker, file-type and excluded-folder sets, Context Pack root/current-version pairs and draft/review behavior. Closed nested validation rejects authority fields. Canonical normalization orders set choices, lowercases UUIDs and normalizes text; `compileSourceSetup()` maps frozen MIME/exclusion dictionaries to existing source fields and fixes `enabled: false`. Context version pairs are creation-time preconditions, not permanent processing pins.
+
+`smart_source_setup_receipt` uses `(workspace_id, request_id)` identity, a unique source FK, creating actor, original name, private exact JSON and database creation time. Immutable receipts prevent duplicate create/retry and survive later edits; whole-workspace erasure is distinct from restricted individual-source deletion. `SourceSetupReceipt` exposes only workspace/request/source IDs, original name, ISO time and `initialState: paused`. Browser attempts are version-1, actor/workspace-scoped session records; state and refs are component-local, and there is no mutable global settings map. The complete field/type/bounds, frozen tuples/dictionary, ordered breadcrumb arrays, default choices, temporary state, cursor and encrypted-refresh variable reference is [Guided source setup](GUIDED_SOURCE_SETUP.md).
+
 ## 1.27 ephemeral preparation-plan model
 
 `SourcePreparationPlanPreviewInput` extends binding settings with the persisted `expectedSourceVersion`; optional `expectedRevision` must exactly match an existing binding and be absent for creation. The actor remains server-supplied. `normalizeBinding()` returns `{normalized, campaign}` from the shared compiler. The transaction-local `prior` and `preservesDisabledReferences` determine whether the exact saved ordered IDs qualify for safe disable. `rootsById` and `versionsById` are per-call maps restoring authored Audience order after stable-order locks.

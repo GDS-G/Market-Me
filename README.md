@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.27 preparation-plan preview
+## Release 1.28 guided source setup
+
+New Smart Sources now use a four-step guided setup: choose a connection, explicitly select a folder or paired desktop, choose friendly intake rules, and review the configuration before saving it **paused**. Exact saved requests survive reloads and safely recover/retry without creating another source. Cloud browsing is paginated and scope-bound; local filesystem paths stay in the companion. Saving does not scan, generate, queue, activate or send.
+
+The final local gate passes **2,161 TypeScript tests across 124 files without skips**, all 12 typechecks, lint, both production builds, 117 migration checksums, browser/production-mode checks, Rust tests and unsigned Windows packaging. Reviewed feature/main cloud CI, dependency audits, Google documentation readback and public-source publication are tracked in [Releases](docs/RELEASES.md); they are not implied by the local result. See [Guided source setup](docs/GUIDED_SOURCE_SETUP.md) for all fields, constants, collections, persistence/retry rules and limits. This is not the full conceptual ten-step setup or whole-product completion.
+
+## Previous release: 1.27 preparation-plan preview
 
 The current source adds **Preview this setup** to Smart Source preparation settings. It shows the server-normalized proposed configuration, Brand/Destination labels, ordered Audience variants or one General draft, and the future exact-approval/manual-review flow. Previewing creates no records or provider calls; saving remains separate, edits clear the preview, and stale source/binding versions fail closed. Unchanged stale selections can be previewed while disabled so an operator can still stop future preparation safely.
 
