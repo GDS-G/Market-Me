@@ -1,6 +1,6 @@
 # Existing workspace member role management
 
-Status: next separate increment after Release 1.32 workspace creation/name management. This is a design plan, not implemented or accepted functionality. It addresses the original specification's workspace administration, independent roles and audited permission changes. Existing exact-email invitations already assign non-owner roles; the missing customer-facing operation is adjusting an already admitted collaborator's workspace role without database access.
+Status: separate Release 1.33 implementation in progress after verified Release 1.32 workspace creation/name management. Models, forward migration, locked repository, exact private receipts, bounded API and reviewed Team editor are implemented locally; full acceptance remains in progress. This plan does not claim released-source functionality. [Implementation and variable reference](WORKSPACE_MEMBER_ROLES.md) documents current contracts. It addresses the original specification's workspace administration, independent roles and audited permission changes. Existing exact-email invitations already assign non-owner roles; this increment lets an administrator adjust an already admitted collaborator's workspace role without database access.
 
 ## Bounded authority and exclusions
 

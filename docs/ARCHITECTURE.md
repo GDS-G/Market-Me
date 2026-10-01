@@ -1,5 +1,11 @@
 # Architecture
 
+## Release 1.33 existing-member administration
+
+Team loads a current membership-scoped 50-row page and fresh administration flags. Its client editor requires review/acknowledgement of one existing non-owner target, proposed role and reason. A closed Origin-checked no-store endpoint delegates to `WorkspaceMemberRoleRepository`; an exact GET retrieves only the original actor's receipt while current administration remains valid. Invitation controls remain separate.
+
+The mutation locks actor/target memberships together in immutable user-ID order, then serializes the exact workspace/request key. Actor authority is held through commit; replay compares actor/canonical bytes and does not reset later changes. New work rejects self/owner/no-op/stale/absent targets, changes only role and its trigger-derived revision, and atomically inserts private receipt/minimized audit. Browser storage preserves one exact request per user/workspace before dispatch; uncertain outcomes never rekey automatically. [Member-role reference](WORKSPACE_MEMBER_ROLES.md) describes lock interactions, cache lifetime, read pagination, SQL guards and the future deletion/rejoin incarnation boundary.
+
 ## Release 1.32 scoped workspace management
 
 Settings and an explicit organization-owner creation page call one bounded no-store API backed by `WorkspaceManagementRepository`. Creation and rename have separate authority scopes, held membership locks, organization/request advisory serialization, immutable actor-private receipts and atomic audits. Create initializes only its new workspace/default Brand/creator membership; rename changes only the display label and revision. Existing identity provisioning and member-role policy are unchanged.

@@ -1,5 +1,11 @@
 # Security and Integration Controls
 
+## Release 1.33 member-role authority
+
+Only a current workspace owner/admin can change another current non-owner's role. Self, owner assignment/demotion, organization roles and membership lifecycle are excluded. Existing invitation authority already permits all five non-owner roles. Actor/target row locks use one deterministic order; current authority remains held through role/revision/receipt/audit commit. A revoked actor cannot replay or recover. Exact actor-private request identity rejects changed payload reuse, and stale loaded revisions cannot overwrite later changes.
+
+The API validates exact Origin, authentication, no query authority, bounded UTF-8 JSON and closed fields; no-store GET lookup exposes only the original actor's result. Browser acknowledgement resets on target/role/reason edits, persistence/readback precedes dispatch, strict receipt matching precedes success and every uncertain outcome retains exact recovery. SQL history is immutable, survives membership removal and restricts referenced-user deletion; whole-workspace erasure is the cascade boundary. [Member-role reference](WORKSPACE_MEMBER_ROLES.md) explains administrative SQL/restore limits, minimized audit reasons and protection of original intent. Exact-source cloud audits are still pending for this candidate.
+
 ## Release 1.32 workspace creation and naming
 
 Current organization ownership permits empty workspace creation only; current workspace owner/admin membership permits that workspace's display-name edit only. Neither grants the other authority. Transactions hold qualifying membership locks through immutable receipt/audit commit; revoked access is rechecked even for exact replay or lookup. Actor-private organization/request keys cannot be reused with another actor or changed canonical input. New workspaces inherit no other members, content, credentials or provider access.

@@ -1,5 +1,11 @@
 # Backup and Recovery Runbook
 
+## Release 1.33 member-role request recovery
+
+Keep membership role revisions, immutable private receipts and audits together. Check or retry the exact retained user/workspace request after uncertainty; never silently generate a replacement key. Historical replay returns the original before/after roles without resetting later changes, and current actor administration is still required. Missing results or transport failures do not prove rollback. Do not delete receipts or decrement revisions.
+
+The browser retains one role-change request per account/workspace, regardless of target member, and hides editing until it is deliberately resolved. Acknowledged clearing compares exact local bytes, removes only that local key and fully reloads current membership state; it does not undo a grant. Read failures or changed storage require reload before clearing. Closing a tab, workspace erasure or pre-request restores can lose recovery evidence. Operator-driven membership delete/rejoin must drain pending requests because revision counters start anew; future product lifecycle changes need incarnation-aware concurrency. [Member-role reference](WORKSPACE_MEMBER_ROLES.md) specifies migration 0120, locking, cascade and rollback boundaries.
+
 ## Release 1.32 workspace request recovery
 
 Keep revisions, memberships, default Brands, immutable management receipts and audits together in backups. After an uncertain create/rename, check or retry the exact saved request, not a new UUID. A 404 may mean another transaction has not committed. Historical replay does not reset a later name or membership, and current operation authority is still required. Never delete receipts or decrement revisions to recover.

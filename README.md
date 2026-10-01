@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.32: workspace creation and naming
+## Release 1.33 candidate: reviewed existing-member role changes
+
+Workspace owners/admins can review and change another current non-owner collaborator's role, with a required reason, exact private recovery and stale-revision protection. Owner/self changes, membership removal/creation and organization grants are excluded. Deterministic row locking handles reciprocal administrator edits; trusted SQL role changes also advance the revision. [Member-role design and variables](docs/WORKSPACE_MEMBER_ROLES.md) documents every contract and boundary.
+
+The final full local gate passes 2,647 tests/149 files, static/frontend/native checks, 120 migrations/replay and unsigned Windows packaging. Synthetic desktop/mobile tests verify consent invalidation, exact recovery, stale rejection and current-state reload; production-mode authentication and exact recovery also pass. Exact-source cloud and final Google acceptance are in progress; this is not a released-source, deployment or whole-product completion claim. See [Releases](docs/RELEASES.md).
+
+## Previous release: 1.32 workspace creation and naming
 
 Organization owners can create empty workspaces; workspace owners/admins can rename their current workspace. Permissions remain independent, no members/content/connections are inherited, and exact private request recovery prevents duplicate creates after response loss. Stable membership ordering keeps no-cookie selection independent of new or renamed labels. [Workspace management design and variables](docs/WORKSPACE_MANAGEMENT.md) documents the contract.
 

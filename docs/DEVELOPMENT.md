@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.33 member-role development
+
+Read [Member-role management](WORKSPACE_MEMBER_ROLES.md) before changing roles, locks or recovery. Own package/npm/native metadata is 1.33.0, without third-party upgrades or user pnpm edits. Apply frozen `0120_workspace_member_roles.sql` (SHA-256 `3b993c63971ae6d74ee7c6ca1f30682c6859be13f9b1e2b72f63d7add4e6abe4`) and deploy matching code; readiness is 120/latest 0120. Restart the development server after repository factory/class changes. Drain pending mutations before trusted SQL membership lifecycle changes/restores; new product deletion/rejoin work needs an incarnation-aware design.
+
+Focused integration accepts only market_me_ci or market_me_qa_133_*. Browser acceptance uses market_me_qa_133_roles_v1 and five synthetic members. No actual production identity/permission or provider is changed. The legacy workspace-navigation QA helper now supplies the next settings revision when naming its newly created fixtures, as required by frozen 0119. No new secret, environment variable, worker or service is needed. Final-source local/cloud/production/Google evidence belongs in [Releases](RELEASES.md).
+
 ## Release 1.32 workspace management
 
 Read [Workspace management](WORKSPACE_MANAGEMENT.md) before changing tenant creation, naming or recovery. Own package/npm/native metadata is 1.32.0; dependencies and user pnpm files are unchanged. Apply additive frozen `0119_workspace_management.sql` (SHA-256 `55e44aa09b5c34e33c81e5134562829542e8fc3520d78fae31f74c6b60ec5372`), then restart matching web/database code. Readiness requires exactly 119/latest 0119. The existing development repository cache needs a restart after repository implementation/constructor changes.

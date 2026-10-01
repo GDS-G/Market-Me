@@ -23,8 +23,8 @@ try {
     if (existing.length) throw new Error("Use a fresh QA database; do not duplicate an existing fixture");
     const first = await core.bootstrapDevelopmentWorkspace({ email: "developer@market-me.local", displayName: "Market Me QA Developer" });
     const second = await core.bootstrapDevelopmentWorkspace({ email: "qa-secondary@market-me.local", displayName: "Secondary QA Owner" });
-    await sql`UPDATE workspace SET name = 'QA Alpha' WHERE id = ${first.workspace.workspaceId}`;
-    await sql`UPDATE workspace SET name = 'QA Beta' WHERE id = ${second.workspace.workspaceId}`;
+    await sql`UPDATE workspace SET name = 'QA Alpha', settings_revision = settings_revision + 1 WHERE id = ${first.workspace.workspaceId}`;
+    await sql`UPDATE workspace SET name = 'QA Beta', settings_revision = settings_revision + 1 WHERE id = ${second.workspace.workspaceId}`;
     await sql`INSERT INTO organization_membership (organization_id, user_id, role)
       VALUES (${second.workspace.organizationId}, ${first.user.id}, 'member') ON CONFLICT DO NOTHING`;
     await sql`INSERT INTO workspace_membership (workspace_id, user_id, role)

@@ -30,3 +30,5 @@ export * from "./preparation-preset-models";
 export * from "./preparation-preset-repository";
 export * from "./workspace-management-models";
 export * from "./workspace-management-repository";
+export * from "./workspace-member-role-models";
+export * from "./workspace-member-role-repository";

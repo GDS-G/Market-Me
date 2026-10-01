@@ -1,5 +1,11 @@
 # Domain Model and Important Variables
 
+## Release 1.33 membership role revisions and receipts
+
+`workspace_membership.role_revision` starts at 1 and advances exactly once for each real role change, including trusted administrative SQL. Membership workspace/user/creation identity is immutable on update; unchanged roles cannot move the counter. `workspace_member_role_receipt` records exact workspace/request/target/actor, before/after non-owner roles, resulting revision, required reason, canonical JSON and server creation time. History survives membership removal and can cascade only with workspace erasure; referenced user deletion is restricted.
+
+`WorkspaceMemberRoleRequest` is exactly workspaceId/targetUserId/requestId/expectedRevision/newRole/reason. Reasons use NFC/collapsed spaces and a 500-UTF-16-unit bound; requests are 4096 UTF-8 bytes, browser recovery/responses 8192, pages 50 through page 2000. Minimized receipt and member/page DTOs omit private canonical bytes, email and credentials. The browser's frozen attempt adds the reviewed previous role, not new grant authority. [Member-role reference](WORKSPACE_MEMBER_ROLES.md) inventories types, tuples/dictionaries/Sets/arrays, SQL, state/refs, scopes and lifetimes.
+
 ## Release 1.32 workspace revisions and private receipts
 
 `workspace.settings_revision` starts at 1 and advances only with a validated display-name change. Migration 0119 protects immutable workspace identity and adds organization-scoped `workspace_management_receipt`: exact request UUID, target workspace, actor, create/rename operation, original name/resulting revision, canonical request and server time. Composite tenant scope, canonical checks, insert authority, immutable history and parent-cascade erasure are enforced. No tenant content or membership graph is copied.
