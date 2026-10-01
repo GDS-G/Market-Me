@@ -1,12 +1,12 @@
 # Cloud continuous integration
 
-## Release 1.28 local gate; cloud verification pending
+## Verified Release 1.28 checkpoint
 
 The final local suite passes **2,161 TypeScript tests across 124 files without skips**: web 714/41, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 986/49, domain 97/4, generation 29/4, ingestion 30/5, media 24/2 and workflows 43/3. All 12 typechecks, lint, the 96-route Next.js production build and 18-module companion build pass. Native check, three Rust tests, unsigned Windows NSIS packaging and production/authenticated-browser checks pass separately; they are not inferred from Linux CI.
 
 A fresh disposable database applies 117 migrations and contains 137 public base tables. Immediate replay skips all 117 unchanged; frozen 0113–0116 hashes match, and new frozen 0117 has SHA-256 `54201e3cf4317bd37a3d47114f7d57eaabde421de32070c9c7587b75e0d50fa4`. The full test database returns to zero fixture organizations. Setup integration verifies one winner among six concurrent exact creates, changed-input/actor conflicts, stale references, historical replay, current role/tenant privacy, immutable history, whole-workspace cascade and credential-refresh fencing. Browser/provider pagination contracts are tested with synthetic data, not live OAuth accounts.
 
-Exact reviewed feature/main cloud runs and both dependency audits must complete before publication is called verified. This entry currently records local evidence only. The workflow itself needs no new secret, provider credential, permission or dependency. [Releases](RELEASES.md) is the publication ledger.
+Exact reviewed release commit `b75aa02aab5823433b2b0c3ff1987801677eb890` passed [feature run 36919612270](https://github.com/GDS-G/Market-Me/actions/runs/36919612270) in 3 minutes 43 seconds, was fast-forwarded without divergence to public `main`, and passed [main run 36920127330](https://github.com/GDS-G/Market-Me/actions/runs/36920127330) in 3 minutes 42 seconds. Both clean Ubuntu jobs added 609 packages/audited 622, applied all 117 migrations, reproduced the exact 2,161-test/124-file split, passed all type/lint/build/native-dependency steps and cleanup, and reported zero vulnerabilities in both production/full audits. No cloud-only source correction, new secret, provider credential, permission or dependency was required. [Releases](RELEASES.md) records local/native/browser and Google-document evidence separately.
 
 ## Verified Release 1.27 checkpoint
 
