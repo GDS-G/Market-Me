@@ -1,6 +1,6 @@
 # Existing-member role management and exact recovery
 
-Release 1.33 implementation reference, reviewed local candidate. Final acceptance passes 2,647 tests/149 files, all static/frontend/native checks, 120 migrations/replay, synthetic desktop/mobile, production authentication/recovery and unsigned packaging. Its focused subset is 43 model, 39 live-database and 79 web contract/route/page tests. Exact-source cloud and final Google documentation acceptance remain pending before a released-source claim. The [original scope plan](WORKSPACE_MEMBER_ROLES_PLAN.md) remains the design boundary.
+Release 1.33 verified implementation reference. Reviewed runtime `8385b1fa7d423b451ba6590cee116c38ed58c3d6` is public on main after exact feature/main runs 36940430047/36940894216 pass 2,647 tests/149 files, 120 migrations, static/frontend builds and both clean audits. Local native/package, synthetic desktop/mobile, production authentication/recovery and final Google readback pass separately. Its focused subset is 43 model, 39 live-database and 79 web contract/route/page tests. This is source acceptance, not hosted deployment or whole-product completion. The [original scope plan](WORKSPACE_MEMBER_ROLES_PLAN.md) remains the design boundary.
 
 ## Authority and product scope
 
