@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { JSONValue, TransactionSql } from "postgres";
+import { lockWorkspaceExecutionAdmission } from "./workspace-execution-admission";
 import type {
   AiBudgetAlert,
   AiBudgetScope,
@@ -3156,6 +3157,7 @@ export class AiRepository {
     validateAttemptClaim(input);
     return this.sql.begin(async (transaction) => {
       await this.requireWriter(transaction, input.workspaceId, actorUserId);
+      await lockWorkspaceExecutionAdmission(transaction, input.workspaceId);
       const rows = await transaction<(AiTextInvocationAttemptTarget & {
         currency: string;
         userTextSha256: string;

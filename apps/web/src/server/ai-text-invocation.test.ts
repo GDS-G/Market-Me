@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { WorkspaceExecutionControlError } from "@market-me/database";
 import { executePreparedTextInvocation } from "./ai-text-invocation";
 
 const input = {
@@ -49,6 +50,17 @@ function attempt(status: "succeeded" | "failed" | "ambiguous") {
 }
 
 describe("prepared text invocation executor", () => {
+  it.each(["execution_paused", "control_unavailable"] as const)("never decrypts, invokes or settles an unadmitted %s attempt", async code => {
+    const error = new WorkspaceExecutionControlError(code, "private database detail");
+    const claim = vi.fn().mockRejectedValue(error), complete = vi.fn(), decrypt = vi.fn(), invoke = vi.fn(), encrypt = vi.fn();
+    await expect(executePreparedTextInvocation(input, "44444444-4444-4444-8444-444444444444", {
+      repository: { claimWorkspaceTextInvocationAttempt: claim, completeWorkspaceTextInvocationAttempt: complete } as never,
+      encryptionKey: "fixture-key", deploymentExecutionEnabled: true, decrypt, invoke, encrypt,
+    })).rejects.toBe(error);
+    expect(claim).toHaveBeenCalledExactlyOnceWith(input, "44444444-4444-4444-8444-444444444444");
+    for (const operation of [complete, decrypt, invoke, encrypt]) expect(operation).not.toHaveBeenCalled();
+  });
+
   it("claims before one provider call and withholds output after encrypted finalization", async () => {
     const claim = vi.fn().mockResolvedValue(target);
     const complete = vi.fn().mockResolvedValue(attempt("succeeded"));

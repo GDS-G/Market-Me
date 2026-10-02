@@ -47,6 +47,9 @@ export class CampaignExecutionRouter {
       status: "manual_required",
       reason: "A prior provider request may have been accepted. Reconcile its outcome; expiry does not authorize a resend or prove non-delivery.",
     };
+    const job = await this.companionRepository?.getCampaignJobForRecovery(input);
+    if (job?.status === "succeeded") return { status: "succeeded", output: { ...job.result, companionJobId: job.id } };
+    if (job) return { status: "manual_required", reason: "An earlier companion job is retained. Review its status and confirmed outcome; a workspace hold does not authorize a replacement job or imply non-delivery." };
     return undefined;
   }
 
@@ -57,6 +60,7 @@ export class CampaignExecutionRouter {
       input.instanceId,
       input.stepKey,
     );
+    if (target) await this.repository.assertWorkspaceExecutionOpen(target.workspaceId);
     if (target?.scheduleType === "preferred_window" && preferredWindowRouteIssue({
       operationType: target.operationType, executionMethods: target.executionMethods,
       provider: target.connection?.provider, attachmentCount: target.draftPreviewAssets?.length ?? 0,

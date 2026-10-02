@@ -2,6 +2,8 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { hashCompanionSecret, type CompanionAction, type CompanionActionMode, type CompanionJobStatus, type CompanionPlatform, type CompanionWorkerStatus } from "@market-me/companion-protocol";
 import type { JSONValue } from "postgres";
 import type { DatabaseClient } from "./client";
+import { lockWorkspaceExecutionAdmission } from "./workspace-execution-admission";
+import { isWorkspaceExecutionControlError } from "./workspace-execution-control-models";
 
 export interface StoredCompanionWorker {
   id: string;
@@ -220,7 +222,16 @@ export class CompanionRepository {
 
   async claimNextJob(workerId: string, leaseSeconds = 300): Promise<{ job: StoredCompanionJob; claimToken: string } | undefined> {
     const claimToken = `mm_claim_${randomBytes(32).toString("base64url")}`;
-    const rows = await this.sql<StoredCompanionJob[]>`
+    return this.sql.begin(async transaction => {
+      const [scope] = await transaction<{ workspaceId: string }[]>`SELECT workspace_id FROM browser_worker WHERE id=${workerId}`;
+      if (!scope) return undefined;
+      try { await lockWorkspaceExecutionAdmission(transaction, scope.workspaceId); }
+      catch (error) { if (isWorkspaceExecutionControlError(error) && error.code === "execution_paused") return undefined; throw error; }
+      // Recheck identity/status under a lock after any wait for the workspace fence.
+      const [worker] = await transaction`SELECT id FROM browser_worker WHERE id=${workerId} AND workspace_id=${scope.workspaceId}
+        AND status='active' FOR SHARE`;
+      if (!worker) return undefined;
+      const rows = await transaction<StoredCompanionJob[]>`
       WITH candidate AS (
         SELECT job.id
         FROM browser_job job
@@ -241,7 +252,22 @@ export class CompanionRepository {
         job.lease_expires_at, job.attempt_count, job.result, job.last_error, job.created_by, job.created_at,
         job.started_at, job.completed_at, job.updated_at
     `;
-    return rows[0] ? { job: rows[0], claimToken } : undefined;
+      return rows[0] ? { job: rows[0], claimToken } : undefined;
+    });
+  }
+
+  /** Exact historical job lookup. Never authenticates, claims or launches a worker. */
+  async getCampaignJobForRecovery(input: { workspaceId: string; campaignId: string; instanceId: string;
+    campaignVersionId: string; campaignStepRunId: string; stepKey: string }): Promise<Pick<StoredCompanionJob, "id" | "status" | "result"> | undefined> {
+    return (await this.sql<Pick<StoredCompanionJob, "id" | "status" | "result">[]>`
+      SELECT job.id,job.status,job.result FROM browser_job job
+      JOIN campaign_instance instance ON instance.id=job.campaign_instance_id AND instance.workspace_id=job.workspace_id
+      JOIN campaign_step_run run ON run.id=job.campaign_step_run_id AND run.campaign_instance_id=instance.id
+      JOIN campaign_step step ON step.id=run.campaign_step_id AND step.campaign_version_id=instance.campaign_version_id
+      WHERE instance.id=${input.instanceId} AND instance.workspace_id=${input.workspaceId} AND instance.campaign_id=${input.campaignId}
+        AND instance.campaign_version_id=${input.campaignVersionId} AND run.id=${input.campaignStepRunId} AND step.step_key=${input.stepKey}
+        AND job.idempotency_key=${`campaign:${input.instanceId}:step:${input.stepKey}:open_url`}
+    `)[0];
   }
 
   async completeJob(input: {

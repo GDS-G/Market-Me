@@ -1,0 +1,16 @@
+.panel { display: grid; gap: 1rem; min-width: 0; }
+.state, .notice { display: grid; gap: .8rem; min-width: 0; padding: 1.2rem; border: 1px solid var(--line, #d7dce6); border-radius: 14px; overflow-wrap: anywhere; }
+.state { background: var(--surface, #fff); }
+.notice { background: var(--surface-soft, #f6f8fc); }
+.panel h2, .panel h3, .panel p { margin: 0; }
+.panel p { line-height: 1.6; }
+.actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: stretch; }
+.panel button { min-height: 44px; padding: .7rem 1rem; border: 1px solid #bdc8dc; border-radius: 8px; background: #fff; color: #18263e; cursor: pointer; font: inherit; white-space: normal; }
+.panel button.danger { background: #a82935; border-color: #a82935; color: white; }
+.panel button:disabled { opacity: .6; cursor: not-allowed; }
+.panel button:focus-visible, .panel input:focus-visible, .panel a:focus-visible, .panel h3:focus { outline: 3px solid #586deb; outline-offset: 3px; }
+.reason { display: grid; gap: .5rem; font-weight: 600; }
+.reason input { width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; padding: .75rem; border: 1px solid #bdc8dc; border-radius: 8px; font: inherit; }
+.confirmation { display: flex; align-items: flex-start; gap: .7rem; line-height: 1.6; }
+.confirmation input { width: 20px; height: 20px; flex: 0 0 20px; margin-top: .2rem; }
+@media (max-width: 600px) { .state, .notice { padding: 1rem; } .actions { flex-direction: column; } .actions button { width: 100%; } }

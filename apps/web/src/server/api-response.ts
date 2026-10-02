@@ -1,10 +1,17 @@
 import { AuthenticationError, AuthorizationError } from "./auth";
 import { DatabaseUnavailableError } from "./database";
 import { IngestionConfigurationError, WebhookConfigurationError } from "./ingestion";
-import { AiPolicyValidationError, CampaignValidationError, ContentPackageReviewError, DraftValidationError } from "@market-me/database";
+import { AiPolicyValidationError, CampaignValidationError, ContentPackageReviewError, DraftValidationError, isWorkspaceExecutionControlError } from "@market-me/database";
 import { CompanionAuthenticationError } from "./companion-auth";
 
 export function apiError(error: unknown): Response {
+  if (isWorkspaceExecutionControlError(error)) {
+    const paused = error.code === "execution_paused";
+    return Response.json({ error: { code: paused ? "execution_paused" : "execution_control_unavailable",
+      message: paused ? "Workspace execution is paused. No new work was admitted. Review Workspace execution in Settings."
+        : "Workspace execution state is unavailable. No new work was admitted." } },
+    { status: paused ? 409 : 503, headers: { "Cache-Control": "private, no-store", Vary: "Cookie", "X-Content-Type-Options": "nosniff" } });
+  }
   if (error instanceof ContentPackageReviewError) {
     const status = error.code === "access_denied" ? 403 : error.code === "package_unavailable" || error.code === "approval_unavailable" ? 404
       : error.code === "invalid_review_input" || error.code === "review_snapshot_too_large" || error.code === "review_snapshot_lossy" ? 422 : 409;

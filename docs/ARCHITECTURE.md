@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.53 workspace execution pause candidate
+
+A durable workspace control row is the shared publication/AI/companion admission fence; current administrators change it through exclusive-lock, revision/grant-bound transactions with immutable receipts and atomic audit. Early router reads avoid unnecessary preflight, but do not replace the transaction fence. Distinct held workflow results preserve prior outcomes, pause individual campaigns and require explicit resume. Actual frozen 1.19 and 1.52 histories replay on the additive compatibility paths. [Full design](WORKSPACE_EXECUTION_PAUSE.md) documents lock order, adapter coverage, excluded operational traffic, variables and rollout. The shared pool has30 repository getters. Acceptance remains separate from implementation.
+
 ## Release 1.47 catalog read projection
 
 The Content Packages server page uses a focused one-statement current-member projection instead of hydrating every package and its evidence. Complete exact counts are independent of a 30-item keyset page and three-name preview. Timestamp/UUID boundaries retain PostgreSQL microseconds through text-first parameter binding; every page rechecks scope. The existing detail/worker loader remains unchanged. [Full design](CONTENT_CATALOG.md) describes all CTEs, lifetimes, concurrent-edit limits and scan-cost caveats. Shared-pool getters now total 24; no migration, global result cache or provider work is added.

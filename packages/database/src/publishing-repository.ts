@@ -9,6 +9,7 @@ import {
   type MeasurementEventType,
 } from "@market-me/domain";
 import type { DatabaseClient } from "./client";
+import { assertWorkspaceExecutionOpen, lockWorkspaceExecutionAdmission } from "./workspace-execution-admission";
 import type { StoredDraftPreviewAsset, StoredStepScheduleState } from "./models";
 import { CampaignRepository, CampaignScheduleNotReadyError, CampaignValidationError } from "./campaign-repository";
 import { preferredWindowRouteIssue } from "./campaign-route-policy";
@@ -803,6 +804,7 @@ export class PublishingRepository {
     requestSnapshot: Record<string, unknown>;
   }): Promise<{ action: StoredPublicationAction; created: boolean }> {
     return this.sql.begin(async (transaction) => {
+      await lockWorkspaceExecutionAdmission(transaction, input.target.workspaceId);
       const admission = await this.admitPublication(transaction, input.target, input.requestSnapshot);
       const inserted = await transaction<{ id: string }[]>`
         INSERT INTO publication_action (id, workspace_id, campaign_instance_id, campaign_step_run_id, channel_connection_id, action_type, status, idempotency_key, request_snapshot)
@@ -821,6 +823,11 @@ export class PublishingRepository {
       }
       return { action, created: false };
     });
+  }
+
+  /** Early worker gate only; every new publication still needs the locked admission. */
+  async assertWorkspaceExecutionOpen(workspaceId: string): Promise<void> {
+    await assertWorkspaceExecutionOpen(this.sql, workspaceId);
   }
 
   async getPublicationActionByIdempotencyKey(
@@ -1793,7 +1800,12 @@ export class PublishingRepository {
     request: { content: string; subject?: string; renderedDestinationUrl?: string },
   ): Promise<boolean> {
     return this.sql.begin(async (transaction) => {
-      // Lock the instance before its action, matching common admission/control order.
+      // Scope validation is read-only; the fence remains the first resource lock.
+      const [scope] = await transaction`SELECT id FROM campaign_instance WHERE id=${target.campaignInstanceId}
+        AND workspace_id=${target.workspaceId} AND campaign_id=${target.campaignId}`;
+      if (!scope) throw publicationTargetMismatch();
+      await lockWorkspaceExecutionAdmission(transaction, target.workspaceId);
+      // After the workspace fence, lock the instance before its action.
       const instances = await transaction<{ id: string }[]>`
         SELECT id FROM campaign_instance WHERE id = ${target.campaignInstanceId}
           AND workspace_id = ${target.workspaceId} AND campaign_id = ${target.campaignId} FOR NO KEY UPDATE

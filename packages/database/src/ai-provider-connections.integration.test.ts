@@ -4,6 +4,7 @@ import { AiRepository } from "./ai-repository";
 import { createDatabaseClient, type DatabaseClient } from "./client";
 import { MarketMeRepository } from "./repositories";
 import { packageReviewPrecondition } from "./test-support/package-review-fixture";
+import { setFixtureExecutionState } from "./test-support/workspace-execution-fixture";
 
 const databaseUrl = process.env.DATABASE_URL;
 let sql: DatabaseClient | undefined;
@@ -16,6 +17,8 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
     const core = new MarketMeRepository(sql);
     const ai = new AiRepository(sql);
     const suffix = randomUUID();
+    // Unique pricing identity survives a previously interrupted test without deleting its evidence.
+    const modelId = `gpt-example-a-${suffix}`;
     const owner = await core.bootstrapDevelopmentWorkspace({
       email: `provider-owner-${suffix}@market-me.local`,
       displayName: "Provider Owner",
@@ -132,7 +135,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         provider: "openai",
         expectedCredentialFingerprint: firstFingerprint,
         models: [
-          { modelId: "gpt-example-a", inputTokenLimit: 128000, providerCreatedAt: "2026-01-01T00:00:00.000Z" },
+          { modelId, inputTokenLimit: 128000, providerCreatedAt: "2026-01-01T00:00:00.000Z" },
           { modelId: "gpt-example-b" },
         ],
       }, owner.user.id);
@@ -151,7 +154,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
       const candidate = await ai.submitWorkspaceAdapterCandidate({
         workspaceId: owner.workspace.workspaceId,
         provider: "openai",
-        modelId: "gpt-example-a",
+        modelId,
         displayName: "GPT Example A",
         capabilities: ["generate_text", "generate_structured_output"],
         quality: "enhanced",
@@ -214,7 +217,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
           minor_unit_exponent, status, effective_from,
           source_reference, source_hash, verified_at, approved_at
         ) VALUES (
-          ${rateCardId}, 'openai', 'gpt-example-a', 'qa-2026-08', 'USD',
+          ${rateCardId}, 'openai', ${modelId}, 'qa-2026-08', 'USD',
           2, 'approved', '2026-01-01T00:00:00.000Z',
           'https://example.invalid/qa-pricing', ${"f".repeat(64)},
           '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
@@ -240,7 +243,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
       expect(binding).toMatchObject({
         status: "bound",
         provider: "openai",
-        modelId: "gpt-example-a",
+        modelId,
         currency: "USD",
         modelVersion: "qa-2026-08",
         evidenceCurrent: true,
@@ -287,7 +290,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
       expect(invocation).toMatchObject({
         status: "configured",
         provider: "openai",
-        modelId: "gpt-example-a",
+        modelId,
         rateCardId,
         pricingCurrency: "USD",
         contractKey: "openai-hosted-json",
@@ -376,7 +379,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         reservationId: textReservation.id,
         costQuoteId: textQuote.id,
         provider: "openai",
-        modelId: "gpt-example-a",
+        modelId,
         feature: "assistant.prepare_copy",
         status: "prepared",
         authorizationCurrent: true,
@@ -544,6 +547,12 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
           await sql`UPDATE ai_provider_rate_card SET minor_unit_exponent=2 WHERE id=${rateCardId}`;
         }
       }
+      await setFixtureExecutionState(sql, owner.workspace.workspaceId, owner.user.id, "paused");
+      const heldEvidence = await snapshotUnitBoundary();
+      await expect(ai.claimWorkspaceTextInvocationAttempt({ workspaceId: owner.workspace.workspaceId, intentId: attemptIntent.id, userText: attemptPrompt }, owner.user.id))
+        .rejects.toMatchObject({ code: "execution_paused" });
+      expect(await snapshotUnitBoundary()).toEqual(heldEvidence);
+      await setFixtureExecutionState(sql, owner.workspace.workspaceId, owner.user.id, "open");
       const attemptTarget = await ai.claimWorkspaceTextInvocationAttempt({
         workspaceId: owner.workspace.workspaceId,
         intentId: attemptIntent.id,
@@ -553,7 +562,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         workspaceId: owner.workspace.workspaceId,
         intentId: attemptIntent.id,
         provider: "openai",
-        modelId: "gpt-example-a",
+        modelId,
         encryptedCredential: firstEnvelope,
         credentialFingerprint: firstFingerprint,
       });
@@ -562,6 +571,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         intentId: attemptIntent.id,
         userText: attemptPrompt,
       }, owner.user.id)).rejects.toMatchObject({ name: "AiPolicyValidationError" });
+      await setFixtureExecutionState(sql, owner.workspace.workspaceId, owner.user.id, "paused");
       const completedAttempt = await ai.completeWorkspaceTextInvocationAttempt({
         workspaceId: owner.workspace.workspaceId,
         attemptId: attemptTarget.attemptId,
@@ -603,6 +613,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         SELECT status, actual_cost_minor FROM ai_spend_reservation
         WHERE id = ${attemptReservation.id}
       `)[0]).toMatchObject({ status: "settled", actualCostMinor: 1 });
+      await setFixtureExecutionState(sql, owner.workspace.workspaceId, owner.user.id, "open");
       const artifacts = await ai.listWorkspaceTextOutputArtifacts(
         owner.workspace.workspaceId, owner.user.id,
       );
@@ -1764,6 +1775,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
       await sql`DELETE FROM workspace_ai_text_invocation_resolution WHERE workspace_id = ${owner.workspace.workspaceId}`;
       await sql`DELETE FROM workspace_ai_text_invocation_reconciliation WHERE workspace_id = ${owner.workspace.workspaceId}`;
       await sql`DELETE FROM workspace_ai_text_output_artifact WHERE workspace_id = ${owner.workspace.workspaceId}`;
+      await sql`DELETE FROM workspace_ai_provider_circuit WHERE workspace_id = ${owner.workspace.workspaceId}`;
       await sql`DELETE FROM ai_usage_event WHERE workspace_id = ${owner.workspace.workspaceId} AND text_invocation_attempt_id IS NOT NULL`;
       await sql`DELETE FROM workspace_ai_text_invocation_attempt WHERE workspace_id = ${owner.workspace.workspaceId}`;
       await sql`DELETE FROM workspace_ai_text_invocation_intent WHERE workspace_id = ${owner.workspace.workspaceId}`;
@@ -1776,5 +1788,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
       await sql`DELETE FROM app_user WHERE id IN (${owner.user.id}, ${viewer.user.id})`;
       await sql`DELETE FROM ai_provider_rate_card WHERE id = ${rateCardId}`;
     }
-  });
+  // This end-to-end fixture exercises the entire provider/budget/incident lifecycle;
+  // keep its bound finite without depending on a sub-five-second shared database.
+  }, 20_000);
 });

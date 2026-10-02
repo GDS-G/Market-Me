@@ -68,5 +68,6 @@ describe.skipIf(!url)("live production database pool reuse", () => {
     expect(reimported.getAccountProfileRepository()).toBe(databaseModule.getAccountProfileRepository());
     expect(reimported.getAccountSessionRepository()).toBe(databaseModule.getAccountSessionRepository());
     expect(reimported.getWorkspaceMemberLifecycleRepository()).toBe(databaseModule.getWorkspaceMemberLifecycleRepository());
+    expect(reimported.getWorkspaceExecutionControlRepository()).toBe(databaseModule.getWorkspaceExecutionControlRepository());
   });
 });

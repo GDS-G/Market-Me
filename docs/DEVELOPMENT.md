@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.53 execution-pause development
+
+Read [Workspace execution pause](WORKSPACE_EXECUTION_PAUSE.md) before altering admission locks, held-state transitions, replay compatibility or recovery intent. Own metadata1.53.0/schema129; no dependency/environment addition. Coordinate schema/web/worker rollout and preserve checksum-fixed migrations0127–0129. The isolated one-time QA153 fixture retains prior databases, synthetic queues and independent other-workspace state. Tests capture actual old Temporal histories; do not edit frozen baseline hashes. The large provider lifecycle fixture uses a unique model identifier, finite20-second bound and circuit-before-attempt cleanup so interrupted runs do not hide assertions. User pnpm files remain untouched/excluded. [Releases](RELEASES.md) distinguishes test, browser, native and cloud evidence.
+
 ## Release 1.51 personal-session development
 
 Read [Personal session controls](ACCOUNT_SESSIONS.md) before changing public session IDs, private cookie context, session expiry/locking, cursor scope, receipts, confirmation or recovery. Own metadata1.51.0/schema124 requires additive0124 and28 shared-pool getters. Never serialize tokenHash or pass the actor context to client props. Restart web processes after migration for prepared statements and the shared bundle; preserve existing tokens and identity-provider behavior.

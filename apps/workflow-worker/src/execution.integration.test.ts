@@ -3,6 +3,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { DISCORD_WEBHOOK_CAPABILITIES, encryptToken } from "@market-me/connectors";
 import {
   CampaignRepository, createDatabaseClient, MarketMeRepository, PublishingRepository,
+  WorkspaceExecutionControlRepository,
   type CampaignDraftWrite, type DatabaseClient,
 } from "@market-me/database";
 import { createCampaignActivities, type CampaignScheduledStepExecutionInput } from "@market-me/workflows";
@@ -21,6 +22,23 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 afterAll(async () => { await sql?.end(); });
 
 describe.skipIf(!databaseUrl)("scheduled publication through real database authority", () => {
+  it.each(["before-preflight", "during-preflight"])("returns held with zero publication POSTs when pause commits %s", async phase => {
+    const fixture = await executionFixture(false);
+    const pause = async () => {
+      const repository = new WorkspaceExecutionControlRepository(sql!), current = await repository.getSnapshot(fixture.workspaceId, fixture.actorUserId);
+      if (!current.canManage) throw new Error("Synthetic owner required");
+      await repository.mutate({ workspaceId: fixture.workspaceId, requestId: randomUUID(), expectedActorIncarnationId: current.actorIncarnationId,
+        expectedRevision: current.revision, state: "paused", reason: "Synthetic worker admission race" }, fixture.actorUserId);
+    };
+    const provider = fakeDiscord(phase === "during-preflight" ? pause : undefined);
+    try {
+      if (phase === "before-preflight") await pause();
+      await fixture.activities.setStepState({ instanceId: fixture.instanceId, stepKey: "window", status: "running" });
+      expect(await fixture.activities.executeScheduledStep(await fixture.input("window"))).toMatchObject({ status: "execution_held", code: "execution_paused" });
+      expect(provider.counts()).toEqual({ get: phase === "during-preflight" ? 1 : 0, post: 0 });
+      expect(await fixture.publishing.getPublicationActionByIdempotencyKey(fixture.key("window"))).toBeUndefined();
+    } finally { await fixture.cleanup(); }
+  });
   it("executes a real immediate predecessor and delayed window child, then recovers success after expiry and revocation without I/O", async () => {
     const fixture = await executionFixture(true);
     const provider = fakeDiscord();
@@ -179,7 +197,7 @@ async function executionFixture(withPredecessor: boolean) {
       VALUES (${randomUUID()}, ${instanceId}, ${step.id}, ${`campaign:${instanceId}:step:${step.stepKey}`})`;
     const activities = createCampaignActivities(campaigns, new CampaignExecutionRouter(publishing, encryptionKey, appBaseUrl));
     return {
-      campaigns, publishing, activities, connection, instanceId, versionId, workspaceId: workspace.workspaceId, cleanup,
+      campaigns, publishing, activities, connection, instanceId, versionId, workspaceId: workspace.workspaceId, actorUserId: user.id, cleanup,
       key: (stepKey: string) => `campaign:${instanceId}:step:${stepKey}:publish`,
       input: async (stepKey: string): Promise<CampaignScheduledStepExecutionInput> => {
         const schedule = (await campaigns.getStepScheduleState(instanceId, stepKey))!;

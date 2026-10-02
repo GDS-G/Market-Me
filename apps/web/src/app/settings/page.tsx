@@ -36,6 +36,10 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
             organizationId={settings.organizationId} organizationName={settings.organizationName} currentName={settings.name} revision={settings.revision} />
             : <p>Only a current workspace owner or administrator can rename this workspace. Organization ownership alone does not grant that permission. Settings revision: {settings.revision}.</p>}
         </section>
+        <section className={`resource-panel ${styles.panel}`}><h2>Workspace execution</h2>
+          <p>Review or pause new publishing, companion claims and billable AI text attempts in this workspace. Already-admitted work may finish; history and settlement remain available.</p>
+          <Link className="button-secondary resource-button" href="/settings/execution">Review workspace execution</Link>
+        </section>
         <section className={`resource-panel ${styles.panel}`}><h2>Workspaces in {settings.organizationName}</h2>
           <p>Create a separate, empty workspace for another client or team. Existing members and content are not inherited.</p>
           {settings.canCreateWorkspace ? <Link className="button-secondary resource-button" href={`/settings/workspaces/new?organizationId=${settings.organizationId}`}>Create another workspace</Link>

@@ -33,11 +33,12 @@ describe("bounded-scheduling-v1 durable orchestration", () => {
   beforeAll(async () => { environment = await TestWorkflowEnvironment.createTimeSkipping(); }, 120_000);
   afterAll(async () => { await environment?.teardown(); });
 
-  it("keeps the captured 1.19 command source and policy decisions immutable", async () => {
+  it("keeps the captured 1.19 and 1.52 command sources and policy decisions immutable", async () => {
     // Do not regenerate these hashes to make a changed legacy workflow pass: old histories need these decisions.
     for (const [name, expected] of [
       ["legacy-workflow.ts", "321ef96c00412e8a9d2ab1ae107113aa7ac66f6f4d38965cacfa9247695587ce"],
       ["legacy-policies.ts", "35ca3f0a451e57848e2c5581339c648837ecdab0b7b657498a284d8e6d57f339"],
+      ["scheduled-pre-hold-workflow.ts", "9722db8868fa9b1abe4e32dc8c6eecb80779bbb1ca3adc1957e51b3e86226151"],
     ]) {
       const source = (await readFile(new URL(name!, import.meta.url), "utf8")).replaceAll("\r\n", "\n");
       expect(createHash("sha256").update(source).digest("hex")).toBe(expected);
@@ -86,6 +87,97 @@ describe("bounded-scheduling-v1 durable orchestration", () => {
     return step(id, { scheduleType: "preferred_window", preferredWindowStart: new Date(now - 60_000).toISOString(),
       preferredWindowEnd: new Date(now + 60_000).toISOString(), ...overrides });
   }
+
+  it.each(["timed-success", "timer-cancel", "approval-manual-resume"])("replays an actual pre-hold 1.52 %s history", async mode => {
+    const due = await environment.currentTimeMs() + 60_000;
+    const input = definition([step("publish", mode === "approval-manual-resume" ? { approvalRequired: true }
+      : { scheduleType: "exact_time", scheduledAt: new Date(due).toISOString() })]);
+    const f = fixture(input, async () => mode === "approval-manual-resume"
+      ? { status: "manual_required", reason: "Historical reconciliation." } : { status: "succeeded", output: { externalId: "historical-write" } });
+    const worker = await Worker.create({ connection: environment.nativeConnection, taskQueue: `pre-hold-replay-${randomUUID()}`,
+      workflowsPath: fileURLToPath(new URL("./scheduled-pre-hold-capture-workflows.ts", import.meta.url)), activities: f.activities });
+    const history = await worker.runUntil(async () => {
+      const handle = await start(worker, input);
+      if (mode === "timer-cancel") {
+        await expect.poll(async () => (await handle.fetchHistory()).events?.some(event => event.timerStartedEventAttributes)).toBe(true);
+        await handle.signal(cancelCampaign);
+      } else if (mode === "approval-manual-resume") {
+        await expect.poll(() => f.approvalSnapshots.has("publish")).toBe(true);
+        await handle.signal(decideCampaignApproval, { stepKey: "publish", decision: "approved" });
+        await expect.poll(() => f.events.includes("publish:manual_resolution")).toBe(true);
+        await handle.signal(pauseCampaign);
+        await expect.poll(async () => (await handle.query(campaignState)).paused).toBe(true);
+        await handle.signal(completeManualStep, { stepKey: "publish", output: { externalId: "historical-reconciled" } });
+        await handle.signal(resumeCampaign);
+      }
+      expect((await handle.result()).status).toBe(mode === "timer-cancel" ? "canceled" : "completed");
+      return handle.fetchHistory();
+    });
+    expect(history.events?.filter(event => event.markerRecordedEventAttributes)).toHaveLength(1);
+    if (mode !== "approval-manual-resume") expect(history.events?.some(event => event.timerStartedEventAttributes)).toBe(true);
+    if (mode === "timer-cancel") { expect(f.executionTimes).toHaveLength(0); expect(history.events?.some(event => event.timerCanceledEventAttributes)).toBe(true); }
+    else expect(f.executionTimes).toHaveLength(1);
+    await Worker.runReplayHistory({ workflowsPath }, history);
+  }, 120_000);
+
+  it.each(["legacy-compatible", "scheduled"])("%s holds distinctly, ignores manual completion and requires explicit resume after reopening", async mode => {
+    const input = definition([step("publish")]); let open = false, attempts = 0;
+    const execute = async (): Promise<CampaignStepExecution> => {
+      attempts++;
+      return open ? { status: "succeeded", output: { externalId: "fresh-admission" } }
+        : { status: "execution_held", code: "execution_paused", reason: "Synthetic workspace pause." };
+    };
+    const f = fixture(input, execute); f.activities.executeStep = execute;
+    const entry = mode === "legacy-compatible" ? fileURLToPath(new URL("./legacy-controlled-capture-workflows.ts", import.meta.url)) : workflowsPath;
+    const worker = await Worker.create({ connection: environment.nativeConnection, taskQueue: `execution-hold-${randomUUID()}`, workflowsPath: entry, activities: f.activities });
+    const history = await worker.runUntil(async () => {
+      const handle = await start(worker, input);
+      await expect.poll(() => f.events.includes("instance:paused")).toBe(true);
+      expect(await handle.query(campaignState)).toMatchObject({ status: "paused", paused: true, stepStates: { publish: "execution_held" } });
+      await handle.signal(completeManualStep, { stepKey: "publish", output: { externalId: "forbidden-shortcut" } });
+      open = true; await environment.sleep(1_000);
+      expect(attempts).toBe(1); expect((await handle.query(campaignState)).stepStates.publish).toBe("execution_held");
+      await handle.signal(resumeCampaign);
+      const result = await handle.result();
+      expect(result.status).toBe("completed"); expect(result.context["steps.publish"]).toEqual({ externalId: "fresh-admission" });
+      expect(attempts).toBe(2); expect(f.events).not.toContain("publish:manual_resolution");
+      return handle.fetchHistory();
+    });
+    await Worker.runReplayHistory({ workflowsPath }, history);
+  }, 120_000);
+
+  it("keeps a preferred window closed when it expires during a workspace hold", async () => {
+    const input = definition([await windowStep("publish")]);
+    const f = fixture(input, async () => ({ status: "execution_held", code: "execution_paused", reason: "Held before admission." }));
+    const worker = await workerFor(f.activities);
+    await worker.runUntil(async () => {
+      input.steps = [{ ...input.steps[0]!, preferredWindowEnd: new Date(await environment.currentTimeMs() + 4_000).toISOString() }];
+      const handle = await start(worker, input);
+      await expect.poll(() => f.events.includes("publish:execution_held")).toBe(true);
+      await environment.sleep(5_000);
+      await expect.poll(async () => (await handle.query(campaignState)).stepStates.publish).toBe("schedule_blocked");
+      await handle.signal(resumeCampaign); await handle.signal(completeManualStep, { stepKey: "publish", output: {} });
+      expect(f.executionTimes).toHaveLength(1);
+      await handle.signal(cancelCampaign); expect((await handle.result()).status).toBe("canceled");
+    });
+  }, 120_000);
+
+  it("serializes an explicit resume behind in-flight hold persistence", async () => {
+    const held = deferred<void>(), release = deferred<void>(); let attempts = 0;
+    const input = definition([step("publish")]);
+    const f = fixture(input, async () => ++attempts === 1
+      ? { status: "execution_held", code: "execution_paused", reason: "Held." } : { status: "succeeded", output: {} });
+    const original = f.activities.setStepState;
+    f.activities.setStepState = async value => { if (value.status === "execution_held") { held.resolve(); await release.promise; } await original(value); };
+    const worker = await workerFor(f.activities);
+    await worker.runUntil(async () => {
+      const handle = await start(worker, input); await held.promise;
+      await handle.signal(resumeCampaign); await environment.sleep(100);
+      expect(attempts).toBe(1); expect((await handle.query(campaignState)).paused).toBe(true);
+      release.resolve(); expect((await handle.result()).status).toBe("completed");
+      expect(f.events.lastIndexOf("instance:active")).toBeGreaterThan(f.events.lastIndexOf("instance:paused"));
+    });
+  }, 120_000);
 
   it.each(["legacy", "current"] as const)("preserves %s early-pause execution blocking", async (mode) => {
     const input = definition([step("publish")]);

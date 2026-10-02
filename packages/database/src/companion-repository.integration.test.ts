@@ -4,12 +4,45 @@ import { afterAll, describe, expect, it } from "vitest";
 import { CompanionRepository } from "./companion-repository";
 import { createDatabaseClient, type DatabaseClient } from "./client";
 import { MarketMeRepository } from "./repositories";
+import { setFixtureExecutionState } from "./test-support/workspace-execution-fixture";
 
 const databaseUrl = process.env.DATABASE_URL;
 let sql: DatabaseClient | undefined;
 
 describe.skipIf(!databaseUrl)("desktop companion repository", () => {
   afterAll(async () => { await sql?.end(); });
+
+  it("holds queued and expired companion claims without revoking workers or suppressing already-claimed completion", async () => {
+    sql ??= createDatabaseClient(databaseUrl!);
+    const { user, workspace } = await new MarketMeRepository(sql).bootstrapDevelopmentWorkspace({ email: `held-companion-${randomUUID()}@market-me.local`, displayName: "Synthetic hold owner" });
+    const repository = new CompanionRepository(sql);
+    try {
+      const code = createPairingCode(), token = createWorkerToken();
+      await repository.createPairingCode({ workspaceId: workspace.workspaceId, codeHash: code.codeHash, expiresAt: new Date(Date.now() + 60_000), createdBy: user.id });
+      const worker = (await repository.pairWorker({ codeHash: code.codeHash, name: "Synthetic held worker", platform: "windows", architecture: "x86_64", appVersion: "1.52.0", tokenPrefix: token.prefix, tokenHash: token.tokenHash }))!;
+      const create = () => repository.createJob({ workspaceId: workspace.workspaceId, workerId: worker.id, action: "open_url", actionMode: "assisted",
+        targetUrl: "https://example.test/held", expectedOrigin: "https://example.test", allowedDomains: ["example.test"], instructions: "Synthetic; do not dispatch.", idempotencyKey: randomUUID(), createdBy: user.id });
+      const first = await create(), claim = (await repository.claimNextJob(worker.id))!;
+      const queued = await create();
+      await setFixtureExecutionState(sql, workspace.workspaceId, user.id, "paused");
+      const before = await repository.listJobs(workspace.workspaceId);
+      expect(await repository.claimNextJob(worker.id)).toBeUndefined();
+      expect(await repository.listJobs(workspace.workspaceId)).toEqual(before);
+      expect((await repository.authenticateWorker(token.secret))?.status).toBe("active");
+      expect(await repository.completeJob({ workerId: worker.id, jobId: first.id, claimToken: claim.claimToken, status: "succeeded", result: { synthetic: true } })).toBe(true);
+      await setFixtureExecutionState(sql, workspace.workspaceId, user.id, "open");
+      expect((await repository.claimNextJob(worker.id))?.job.id).toBe(queued.id);
+      await sql`UPDATE browser_job SET lease_expires_at=now()-interval '1 second' WHERE id=${queued.id}`;
+      await setFixtureExecutionState(sql, workspace.workspaceId, user.id, "paused");
+      const expired = await repository.listJobs(workspace.workspaceId);
+      expect(await repository.claimNextJob(worker.id)).toBeUndefined();
+      expect(await repository.listJobs(workspace.workspaceId)).toEqual(expired);
+      await repository.setWorkerStatus(workspace.workspaceId, worker.id, "paused");
+      await setFixtureExecutionState(sql, workspace.workspaceId, user.id, "open");
+      expect(await repository.claimNextJob(worker.id)).toBeUndefined();
+      expect((await repository.listWorkers(workspace.workspaceId))[0]?.status).toBe("paused");
+    } finally { await sql`DELETE FROM organization WHERE id=${workspace.organizationId}`; await sql`DELETE FROM app_user WHERE id=${user.id}`; }
+  });
 
   it("pairs once, reports health, leases a signed job, and prevents claims while paused", async () => {
     sql = createDatabaseClient(databaseUrl!);

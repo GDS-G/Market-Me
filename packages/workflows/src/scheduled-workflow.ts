@@ -16,6 +16,7 @@ export async function campaignWorkflowScheduled(input: CampaignWorkflowInput): P
   let paused = false;
   let canceled = false;
   let blocked = false;
+  let holdWrites = 0;
   let failure: Error | undefined;
   let campaignApproved = input.autonomyMode !== "campaign_approval";
   let status: CampaignWorkflowState["status"] = "scheduled";
@@ -37,6 +38,7 @@ export async function campaignWorkflowScheduled(input: CampaignWorkflowInput): P
     await activities.setInstanceState({ instanceId: input.instanceId, status });
   });
   setHandler(resumeCampaign, async () => {
+    if (holdWrites > 0) await condition(() => holdWrites === 0 || canceled);
     if (terminal() || blocked) return;
     paused = false; status = campaignApproved ? "active" : "awaiting_approval"; revision++;
     await activities.setInstanceState({ instanceId: input.instanceId, status });
@@ -180,6 +182,19 @@ export async function campaignWorkflowScheduled(input: CampaignWorkflowInput): P
           assertScheduleEvidence({ ...input, stepKey: step.id, campaignStepRunId: runId }, execution.schedule);
           await blockStep(step, execution); return;
         }
+        if (execution.status === "execution_held") {
+          // New activity-result branch only: old histories retain their command sequence.
+          // Workspace reopening alone sends no signal and cannot restart this run.
+          states[step.id] = "execution_held"; paused = true; status = "paused"; revision++;
+          const evidence = { code: execution.code, reason: execution.reason };
+          context[`execution.held.${step.id}`] = evidence;
+          holdWrites++;
+          try {
+            await activities.setStepState({ instanceId: input.instanceId, stepKey: step.id, status: "execution_held", output: { executionHold: evidence }, error: execution.reason });
+            await activities.setInstanceState({ instanceId: input.instanceId, status: canceled ? "canceled" : "paused" });
+          } finally { holdWrites--; }
+          continue;
+        }
         states[step.id] = "manual_resolution"; revision++;
         await activities.setStepState({ instanceId: input.instanceId, stepKey: step.id, status: "manual_resolution", error: execution.reason });
         // An uncertain dispatch never becomes safely expired merely because time passes.
@@ -217,7 +232,7 @@ export async function campaignWorkflowScheduled(input: CampaignWorkflowInput): P
   if (blocked && !canceled) await condition(() => canceled);
   if (canceled) {
     for (const step of input.steps) {
-      if (["planned", "waiting", "running", "schedule_blocked"].includes(states[step.id]!)) {
+      if (["planned", "waiting", "running", "schedule_blocked", "execution_held"].includes(states[step.id]!)) {
         await activities.setStepState({ instanceId: input.instanceId, stepKey: step.id, status: "canceled", error: "Campaign canceled." });
         states[step.id] = "canceled";
       }

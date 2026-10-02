@@ -52,3 +52,5 @@ export * from "./account-profile-models";
 export * from "./account-profile-repository";
 export * from "./account-session-models";
 export * from "./account-session-repository";
+export * from "./workspace-execution-control-models";
+export * from "./workspace-execution-control-repository";

@@ -15,6 +15,7 @@ import type {
   StoredStepScheduleState,
 } from "@market-me/database";
 import { CampaignExecutionRouter } from "./execution";
+import { WorkspaceExecutionControlError } from "@market-me/database";
 
 const key = randomBytes(32).toString("base64");
 const webhook =
@@ -23,6 +24,25 @@ const webhook =
 afterEach(() => vi.unstubAllGlobals());
 
 describe("CampaignExecutionRouter", () => {
+  it.each(["execution_paused", "control_unavailable"] as const)("stops %s before credentials, preflight, tracked links or companion fallback", async code => {
+    const error = new WorkspaceExecutionControlError(code, "No new admission.");
+    const network = vi.fn(), links = vi.fn(), createJob = vi.fn(), workers = vi.fn(); vi.stubGlobal("fetch", network);
+    const repository = { getCampaignExecutionTarget: vi.fn(async () => target()), assertWorkspaceExecutionOpen: vi.fn().mockRejectedValue(error),
+      createTrackedLink: links } as unknown as PublishingRepository;
+    const companion = { createJob, listWorkers: workers } as unknown as CompanionRepository;
+    await expect(new CampaignExecutionRouter(repository, key, "https://example.test", companion).execute({ instanceId: "instance-1", stepKey: "publish", context: {} })).rejects.toBe(error);
+    expect(network).not.toHaveBeenCalled(); expect(links).not.toHaveBeenCalled(); expect(createJob).not.toHaveBeenCalled(); expect(workers).not.toHaveBeenCalled();
+  });
+  it.each(["queued", "claimed", "failed", "succeeded"] as const)("retains exact %s companion recovery without a replacement claim or provider work", async status => {
+    const network = vi.fn(), claim = vi.fn(), createJob = vi.fn(); vi.stubGlobal("fetch", network);
+    const repository = { getCampaignPublicationForRecovery: vi.fn(async () => undefined) } as unknown as PublishingRepository;
+    const recover = vi.fn(async () => ({ id: "retained-job", status, result: { confirmed: true } }));
+    const companion = { getCampaignJobForRecovery: recover, claimNextJob: claim, createJob } as unknown as CompanionRepository;
+    const input = { workspaceId: "workspace-1", campaignId: "campaign-1", campaignVersionId: "version-1", campaignStepRunId: "run-1", instanceId: "instance-1", stepKey: "open", context: {} };
+    expect(await new CampaignExecutionRouter(repository, undefined, undefined, companion).recoverScheduledExecution(input))
+      .toMatchObject(status === "succeeded" ? { status: "succeeded", output: { companionJobId: "retained-job", confirmed: true } } : { status: "manual_required" });
+    expect(recover).toHaveBeenCalledExactlyOnceWith(input); expect(network).not.toHaveBeenCalled(); expect(claim).not.toHaveBeenCalled(); expect(createJob).not.toHaveBeenCalled();
+  });
   it("propagates durable finalization proof into the request snapshot without trusting input or context overrides", async () => {
     const fingerprint = `mm-preview-v1:sha256:${"a".repeat(64)}`;
     const selected = { ...slackTarget(), campaignFinalizationId: "finalization-1", draftChannelPreviewFingerprint: fingerprint,
@@ -30,7 +50,7 @@ describe("CampaignExecutionRouter", () => {
     const begin = vi.fn<PublishingRepository["beginPublicationAction"]>(async () => ({ created: true, action: action("dispatching") }));
     const finish = vi.fn();
     const request = vi.fn(async () => new Response("ok")); vi.stubGlobal("fetch", request);
-    const repository = { getCampaignExecutionTarget: vi.fn(async () => selected), beginPublicationAction: begin,
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined), getCampaignExecutionTarget: vi.fn(async () => selected), beginPublicationAction: begin,
       finishPublicationAction: finish } as unknown as PublishingRepository;
     const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish",
       context: { campaignFinalizationId: "context-forgery", draftChannelPreviewFingerprint: "context-forgery" } });
@@ -47,7 +67,7 @@ describe("CampaignExecutionRouter", () => {
       campaignFinalizationId: "not-durable", draftChannelPreviewFingerprint: "not-durable" } };
     const begin = vi.fn<PublishingRepository["beginPublicationAction"]>(async () => ({ created: true, action: action("dispatching") }));
     vi.stubGlobal("fetch", vi.fn(async () => new Response("ok")));
-    const repository = { getCampaignExecutionTarget: vi.fn(async () => selected), beginPublicationAction: begin,
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined), getCampaignExecutionTarget: vi.fn(async () => selected), beginPublicationAction: begin,
       finishPublicationAction: vi.fn() } as unknown as PublishingRepository;
     expect((await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} })).status).toBe("succeeded");
     expect(begin.mock.calls[0]![0].requestSnapshot).not.toHaveProperty("campaignFinalizationId");
@@ -61,7 +81,7 @@ describe("CampaignExecutionRouter", () => {
       draftChannelPreviewFingerprint: fingerprint, content: selected.draftPreviewContent }) };
     const retry = vi.fn(async () => won), begin = vi.fn(), finish = vi.fn();
     const request = vi.fn(async () => new Response("ok")); vi.stubGlobal("fetch", request);
-    const repository = { getCampaignExecutionTarget: vi.fn(async () => selected),
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined), getCampaignExecutionTarget: vi.fn(async () => selected),
       getPublicationActionByIdempotencyKey: vi.fn(async () => stored), retryPublicationAction: retry,
       beginPublicationAction: begin, finishPublicationAction: finish } as unknown as PublishingRepository;
     const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} });
@@ -77,7 +97,7 @@ describe("CampaignExecutionRouter", () => {
     const selected = { ...slackTarget(), campaignFinalizationId: "finalization-1", draftChannelPreviewFingerprint: `mm-preview-v1:sha256:${"c".repeat(64)}`,
       draftPreviewEligible: false };
     const request = vi.fn(), begin = vi.fn(), retry = vi.fn(), record = vi.fn(); vi.stubGlobal("fetch", request);
-    const repository = { getCampaignExecutionTarget: vi.fn(async () => selected), beginPublicationAction: begin,
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined), getCampaignExecutionTarget: vi.fn(async () => selected), beginPublicationAction: begin,
       retryPublicationAction: retry, recordConnectionTest: record } as unknown as PublishingRepository;
     expect(await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} }))
       .toMatchObject({ status: "manual_required", reason: expect.stringContaining("stale") });
@@ -90,7 +110,7 @@ describe("CampaignExecutionRouter", () => {
       providerExternalId: "original-provider-id", providerUrl: "https://example.test/original-result" });
     const recover = vi.fn(async () => stored), live = vi.fn(async () => { throw new Error("Current finalized preview was revoked"); });
     const begin = vi.fn(), retry = vi.fn(), finish = vi.fn(), request = vi.fn(); vi.stubGlobal("fetch", request);
-    const repository = { getCampaignPublicationForRecovery: recover, getCampaignExecutionTarget: live,
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined), getCampaignPublicationForRecovery: recover, getCampaignExecutionTarget: live,
       beginPublicationAction: begin, retryPublicationAction: retry, finishPublicationAction: finish } as unknown as PublishingRepository;
     const input = { workspaceId: "workspace-1", campaignId: "campaign-1", campaignVersionId: "version-1",
       campaignStepRunId: "run-1", instanceId: "instance-1", stepKey: "publish", context: { draftChannelPreviewFingerprint: "new-proof-must-not-be-required" } };
@@ -107,7 +127,7 @@ describe("CampaignExecutionRouter", () => {
     const request = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ id: "webhook-1", channel_id: "channel-1" })));
     vi.stubGlobal("fetch", request);
     const record = vi.fn(async () => false), begin = vi.fn();
-    const repository = { getCampaignExecutionTarget: vi.fn(async () => selected), recordConnectionTest: record, beginPublicationAction: begin } as unknown as PublishingRepository;
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined), getCampaignExecutionTarget: vi.fn(async () => selected), recordConnectionTest: record, beginPublicationAction: begin } as unknown as PublishingRepository;
     const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} });
     expect(result).toMatchObject({ status: "manual_required", reason: expect.stringContaining("revoked or changed") });
     expect(request).toHaveBeenCalledTimes(1);
@@ -122,7 +142,7 @@ describe("CampaignExecutionRouter", () => {
     for (const selected of [emailTarget(), assistedTarget(), { ...slackTarget(), executionMethods: ["official_api", "manual_handoff"] }, {
       ...slackTarget(), draftPreviewAssets: [{} as NonNullable<CampaignExecutionTarget["draftPreviewAssets"]>[number]],
     }]) {
-      const repository = { getCampaignExecutionTarget: vi.fn(async () => ({ ...selected, scheduleType: "preferred_window" })) } as unknown as PublishingRepository;
+      const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined), getCampaignExecutionTarget: vi.fn(async () => ({ ...selected, scheduleType: "preferred_window" })) } as unknown as PublishingRepository;
       const result = await new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} });
       expect(result).toMatchObject({ status: "manual_required", reason: expect.stringContaining("single-write") });
     }
@@ -142,7 +162,7 @@ describe("CampaignExecutionRouter", () => {
     const finish = vi.fn();
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => selected), getPublicationScheduleState: getSchedule,
       getCampaignPublicationForRecovery: vi.fn(async () => undefined), beginPublicationAction: begin,
       finishPublicationAction: finish,
@@ -168,7 +188,7 @@ describe("CampaignExecutionRouter", () => {
     });
     vi.stubGlobal("fetch", request);
     const finish = vi.fn();
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => selected), getPublicationScheduleState: vi.fn(async () => scheduleState("ready", deadline)),
       beginPublicationAction: vi.fn(async () => ({ created: true, action: action("dispatching") })), finishPublicationAction: finish,
     } as unknown as PublishingRepository;
@@ -184,7 +204,7 @@ describe("CampaignExecutionRouter", () => {
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
     const finish = vi.fn();
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => ({ ...slackTarget(), campaignVersionId: "version-1", scheduleType: "preferred_window" })),
       getPublicationScheduleState: vi.fn(async () => scheduleState("expired", Date.now() - 1)),
       getCampaignPublicationForRecovery: vi.fn(async () => action(status)), finishPublicationAction: finish,
@@ -198,7 +218,7 @@ describe("CampaignExecutionRouter", () => {
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
     const finish = vi.fn();
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => ({ ...slackTarget(), campaignVersionId: "version-1", scheduleType: "preferred_window" })),
       getPublicationScheduleState: vi.fn(async () => scheduleState("ready", Date.now() - 1)),
       beginPublicationAction: vi.fn(async () => ({ created: true, action: action("dispatching") })), finishPublicationAction: finish,
@@ -214,7 +234,7 @@ describe("CampaignExecutionRouter", () => {
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
     const finish = vi.fn().mockRejectedValue(new Error("commit result unavailable"));
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => ({ ...slackTarget(), campaignVersionId: "version-1", scheduleType: "preferred_window" })),
       getPublicationScheduleState: vi.fn(async () => scheduleState(++checks < 3 ? "ready" : "expired", Date.now() + 10_000)),
       beginPublicationAction: vi.fn(async () => ({ created: true, action: action("dispatching") })), finishPublicationAction: finish,
@@ -228,7 +248,7 @@ describe("CampaignExecutionRouter", () => {
     const request = vi.fn(async () => new Response("ok"));
     vi.stubGlobal("fetch", request);
     const finish = vi.fn().mockRejectedValue(new Error("connection lost during commit"));
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => slackTarget()),
       beginPublicationAction: vi.fn(async () => ({ created: true, action: action("dispatching") })),
       finishPublicationAction: finish,
@@ -247,7 +267,7 @@ describe("CampaignExecutionRouter", () => {
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
     // No other repository operation is supplied: recovery must be read-only.
-    const repository = { getCampaignPublicationForRecovery: recover } as unknown as PublishingRepository;
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined), getCampaignPublicationForRecovery: recover } as unknown as PublishingRepository;
     const input = { workspaceId: "workspace-1", campaignId: "campaign-1", campaignVersionId: "version-1", campaignStepRunId: "step-run-1", instanceId: "instance-1", stepKey: "publish", context: { dispatchDeadlineAt: 1 } };
     const result = await new CampaignExecutionRouter(repository, undefined, undefined).recoverScheduledExecution(input);
     expect(recover).toHaveBeenCalledWith(input);
@@ -273,7 +293,7 @@ describe("CampaignExecutionRouter", () => {
       ),
     );
     const finish = vi.fn(async () => undefined);
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => target()),
       beginPublicationAction: vi.fn(async () => ({
         created: true,
@@ -305,7 +325,7 @@ describe("CampaignExecutionRouter", () => {
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
     const finish = vi.fn(async () => undefined);
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => target()),
       getPublicationActionByIdempotencyKey: vi.fn(async () =>
         action("dispatching"),
@@ -335,7 +355,7 @@ describe("CampaignExecutionRouter", () => {
     const retry = vi.fn(async () => false);
     const finish = vi.fn();
     const begin = vi.fn(async () => ({ created: false, action: action("failed") }));
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => selected),
       getPublicationActionByIdempotencyKey: vi.fn(async () => path === "prior failure" ? action("failed") : undefined),
       beginPublicationAction: begin,
@@ -356,7 +376,7 @@ describe("CampaignExecutionRouter", () => {
     vi.stubGlobal("fetch", request);
     const finish = vi.fn();
     const retry = vi.fn();
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => slackTarget()),
       getPublicationActionByIdempotencyKey: vi.fn(async () => undefined),
       beginPublicationAction: vi.fn(async () => ({ created: false, action: action("dispatching") })),
@@ -381,7 +401,7 @@ describe("CampaignExecutionRouter", () => {
     vi.stubGlobal("fetch", request);
     const recordIdentity = vi.fn(async () => undefined);
     const finish = vi.fn(async () => undefined);
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => ({ ...emailTarget(), approvalRequired: false })),
       beginPublicationAction: vi.fn(async () => ({ created: true, action: action("dispatching") })),
       recordPublicationProviderIdentity: recordIdentity,
@@ -408,7 +428,7 @@ describe("CampaignExecutionRouter", () => {
     vi.stubGlobal("fetch", request);
     const begin = vi.fn(async () => ({ created: true, action: action("dispatching") }));
     const finish = vi.fn(async () => undefined);
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => slackTarget()),
       beginPublicationAction: begin,
       finishPublicationAction: finish,
@@ -437,7 +457,7 @@ describe("CampaignExecutionRouter", () => {
     vi.stubGlobal("fetch", request);
     for (const original of [emailTarget(), slackTarget(), mastodonTarget()]) {
       const begin = vi.fn();
-      const repository = { getCampaignExecutionTarget: vi.fn(async () => ({ ...original, approvalRequired: true, humanApprovalGranted: false })), beginPublicationAction: begin } as unknown as PublishingRepository;
+      const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined), getCampaignExecutionTarget: vi.fn(async () => ({ ...original, approvalRequired: true, humanApprovalGranted: false })), beginPublicationAction: begin } as unknown as PublishingRepository;
       expect(await new CampaignExecutionRouter(repository, key, undefined, undefined, undefined, ["social.example.test"])
         .execute({ instanceId: "instance-1", stepKey: "publish", context: {} })).toEqual({ status: "manual_required", reason: expect.stringContaining("recorded human approval") });
       expect(begin).not.toHaveBeenCalled();
@@ -449,7 +469,7 @@ describe("CampaignExecutionRouter", () => {
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
     const changed = { ...slackTarget(), input: { content: "Unreviewed Slack copy" }, draftPreviewContent: undefined, draftPreviewVersionId: undefined };
-    const repository = { getCampaignExecutionTarget: vi.fn(async () => changed) } as unknown as PublishingRepository;
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined), getCampaignExecutionTarget: vi.fn(async () => changed) } as unknown as PublishingRepository;
     await expect(new CampaignExecutionRouter(repository, key, undefined)
       .execute({ instanceId: "instance-1", stepKey: "publish", context: {} }))
       .resolves.toEqual({ status: "manual_required", reason: expect.stringContaining("exact approved Draft preview") });
@@ -471,7 +491,7 @@ describe("CampaignExecutionRouter", () => {
     const begin = vi.fn(async () => ({ created: true, action: action("dispatching") }));
     const finish = vi.fn(async () => undefined);
     const recordConnectionTest = vi.fn(async () => undefined);
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => mastodonTarget()),
       beginPublicationAction: begin,
       finishPublicationAction: finish,
@@ -499,7 +519,7 @@ describe("CampaignExecutionRouter", () => {
       ? new Response(JSON.stringify({ id: "account-1", username: "marketme", acct: "marketme", url: "https://social.example.test/@marketme" }), { status: 200 })
       : new Response(JSON.stringify({ configuration: { statuses: { max_characters: 499, characters_reserved_per_url: 23 } } }), { status: 200 }));
     vi.stubGlobal("fetch", request);
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => mastodonTarget()),
       recordConnectionTest: vi.fn(async () => undefined),
       beginPublicationAction: vi.fn(),
@@ -538,7 +558,7 @@ describe("CampaignExecutionRouter", () => {
     });
     vi.stubGlobal("fetch", request);
     const recordMedia = vi.fn(async () => { events.push("persist"); return {} as never; });
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => mastodonImageTarget(bytes)),
       beginPublicationAction: vi.fn(async () => ({ created: true, action: action("dispatching") })),
       listMastodonPublicationMedia: vi.fn(async () => []),
@@ -568,7 +588,7 @@ describe("CampaignExecutionRouter", () => {
     vi.stubGlobal("fetch", request);
     const retry = vi.fn(async () => true);
     const recordMedia = vi.fn();
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => mastodonImageTarget(bytes)),
       getPublicationActionByIdempotencyKey: vi.fn(async () => action("failed")),
       retryPublicationAction: retry,
@@ -596,7 +616,7 @@ describe("CampaignExecutionRouter", () => {
       { ...emailTarget(), input: { content: "Direct body", subject: "Direct subject" }, draftPreviewContent: undefined, draftPreviewSubject: undefined, draftPreviewVersionId: undefined },
       { ...emailTarget(), humanApprovalGranted: false },
     ]) {
-      const repository = { getCampaignExecutionTarget: vi.fn(async () => changed) } as unknown as PublishingRepository;
+      const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined), getCampaignExecutionTarget: vi.fn(async () => changed) } as unknown as PublishingRepository;
       await expect(new CampaignExecutionRouter(repository, key, undefined).execute({ instanceId: "instance-1", stepKey: "publish", context: {} }))
         .resolves.toEqual({ status: "manual_required", reason: expect.stringContaining("exact approved Draft preview") });
     }
@@ -620,7 +640,7 @@ describe("CampaignExecutionRouter", () => {
       created: true,
       action: action("dispatching"),
     }));
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => ({
         ...target(),
         input: { draftChannelPreviewId: "preview-1" },
@@ -680,7 +700,7 @@ describe("CampaignExecutionRouter", () => {
       },
     );
     vi.stubGlobal("fetch", request);
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => previewTarget(bytes)),
       beginPublicationAction: vi.fn(async () => ({
         created: true,
@@ -708,7 +728,7 @@ describe("CampaignExecutionRouter", () => {
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
     const begin = vi.fn();
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => previewTarget(bytes)),
       beginPublicationAction: begin,
     } as unknown as PublishingRepository;
@@ -745,7 +765,7 @@ describe("CampaignExecutionRouter", () => {
         ...asset,
         rightsExpiresAt: "2000-01-01T00:00:00.000Z",
       }));
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => targetWithExpiredRights),
       beginPublicationAction: begin,
     } as unknown as PublishingRepository;
@@ -783,7 +803,7 @@ describe("CampaignExecutionRouter", () => {
         scanRevision: 0,
         scanScannedAt: undefined,
       }));
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => targetWithoutScan),
       beginPublicationAction: begin,
     } as unknown as PublishingRepository;
@@ -811,7 +831,7 @@ describe("CampaignExecutionRouter", () => {
   it("fails closed before provider I/O when a Draft preview is stale", async () => {
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => ({
         ...target(),
         input: { draftChannelPreviewId: "preview-1" },
@@ -842,7 +862,7 @@ describe("CampaignExecutionRouter", () => {
     mismatched.draftPreviewAssets = mismatched.draftPreviewAssets!.map(
       (asset) => ({ ...asset, rightsChannelConnectionId: "connection-other" }),
     );
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => mismatched),
       beginPublicationAction: begin,
     } as unknown as PublishingRepository;
@@ -876,7 +896,7 @@ describe("CampaignExecutionRouter", () => {
     mismatched.draftPreviewAssets = mismatched.draftPreviewAssets!.map(
       (asset) => ({ ...asset, rightsCampaignId: "campaign-other" }),
     );
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => mismatched),
       beginPublicationAction: begin,
     } as unknown as PublishingRepository;
@@ -910,7 +930,7 @@ describe("CampaignExecutionRouter", () => {
     mismatched.draftPreviewAssets = mismatched.draftPreviewAssets!.map(
       (asset) => ({ ...asset, rightsBrandProfileId: "brand-other" }),
     );
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => mismatched),
       beginPublicationAction: begin,
     } as unknown as PublishingRepository;
@@ -940,7 +960,7 @@ describe("CampaignExecutionRouter", () => {
     vi.stubGlobal("fetch", request);
     const begin = vi.fn();
     const record = vi.fn(async () => undefined);
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => target()),
       getPublicationActionByIdempotencyKey: vi.fn(async () => undefined),
       beginPublicationAction: begin,
@@ -989,7 +1009,7 @@ describe("CampaignExecutionRouter", () => {
         channelId: "channel-1",
       },
     };
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => changed),
       getPublicationActionByIdempotencyKey: vi.fn(async () => undefined),
       beginPublicationAction: begin,
@@ -1024,7 +1044,7 @@ describe("CampaignExecutionRouter", () => {
       createdAt: new Date(0).toISOString(),
       updatedAt: new Date(0).toISOString(),
     }));
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => assistedTarget()),
     } as unknown as PublishingRepository;
     const companion = {
@@ -1079,7 +1099,7 @@ describe("CampaignExecutionRouter", () => {
       effectiveHealthState: "healthy",
       capabilities: { assistedOpenUrl: true },
     };
-    const repository = {
+    const repository = { assertWorkspaceExecutionOpen: vi.fn().mockResolvedValue(undefined),
       getCampaignExecutionTarget: vi.fn(async () => assistedTarget()),
     } as unknown as PublishingRepository;
     const companion = {

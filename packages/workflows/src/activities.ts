@@ -1,4 +1,4 @@
-import { CampaignScheduleNotReadyError, type CampaignRepository } from "@market-me/database";
+import { CampaignScheduleNotReadyError, isWorkspaceExecutionControlError, type CampaignRepository } from "@market-me/database";
 import { assertScheduleEvidence } from "./schedule-evidence";
 import type {
   CampaignScheduledStepExecutionInput, CampaignSchedulingActivities, CampaignStepExecution, CampaignStepExecutionInput,
@@ -15,13 +15,26 @@ export interface CampaignStepExecutor {
 }
 
 export function createCampaignActivities(repository: CampaignRepository, executor?: CampaignStepExecutor): CampaignSchedulingActivities {
+  const held = (error: unknown): Extract<CampaignStepExecution, { status: "execution_held" }> | undefined =>
+    isWorkspaceExecutionControlError(error) && (error.code === "execution_paused" || error.code === "control_unavailable")
+      ? { status: "execution_held", code: error.code, reason: error.message } : undefined;
   return {
     setInstanceState: ({ instanceId, status }) => repository.setInstanceStatus(instanceId, status),
     setStepState: (input) => repository.setStepRunState(input),
     requestStepApproval: (input) => repository.ensureStepApproval(input),
     executeStep: async (input) => {
-      await repository.assertStepExecutionAuthorized(input.instanceId, input.stepKey);
-      return executor?.execute(input) ?? { status: "manual_required", reason: "No execution router is configured." };
+      try {
+        await repository.assertStepExecutionAuthorized(input.instanceId, input.stepKey);
+        return await executor?.execute(input) ?? { status: "manual_required", reason: "No execution router is configured." };
+      } catch (error) {
+        const hold = held(error); if (!hold) throw error;
+        // A legacy retry can also have an earlier accepted/uncertain admission.
+        const schedule = await repository.getStepScheduleState(input.instanceId, input.stepKey);
+        if (!schedule || !executor?.recoverScheduledExecution) return { ...hold, reason: "Execution is held and earlier admission evidence is unavailable. Reconcile prior outcomes before explicitly resuming; no new work was admitted." };
+        const recovered = await executor.recoverScheduledExecution({ ...input, workspaceId: schedule.workspaceId, campaignId: schedule.campaignId,
+          campaignVersionId: schedule.campaignVersionId, campaignStepRunId: schedule.campaignStepRunId });
+        return recovered ?? hold;
+      }
     },
     getStepScheduleState: async ({ instanceId, stepKey }) => {
       const schedule = await repository.getStepScheduleState(instanceId, stepKey);
@@ -43,10 +56,13 @@ export function createCampaignActivities(repository: CampaignRepository, executo
         await repository.assertStepExecutionAuthorized(input.instanceId, input.stepKey, { allowBoundedScheduling: true });
         return await executor.execute(input);
       } catch (error) {
-        if (!(error instanceof CampaignScheduleNotReadyError) || error.schedule.state !== "expired") throw error;
+        const hold = held(error);
+        if (!hold && (!(error instanceof CampaignScheduleNotReadyError) || error.schedule.state !== "expired")) throw error;
         // Admission/preflight may have waited on locks while a different attempt won the dispatch claim.
         const concurrentRecovery = await executor.recoverScheduledExecution(input);
         if (concurrentRecovery) return concurrentRecovery;
+        if (hold) return hold;
+        if (!(error instanceof CampaignScheduleNotReadyError) || error.schedule.state !== "expired") throw error;
         assertScheduleEvidence(input, error.schedule);
         return { status: "schedule_blocked", reason: error.message, schedule: error.schedule };
       }

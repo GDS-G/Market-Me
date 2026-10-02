@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.53 execution state, receipts and holds
+
+The new execution state/receipt tables and `execution_held` campaign-step state are introduced by migrations0127–0129. Frozen state/limit tuples, the exact six-field request, minimized current-member snapshot, creator-private historical receipt, branded errors, SQL timestamps/guards, workflow-local maps/counters and browser-scoped refs/gate are inventoried in [Workspace execution pause](WORKSPACE_EXECUTION_PAUSE.md). Revision and active-member incarnation prevent stale changes; receipts never substitute for current state. No new process-global actor, permission, intent or result cache is introduced.
+
 ## Release 1.47 catalog fields and cursors
 
 ContentCatalogSnapshot/schemaVersion1 contains current workspace, observation time, normalized filters, complete exact-string totals, readonly bounded items and an optional encoded next cursor. Each item carries identity/title/stored status/confidence, exact updated time, string asset/evidence counts and three filenames. Frozen limits are 30/3/120 query units/512 cursor characters/1MiB; the exhaustive status-label dictionary and workspace/filter-context tuple are documented in [the full reference](CONTENT_CATALOG.md). Cursor hashes are correlation, never authorization. Request-local validators, URL/count helpers, SQL aliases and UI variables are inventoried; no new persistence fields exist.

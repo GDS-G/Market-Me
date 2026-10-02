@@ -8,12 +8,73 @@ import { MarketMeRepository } from "./repositories";
 import { CampaignRepository } from "./campaign-repository";
 import { DraftRepository } from "./draft-repository";
 import { packageReviewPrecondition } from "./test-support/package-review-fixture";
+import { setFixtureExecutionState } from "./test-support/workspace-execution-fixture";
 
 const databaseUrl = process.env.DATABASE_URL;
 let sql: DatabaseClient | undefined;
 
 describe.skipIf(!databaseUrl)("publishing repository", () => {
   afterAll(async () => sql?.end());
+
+  it("blocks new and retry publication admission while preserving accepted outcomes under a workspace hold", async () => {
+    const f = await failedPublicationFixture();
+    try {
+      const before = await f.publishing.getPublicationActionByIdempotencyKey(f.idempotencyKey);
+      await setFixtureExecutionState(sql!, f.workspace.workspaceId, f.user.id, "paused");
+      await expect(f.publishing.beginPublicationAction({ target: f.target, idempotencyKey: `held:${randomUUID()}`, requestSnapshot: f.snapshot }))
+        .rejects.toMatchObject({ code: "execution_paused" });
+      await expect(f.publishing.retryPublicationAction(f.actionId, f.target, { content: "Reviewed retry" })).rejects.toMatchObject({ code: "execution_paused" });
+      expect(await f.publishing.getPublicationActionByIdempotencyKey(f.idempotencyKey)).toEqual(before);
+      expect(await sql!`SELECT id FROM publication_action WHERE workspace_id=${f.workspace.workspaceId}`).toHaveLength(1);
+      await setFixtureExecutionState(sql!, f.workspace.workspaceId, f.user.id, "open");
+      expect(await f.publishing.retryPublicationAction(f.actionId, f.target, { content: "Reviewed retry" })).toBe(true);
+      await setFixtureExecutionState(sql!, f.workspace.workspaceId, f.user.id, "paused");
+      await f.publishing.finishPublicationAction(f.actionId, { status: "succeeded", providerExternalId: "accepted-before-workspace-pause" });
+      expect(await f.publishing.getCampaignPublicationForRecovery({ workspaceId: f.workspace.workspaceId, campaignId: f.campaign.id,
+        instanceId: f.instance.id, campaignVersionId: f.target.campaignVersionId!, campaignStepRunId: f.target.campaignStepRunId, stepKey: "publish" }))
+        .toMatchObject({ id: f.actionId, status: "succeeded", providerExternalId: "accepted-before-workspace-pause" });
+    } finally { await f.cleanup(); }
+  });
+
+  it.each(["begin", "retry"])("%s reads a pause committed while waiting for its first admission lock", async mode => {
+    const f = await failedPublicationFixture();
+    try {
+      const result = await behindAdmissionLock(tx => tx`SELECT workspace_id FROM workspace_execution_control WHERE workspace_id=${f.workspace.workspaceId} FOR UPDATE`,
+        publishing => mode === "begin" ? publishing.beginPublicationAction({ target: f.target, idempotencyKey: `held:${randomUUID()}`, requestSnapshot: f.snapshot })
+          : publishing.retryPublicationAction(f.actionId, f.target, { content: "Reviewed retry" }),
+        async tx => { await tx`UPDATE workspace_execution_control SET state='paused',revision=2,reason='Synthetic concurrent pause',updated_by=${f.user.id},
+          updated_by_incarnation_id=(SELECT incarnation_id FROM active_workspace_membership WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}),
+          updated_at=clock_timestamp() WHERE workspace_id=${f.workspace.workspaceId}`; });
+      expect(result).toMatchObject({ error: { code: "execution_paused" } });
+      expect(await f.publishing.getPublicationActionByIdempotencyKey(f.idempotencyKey)).toMatchObject({ status: "failed" });
+    } finally { await f.cleanup(); }
+  });
+
+  it("persists a held campaign step without manual success and requires reopening before explicit campaign resume", async () => {
+    const f = await failedPublicationFixture();
+    try {
+      await setFixtureExecutionState(sql!, f.workspace.workspaceId, f.user.id, "paused");
+      await f.campaigns.setStepRunState({ instanceId: f.instance.id, stepKey: "publish", status: "execution_held", error: "Synthetic workspace hold", output: { executionHold: { code: "execution_paused" } } });
+      await f.campaigns.setInstanceStatus(f.instance.id, "paused");
+      expect(await sql!`SELECT status,completed_at FROM campaign_step_run WHERE id=${f.target.campaignStepRunId}`)
+        .toEqual([{ status: "execution_held", completedAt: null }]);
+      expect(await sql!`SELECT status,error_code FROM campaign_step_attempt WHERE campaign_step_run_id=${f.target.campaignStepRunId} ORDER BY attempt_number DESC LIMIT 1`)
+        .toEqual([{ status: "temporarily_failed", errorCode: "WORKSPACE_EXECUTION_HELD" }]);
+      await expect(f.campaigns.activateCampaign({ workspaceId: f.workspace.workspaceId, campaignId: f.campaign.id, actorUserId: f.user.id }))
+        .rejects.toMatchObject({ issues: [expect.objectContaining({ code: "execution_paused" })] });
+      await expect(f.campaigns.queueInstanceCommand({ workspaceId: f.workspace.workspaceId, instanceId: f.instance.id, commandType: "resume", actorUserId: f.user.id, idempotencyKey: randomUUID() }))
+        .rejects.toMatchObject({ issues: [expect.objectContaining({ code: "execution_paused" })] });
+      await expect(f.campaigns.queueInstanceCommand({ workspaceId: f.workspace.workspaceId, instanceId: f.instance.id, commandType: "manual_step_completed", actorUserId: f.user.id,
+        payload: { stepKey: "publish", output: { externalId: "must-not-claim-success" } }, idempotencyKey: randomUUID() }))
+        .rejects.toMatchObject({ issues: [expect.objectContaining({ code: "manual_completion_unavailable" })] });
+      await setFixtureExecutionState(sql!, f.workspace.workspaceId, f.user.id, "open");
+      expect(await sql!`SELECT status FROM campaign_step_run WHERE id=${f.target.campaignStepRunId}`).toEqual([{ status: "execution_held" }]);
+      expect(await f.campaigns.queueInstanceCommand({ workspaceId: f.workspace.workspaceId, instanceId: f.instance.id, commandType: "resume", actorUserId: f.user.id, idempotencyKey: randomUUID() })).toBe(true);
+      await f.campaigns.setInstanceStatus(f.instance.id, "active");
+      await f.campaigns.setStepRunState({ instanceId: f.instance.id, stepKey: "publish", status: "running" });
+      expect(await f.publishing.retryPublicationAction(f.actionId, f.target, { content: "Reviewed retry" })).toBe(true);
+    } finally { await f.cleanup(); }
+  });
 
   it("allows exactly one concurrent retry claimant and preserves the winning state", async () => {
     const fixture = await failedPublicationFixture();

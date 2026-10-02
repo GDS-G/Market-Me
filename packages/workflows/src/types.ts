@@ -31,6 +31,7 @@ export interface CampaignWorkflowState {
       | "canceled"
       | "manual_resolution"
       | "schedule_blocked"
+      | "execution_held"
     >
   >;
   context: Readonly<Record<string, unknown>>;
@@ -52,7 +53,8 @@ export interface CampaignActivities {
       | "permanently_failed"
       | "canceled"
       | "manual_resolution"
-      | "schedule_blocked";
+      | "schedule_blocked"
+      | "execution_held";
     output?: Record<string, unknown>;
     error?: string;
   }): Promise<void>;
@@ -94,4 +96,5 @@ export type CampaignStepScheduleBlocked = {
 export type CampaignStepExecution =
   | { status: "succeeded"; output: Record<string, unknown> }
   | { status: "manual_required"; reason: string }
-  | CampaignStepScheduleBlocked;
+  | CampaignStepScheduleBlocked
+  | { status: "execution_held"; reason: string; code: "execution_paused" | "control_unavailable" };

@@ -55,6 +55,6 @@ function AgendaItem({ entry }: { entry: CampaignAgendaEntry }) {
       <p>{isPlan ? <><FilePenLine size={12} /> {entry.origin === "draft" ? "Draft plan" : "Published plan"} — not activated or queued</> : `Run: ${entry.runStatus?.replaceAll("_", " ")} · step: ${entry.status.replaceAll("_", " ")}`}</p>
       {entry.warnings.map((warning) => <p className={styles.warning} key={warning}>{warning}</p>)}
     </div>
-    <span className={`status-pill ${entry.warnings.length ? "status-amber" : entry.finished ? "status-neutral" : isPlan ? "status-violet" : "status-green"}`}>{entry.status === "schedule_blocked" ? "Schedule blocked" : isPlan ? "Plan only" : entry.finished ? "Finished" : "Open"}</span>
+    <span className={`status-pill ${entry.warnings.length || entry.status === "execution_held" ? "status-amber" : entry.finished ? "status-neutral" : isPlan ? "status-violet" : "status-green"}`}>{entry.status === "schedule_blocked" ? "Schedule blocked" : entry.status === "execution_held" ? "Execution held" : isPlan ? "Plan only" : entry.finished ? "Finished" : "Open"}</span>
   </li>;
 }

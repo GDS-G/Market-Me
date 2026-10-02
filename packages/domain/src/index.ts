@@ -147,6 +147,7 @@ export const CAMPAIGN_STEP_STATUSES = [
   "rolled_back",
   "manual_resolution",
   "schedule_blocked",
+  "execution_held",
 ] as const;
 export const SCHEDULE_TYPES = [
   "immediate",

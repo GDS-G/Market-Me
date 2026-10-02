@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CampaignScheduleNotReadyError, type CampaignRepository, type StoredStepScheduleState } from "@market-me/database";
+import { CampaignScheduleNotReadyError, WorkspaceExecutionControlError, type CampaignRepository, type StoredStepScheduleState } from "@market-me/database";
 import { createCampaignActivities } from "./activities";
 import type { CampaignScheduledStepExecutionInput } from "./types";
 
@@ -33,6 +33,34 @@ describe("bounded activity authority and exact-target recovery", () => {
     evaluatedAt: "2026-09-09T12:00:00.000Z", state: "expired", reason: "deadline_reached",
     deadline: "2026-09-09T12:00:00.000Z", predecessors: [],
   };
+
+  it.each(["execution_paused", "control_unavailable"] as const)("returns a distinct held result for %s without routing or manual success", async code => {
+    const execute = vi.fn(), hold = new WorkspaceExecutionControlError(code, "No new admission.");
+    const repository = { getStepScheduleState: async () => expired, assertStepExecutionAuthorized: async () => { throw hold; } } as unknown as CampaignRepository;
+    for (const mode of ["legacy", "scheduled"]) {
+      const activities = createCampaignActivities(repository, { execute, recoverScheduledExecution: async () => undefined });
+      const result = await (mode === "legacy" ? activities.executeStep(input) : activities.executeScheduledStep(input));
+      expect(result).toEqual({ status: "execution_held", code, reason: hold.message });
+    }
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.each(["succeeded", "manual_required"] as const)("preserves concurrent %s evidence when the last-mile fence closes", async status => {
+    const outcome = status === "succeeded" ? { status, output: { externalId: "earlier-admission" } } : { status, reason: "Earlier admission uncertain." };
+    const execute = vi.fn().mockRejectedValue(new WorkspaceExecutionControlError("execution_paused", "Held"));
+    const recovery = vi.fn().mockResolvedValueOnce(undefined).mockResolvedValueOnce(outcome);
+    const repository = { getStepScheduleState: async () => expired, assertStepExecutionAuthorized: async () => {} } as unknown as CampaignRepository;
+    expect(await createCampaignActivities(repository, { execute, recoverScheduledExecution: recovery }).executeScheduledStep(input)).toEqual(outcome);
+    expect(recovery).toHaveBeenCalledTimes(2);
+  });
+
+  it("recovers earlier legacy admission before treating the new attempt as held", async () => {
+    const execute = vi.fn(), outcome = { status: "succeeded" as const, output: { companionJobId: "confirmed-job" } };
+    const repository = { getStepScheduleState: async () => expired,
+      assertStepExecutionAuthorized: async () => { throw new WorkspaceExecutionControlError("execution_paused", "Held"); } } as unknown as CampaignRepository;
+    expect(await createCampaignActivities(repository, { execute, recoverScheduledExecution: async () => outcome }).executeStep(input)).toEqual(outcome);
+    expect(execute).not.toHaveBeenCalled();
+  });
 
   it.each(["workspaceId", "campaignId", "campaignVersionId", "campaignInstanceId", "campaignStepRunId", "stepKey"] as const)("rejects mismatched %s evidence before recovery or execution", async (field) => {
     const recoverScheduledExecution = vi.fn(), execute = vi.fn(), verify = vi.fn();

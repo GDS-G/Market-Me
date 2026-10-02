@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { assertWorkspaceExecutionOpen, lockWorkspaceExecutionAdmission } from "./workspace-execution-admission";
+import { isWorkspaceExecutionControlError } from "./workspace-execution-control-models";
 import type { JSONValue, TransactionSql } from "postgres";
 import {
   resolveCommunicationPolicy,
@@ -351,6 +353,11 @@ export class CampaignRepository {
   }): Promise<StoredCampaignInstance | undefined> {
     const instanceId = randomUUID();
     const created = await this.sql.begin(async (transaction) => {
+      try { await lockWorkspaceExecutionAdmission(transaction, input.workspaceId); }
+      catch (error) {
+        if (isWorkspaceExecutionControlError(error)) throw new CampaignValidationError([{ code: error.code, message: error.message }]);
+        throw error;
+      }
       const rows = await transaction<
         {
           versionId: string;
@@ -637,6 +644,13 @@ export class CampaignRepository {
     actorUserId: string;
   }): Promise<boolean> {
     return this.sql.begin(async (transaction) => {
+      if (input.commandType === "resume") {
+        try { await lockWorkspaceExecutionAdmission(transaction, input.workspaceId); }
+        catch (error) {
+          if (isWorkspaceExecutionControlError(error)) throw new CampaignValidationError([{ code: error.code, message: error.message }]);
+          throw error;
+        }
+      }
       const instances = await transaction<{ id: string; status: StoredCampaignInstance["status"] }[]>`
         SELECT id, status FROM campaign_instance WHERE id = ${input.instanceId} AND workspace_id = ${input.workspaceId} FOR NO KEY UPDATE
       `;
@@ -835,6 +849,7 @@ export class CampaignRepository {
     const definition = await this.getWorkflowDefinition(instanceId);
     const step = definition?.steps.find((candidate) => candidate.id === stepKey);
     if (!definition || !step) throw new CampaignValidationError([{ code: "execution_target_missing", message: "Campaign execution target is unavailable." }]);
+    await assertWorkspaceExecutionOpen(this.sql, definition.workspaceId);
     const issues = validateCampaignExecution(definition.autonomyMode, definition.steps, options);
     if (issues.length) throw new CampaignValidationError(issues);
     // This read is an activity gate, not the transactional last-mile admission.
@@ -933,7 +948,7 @@ export class CampaignRepository {
       const attemptStatus =
         input.status === "succeeded" || input.status === "partially_succeeded"
           ? "succeeded"
-          : input.status === "temporarily_failed"
+          : input.status === "temporarily_failed" || input.status === "execution_held"
             ? "temporarily_failed"
             : input.status === "permanently_failed" || input.status === "schedule_blocked"
               ? "permanently_failed"
@@ -944,7 +959,8 @@ export class CampaignRepository {
       await transaction`
         UPDATE campaign_step_attempt SET status = ${attemptStatus},
           output = CASE WHEN ${input.output ? true : false} THEN ${transaction.json((input.output ?? {}) as JSONValue)} ELSE output END,
-          error_code = CASE WHEN ${input.status} = 'schedule_blocked' THEN 'CAMPAIGN_SCHEDULE_BLOCKED' WHEN ${input.error ? true : false} THEN 'CAMPAIGN_STEP_ERROR' ELSE null END,
+          error_code = CASE WHEN ${input.status} = 'schedule_blocked' THEN 'CAMPAIGN_SCHEDULE_BLOCKED'
+            WHEN ${input.status} = 'execution_held' THEN 'WORKSPACE_EXECUTION_HELD' WHEN ${input.error ? true : false} THEN 'CAMPAIGN_STEP_ERROR' ELSE null END,
           error_message = ${input.error ?? null}, completed_at = COALESCE(completed_at, now())
         WHERE campaign_step_run_id = ${run.id} AND attempt_number = ${run.attemptCount}
           AND status = 'running'

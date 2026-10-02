@@ -12,6 +12,16 @@ const instance: StoredCampaignInstance = {
 };
 
 describe("campaign instance controls", () => {
+  it("keeps an execution hold distinct from manual completion and requires explicit campaign resume", () => {
+    const held = { ...instance, stepRuns: [{ ...instance.stepRuns[0], status: "execution_held" as const }] };
+    expect(campaignInstanceControls(held)).toMatchObject({ executionHeld: true, scheduleBlocked: false, canResume: true, canCancel: true, manualRuns: [] });
+    const html = renderToStaticMarkup(createElement(CampaignInstanceActions, { workspaceId: "workspace-1", instance: held }));
+    expect(html).toContain("Execution held"); expect(html).toContain('href="/settings/execution"');
+    expect(html).toContain("explicitly resume"); expect(html).not.toContain("Record completion");
+    expect(html).toMatch(/<button(?![^>]*disabled)[^>]*>Resume<\/button>/);
+    expect(campaignInstanceControls({ ...held, stepRuns: [{ ...held.stepRuns[0], campaignInstanceId: "foreign-run" }] }).executionHeld).toBe(false);
+  });
+
   it("renders no resume or completion button for a blocked run while keeping cancel", () => {
     const blocked = { ...instance, stepRuns: [...instance.stepRuns, { ...instance.stepRuns[0], id: "blocked", status: "schedule_blocked" as const }] };
     expect(campaignInstanceControls(blocked)).toMatchObject({ scheduleBlocked: true, canResume: false, canPause: false, canCancel: true, manualRuns: [] });

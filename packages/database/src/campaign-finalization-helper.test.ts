@@ -136,10 +136,11 @@ describe("transaction-scoped prepared executable draft helper", () => {
 });
 
 describe("exact-version publish and activation controls", () => {
-  function harness(options: { current?: string | null; draft?: string; published?: boolean; missing?: boolean; noPublishedActivation?: boolean } = {}) {
+  function harness(options: { current?: string | null; draft?: string; published?: boolean; missing?: boolean; noPublishedActivation?: boolean; executionState?: "open" | "paused" | "missing" } = {}) {
     const statements: string[] = [];
     const tagged = vi.fn(async (strings: TemplateStringsArray) => {
       const sql = strings.join("?").replace(/\s+/g, " ").trim(); statements.push(sql);
+      if (sql.startsWith("SELECT state FROM workspace_execution_control")) return options.executionState === "missing" ? [] : [{ state: options.executionState ?? "open" }];
       if (options.missing) return [];
       if (sql.startsWith("SELECT c.id, c.current_version_id")) return [{ id: campaignId, currentVersionId: options.current ?? planningId }];
       if (sql.startsWith("SELECT id FROM campaign_version") && sql.includes("status = 'draft'")) return options.draft ? [{ id: options.draft }] : [];
@@ -188,6 +189,13 @@ describe("exact-version publish and activation controls", () => {
     const h = harness(options);
     await expect(h.repo.activateCampaign({ workspaceId, campaignId, actorUserId: actorId, expectedVersionId: planningId })).rejects.toMatchObject({ issues: [{ code: "campaign_version_changed" }] });
     expect(h.statements.every((sql) => sql.startsWith("SELECT"))).toBe(true);
+  });
+
+  it.each([["paused", "execution_paused"], ["missing", "control_unavailable"]] as const)("fences activation on %s execution state before locking campaign resources", async (executionState, code) => {
+    const h = harness({ executionState });
+    await expect(h.repo.activateCampaign({ workspaceId, campaignId, actorUserId: actorId, expectedVersionId: planningId })).rejects.toMatchObject({ issues: [{ code }] });
+    expect(h.statements).toEqual(["SELECT state FROM workspace_execution_control WHERE workspace_id=? FOR SHARE"]);
+    expect(h.read).not.toHaveBeenCalled(); expect(h.publish).not.toHaveBeenCalled();
   });
 
   it("returns unavailable for missing Campaigns without confusing them with changed versions", async () => {

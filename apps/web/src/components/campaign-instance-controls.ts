@@ -6,6 +6,7 @@ export function campaignInstanceControls(instance: Pick<StoredCampaignInstance, 
   const scheduleBlocked = runs.some((run) => run.status === "schedule_blocked");
   return {
     scheduleBlocked,
+    executionHeld: runs.some((run) => run.status === "execution_held"),
     canResume: instance.status === "paused" && !scheduleBlocked,
     canPause: ["active", "scheduled"].includes(instance.status) && !scheduleBlocked,
     canCancel: !["completed", "failed", "canceled", "archived"].includes(instance.status),

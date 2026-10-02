@@ -27,6 +27,7 @@ export function CampaignInstanceActions({ workspaceId, instance }: { workspaceId
       <button className="button-secondary" disabled={pending || !controls.canCancel} onClick={() => post(`/api/v1/campaign-instances/${instance.id}/commands`, { workspaceId, command: "cancel" })}>Cancel</button>
     </div>
     {controls.scheduleBlocked && <p className="form-error" role="alert">Scheduling blocked: a permitted window was missed. Resume and manual completion cannot bypass it. Cancel this run, then publish and review a revised plan for remaining work.</p>}
+    {controls.executionHeld && <p role="status">Execution held: no new admission was made for the held attempt. Review <a href="/settings/execution">workspace execution</a>, then explicitly resume this campaign after reopening. Current approvals and schedules still apply; held steps cannot be manually completed.</p>}
     {controls.manualRuns.map((run) => <div key={run.id}>
       <label><span>Complete {run.stepName ?? run.stepKey}</span><input value={outputs[run.id] ?? "{}"} onChange={(event) => setOutputs((current) => ({ ...current, [run.id]: event.target.value }))} /></label>
       <button className="button-primary" disabled={pending} onClick={() => {

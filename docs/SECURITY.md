@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.53 workspace admission fence
+
+Current owner/admin membership under lock, exact configured mutation origin, strict bounded UTF-8 JSON, independent request normalization, expected revision/incarnation and creator-private receipt recovery protect the execution control. New publishing, companion and AI admissions take a shared database fence; pause/reopen requires the conflicting exclusive lock. SQL guards also reject older direct admission writers. Held steps cannot be manually completed, old reopening replay cannot undo a newer pause, and reopening never enables other stopped controls. Already-admitted operations, truthful reconciliation/settlement and diagnostic/operator traffic remain explicitly outside cancellation guarantees. [Full boundary and rollout reference](WORKSPACE_EXECUTION_PAUSE.md) separates implementation from verified acceptance and from deployment-wide isolation.
+
 ## Release 1.47 scoped catalog search
 
 The authenticated actor and active workspace remain authoritative. SQL rechecks membership with each count/page observation and excludes inconsistent source/root/asset workspace lineage. Search filters and unsigned filter-bound cursors cannot grant access; controls, malformed/duplicate queries and stale context fail closed. Only title/filenames and minimized record metadata are returned, never extracted content or claims. Literal SQL parameters and React escaping preserve text safely. [Boundary reference](CONTENT_CATALOG.md) explains point-in-time revocation, observable URL search terms, limits and concurrent pagination. Search has no synchronization, mutation, approval or launch effects.
