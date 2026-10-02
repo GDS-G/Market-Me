@@ -1,8 +1,8 @@
 # Architecture
 
-## Release 1.54 activation recovery candidate
+## Release 1.54 verified activation recovery
 
-One exact user request now reaches `CampaignActivationRepository`, not the trusted legacy activation wrapper. Current membership, request advisory serialization, execution admission and the existing campaign/proof locks protect one atomic instance/steps/start-command/receipt/audit commit. An explicit closure competes on the same key and either returns original acceptance or prevents future acceptance of that request. Shared guided/advanced review retains tab-local correlation before submission; reload only restores, never resends. The shared pool has31 repository getters. [Complete design](CAMPAIGN_ACTIVATION_RECOVERY.md) separates observations, authority, terminal history, transaction timestamps, UI state and rollout from pending release acceptance.
+One exact user request now reaches `CampaignActivationRepository`, not the trusted legacy activation wrapper. Current membership, request advisory serialization, execution admission and the existing campaign/proof locks protect one atomic instance/steps/start-command/receipt/audit commit. An explicit closure competes on the same key and either returns original acceptance or prevents future acceptance of that request. Shared guided/advanced review retains tab-local correlation before submission; reload only restores, never resends. The shared pool has31 repository getters. [Complete design](CAMPAIGN_ACTIVATION_RECOVERY.md) separates observations, authority, terminal history, transaction timestamps, UI state and rollout from separately verified release evidence.
 
 ## Release 1.53 verified workspace execution pause
 

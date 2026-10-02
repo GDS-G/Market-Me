@@ -1,6 +1,6 @@
 # Durable campaign activation recovery
 
-Status: next independent development increment after the 1.53 execution-control source. This is a design, not accepted functionality or a hosted-deployment claim. No live provider account, marketing send or user decision is required for implementation and isolated verification.
+Status: design implemented and verified in1.54 runtime `156729d3ebf909d450c095cc4ca927ea065a6a25`, now public on main. [Programmer reference](CAMPAIGN_ACTIVATION_RECOVERY.md) and [release evidence](RELEASES.md) record local/browser/native/feature-main cloud and Google preservation acceptance. The original reasoning below is retained; it is not a hosted-deployment or whole-product claim. No live provider account, marketing send or new user decision was required for this implementation and isolated verification.
 
 ## Problem and scope
 
