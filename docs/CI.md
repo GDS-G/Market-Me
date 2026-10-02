@@ -1,8 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.48 candidate verification
+## Release 1.48 verified checkpoint
 
-The corrected full local gate passes **3,832 tests/198 files without skips**,44 quality cases,twelve typechecks,lint,both frontends,cargo check and three Rust tests. Split:web1607/84,workflow-worker68/5,protocol4/1,connectors166/10,database1563/70,domain157/7,generation121/8,ingestion79/8,media24/2,workflows43/3. Next compile2.5s/TypeScript12.4s/110-page generation584ms;companion135ms/201.34kB JavaScript64.02kB gzip;native check0.76s/test build4.73s. New coverage adds51 database/model and48 net web cases,including both catalog filter-control key regressions. Exact-source cloud verification is pending,not inferred from1.47. [Releases](RELEASES.md) records separate native/browser evidence.
+Exact runtime `43a4cd0da50a5a7706d6ca0c5c46386b08aa8f98` passes [feature CI36975734338](https://github.com/GDS-G/Market-Me/actions/runs/36975734338) in4:35 and [main CI36976167274](https://github.com/GDS-G/Market-Me/actions/runs/36976167274) in3:10. Each locked install adds609/audits622 packages,applies121 migrations,reproduces3832 tests/198 files and44 quality cases,and passes static/frontend/native-dependency smoke and both zero-vulnerability audits. Next compile14.3/11.1s,110-page generation561/422ms,companion175/120ms respectively. Final Google readback verifies45 paragraphs with all30 tabs,prior bodies/styles and old list definitions intact. Developing asset inventory is excluded from this checkpoint.
+
+The corrected full local gate passes **3,832 tests/198 files without skips**,44 quality cases,twelve typechecks,lint,both frontends,cargo check and three Rust tests. Split:web1607/84,workflow-worker68/5,protocol4/1,connectors166/10,database1563/70,domain157/7,generation121/8,ingestion79/8,media24/2,workflows43/3. Next compile2.5s/TypeScript12.4s/110-page generation584ms;companion135ms/201.34kB JavaScript64.02kB gzip;native check0.76s/test build4.73s. New coverage adds51 database/model and48 net web cases,including both catalog filter-control key regressions. Both independent exact-source cloud gates pass as recorded above. [Releases](RELEASES.md) records separate native/browser evidence.
 
 ## Release 1.47 verified checkpoint
 

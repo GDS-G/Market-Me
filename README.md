@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.48 candidate: Searchable draft variants
+## Release 1.48: Searchable draft variants
 
 Drafts now searches current headline/body and Campaign, package and Audience labels, filters recorded status, and shows exact totals with 30-result pages and explicitly shortened copy previews. Generation moves to its own writer-only page without changing exact package-review authority. Both catalog forms also reset their visible controls correctly after workspace/filter changes. [Programmer reference](docs/DRAFT_CATALOG.md) documents contracts, variables, SQL lineage and limits.
 
-The corrected complete local gate passes3,832 tests/198 files plus44 quality cases. Native/unsigned packaging,actual browser/mobile/production and141-table/two-projection preservation checks pass; exact-source feature/main cloud verification is pending. [Release evidence](docs/RELEASES.md) records the browser-discovered control-reset defect and its verified correction. This is not whole-application completion.
+Reviewed runtime `43a4cd0da50a5a7706d6ca0c5c46386b08aa8f98` is public on main. Corrected local and independent exact-source feature/main cloud gates pass3,832 tests/198 files plus44 quality cases; both cloud audits are clean. Native/unsigned packaging,actual browser/mobile/production,141-table/two-projection preservation and final Google readback pass. [Release evidence](docs/RELEASES.md) records the control-reset correction. [Searchable asset inventory](docs/ASSET_CATALOG_PLAN.md) is underway separately; this is not whole-application completion.
 
 ## Previous release 1.47: Searchable Content Packages
 
