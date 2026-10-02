@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Release 1.44 campaign/draft preview: local acceptance passed
+## Release 1.44 campaign/draft preview: verified and published
 
 Users can inspect actual channel-neutral draft variants, selected settings, a manual planning step and approved citations without saving anything. Shared approved-evidence projection/variant generation preserves durable output parity; current-role/reference locks and independent later preparation validation remain authoritative. Browser request correlation, byte/time limits, busy/cancellation fences and invalidation are in the [implementation reference](CAMPAIGN_PREPARATION_PREVIEW.md).
 
-Local3,482 tests/185files and44 quality cases pass, with all twelve typechecks, lint, frontend/native checks and unsigned packaging. Isolated desktop/mobile/production acceptance passes; all141 fingerprints are identical around production previewing. Initial development login changes only the synthetic user's timestamp, verified separately. Cloud/publication and Google readback remain pending. The application remains incomplete; no new user input is needed to continue.
+Reviewed runtime `f034d5dd44fd80c679d1cdae4df8630f76b790ef` is public on main. Local and independent exact-source feature/main cloud gates pass 3,482 tests/185 files and 44 quality cases, with both cloud audits clean. Twelve typechecks, lint, frontend/native checks, unsigned packaging and isolated desktop/mobile/production acceptance pass separately; all 141 fingerprints are identical around production previewing. Initial development login changes only the synthetic user's timestamp, verified separately. Final Google readback verifies 47 paragraphs and preserves all 30 tabs and prior content/styles. [Workspace Analytics](WORKSPACE_ANALYTICS_PLAN.md) is underway independently; its developing tests are excluded from these totals. The application remains incomplete; no new user input is needed to continue.
 
 ## Release 1.43 money-unit boundary: verified and published
 

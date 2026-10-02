@@ -6,7 +6,7 @@ Market Me is a universal content-to-campaign operating system. It monitors custo
 
 The preparation form now offers a read-only preview of the planning step, actual ordered audience drafts and approved evidence citations. It uses the same generation path as saving but creates no records or spending, and later preparation still rechecks current approval and profiles. [Programmer reference](docs/CAMPAIGN_PREPARATION_PREVIEW.md) documents the full contract.
 
-Local acceptance passes3,482 tests/185files,44 quality cases, all static/frontend/native checks, unsigned packaging and isolated desktop/mobile/production previewing. Production previewing preserves all141 domain-table fingerprints. Independent cloud/publication and Google readback are pending; [Releases](docs/RELEASES.md) records exact evidence. This is a bounded product improvement, not whole-application completion.
+Reviewed runtime `f034d5dd44fd80c679d1cdae4df8630f76b790ef` is public on main. Local and independent exact-source feature/main cloud gates pass 3,482 tests/185 files and 44 quality cases; both cloud audits are clean. Static/frontend/native checks, unsigned packaging and isolated desktop/mobile/production previewing pass separately. Production previewing preserves all 141 measured domain-table fingerprints; final Google readback preserves all 30 tabs and prior content/styles. [Releases](docs/RELEASES.md) records exact evidence. [Workspace Analytics](docs/WORKSPACE_ANALYTICS_PLAN.md) is the next independent increment. This is not whole-application completion.
 
 ## Previous release 1.43: Explicit budget money units
 

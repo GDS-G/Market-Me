@@ -1,6 +1,6 @@
 # Read-only campaign and draft preview
 
-Release: 1.44.0 candidate. Acceptance/publication evidence belongs in [Releases](RELEASES.md), not in this contract. [Plan](CAMPAIGN_PREPARATION_PREVIEW_PLAN.md) records the scope derived from specification sections 01, 10 and 23.
+Release: 1.44.0 verified and published. Acceptance/publication evidence belongs in [Releases](RELEASES.md), not in this contract. [Plan](CAMPAIGN_PREPARATION_PREVIEW_PLAN.md) records the scope derived from specification sections 01, 10 and 23.
 
 ## Product behavior and limits
 

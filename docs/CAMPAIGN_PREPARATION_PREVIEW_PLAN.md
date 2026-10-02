@@ -1,6 +1,6 @@
 # Review-first campaign and draft preview
 
-Status: 1.44.0 candidate implemented; acceptance is in progress. [Programmer reference](CAMPAIGN_PREPARATION_PREVIEW.md) inventories fields and lifetimes. Specification sections 01, 10 and 23 require users to see intended work before creating or activating it. Previously the manual form loaded an exact approved review but immediately created planning/drafts when submitted. Source-binding plan preview remains structural, not package-specific draft text.
+Status: 1.44.0 verified and published; [Releases](RELEASES.md) records exact local/cloud/browser/native evidence. [Programmer reference](CAMPAIGN_PREPARATION_PREVIEW.md) inventories fields and lifetimes. Specification sections 01, 10 and 23 require users to see intended work before creating or activating it. Previously the manual form loaded an exact approved review but immediately created planning/drafts when submitted. Source-binding plan preview remains structural, not package-specific draft text.
 
 ## Product scope
 
