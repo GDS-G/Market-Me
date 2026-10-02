@@ -4,7 +4,7 @@
 
 The existing server-only database bundle is now retained in every environment. No credential, result, membership, actor or page state is sent to the browser or stored in a new cache. Same-workspace authorization and transactions still execute per operation; tests prove role changes, unrelated-actor denial and revocation through the same retained repository. Query errors are not retried as writes or treated as proof of rollback.
 
-Configuration changes require controlled process replacement; clearing the global live can strand pools. The ten-connection limit is per runtime, not a fleet budget. No permission, provider call, dependency upgrade, schema or suppression is introduced. [Lifecycle reference](DATABASE_POOL_LIFECYCLE.md) describes all trust/resource limits; exact cloud audits are pending for this candidate.
+Configuration changes require controlled process replacement; clearing the global live can strand pools. The ten-connection limit is per runtime, not a fleet budget. No permission, provider call, dependency upgrade, schema or suppression is introduced. [Lifecycle reference](DATABASE_POOL_LIFECYCLE.md) describes all trust/resource limits; exact-source feature/main cloud production and full dependency audits each report zero vulnerabilities. [Releases](RELEASES.md) identifies the independently verified source and runs.
 
 ## Release 1.35 package-history boundary
 

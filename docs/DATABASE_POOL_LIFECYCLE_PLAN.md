@@ -1,6 +1,6 @@
 # Production database pool lifecycle correction
 
-Status: implemented in the locally accepted 1.36 candidate, not part of 1.35 runtime evidence. [Programmer reference](DATABASE_POOL_LIFECYCLE.md) describes the delivered lifecycle; [Releases](RELEASES.md) separates local, cloud and publication gates.
+Status: implemented and published on main in verified 1.36, not part of 1.35 runtime evidence. Exact-source feature/main cloud gates and final Google development-tab verification pass. [Programmer reference](DATABASE_POOL_LIFECYCLE.md) describes the delivered lifecycle; [Releases](RELEASES.md) separates local, cloud and publication gates.
 
 ## Observed defect
 

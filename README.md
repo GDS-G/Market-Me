@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.36 candidate: Production database pool reuse
+## Release 1.36: Production database pool reuse
 
 The server now lazily shares one database/repository bundle per runtime in production as well as development. Repeated access no longer multiplies pools; membership, role and domain queries still read fresh state. The bounded probe changes from 28 clients to one, with concurrent connections capped at ten. [Lifecycle and variable reference](docs/DATABASE_POOL_LIFECYCLE.md) documents process boundaries, configuration restart rules and capacity limits.
 
-Final local acceptance passes 2,905 tests/158 files, static/frontend/native checks, production authentication/navigation/current workspace scope and unsigned Windows packaging. No migration, dependency upgrade or new authority is added. Exact-source cloud verification, publication and Google synchronization are pending; this is not production deployment or whole-product completion.
+Reviewed runtime `d80158e0dca91794edd4f32fc4499ac19c901ccb` is public on main. Exact [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36947265194) and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36947684450) each pass 2,905 tests/158 files, 120 migrations, static/build checks and both clean audits. Local native/unsigned packaging and production navigation/authority checks pass separately; all six Google development tabs are readback-verified with the original 30-tab structure preserved. No migration, dependency upgrade or new authority is added. This is not production deployment or whole-product completion. [AI controls usability](docs/AI_CONTROLS_USABILITY_PLAN.md) is the next independent increment.
 
 ## Previous release 1.35: Package-specific Related work
 

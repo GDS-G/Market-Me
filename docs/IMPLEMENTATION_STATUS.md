@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Current candidate: Release 1.36 production pool lifecycle
+## Current verified source: Release 1.36 production pool lifecycle
 
 The server-only lazy factory now retains one shared SQL/repository bundle in production. It does not cache authorization or query results. A bounded read-only probe changes from 28 clients/12 sequential backends/16 concurrent backends to one client/one sequential backend/ten concurrent backends. Real role, name and membership removal changes remain visible through the retained repositories. [Full reference](DATABASE_POOL_LIFECYCLE.md) records variables, configuration lifetime and per-runtime capacity limits.
 
-Final local gate passes 2,905 tests/158 files, all static/frontend/native checks, production authentication/navigation/workspace switching and unsigned packaging. Schema stays at 120 frozen migrations with clean replay/fixture cleanup. Exact cloud verification/publication and Google documentation synchronization are pending. This is not a production-scale load certification, hosted deployment or whole-product completion; independent product work continues.
+Reviewed runtime `d80158e0dca91794edd4f32fc4499ac19c901ccb` is public on main. Final local gate and independent exact-source feature/main cloud runs each pass 2,905 tests/158 files, all static/frontend checks and 120 migrations; both cloud audits are clean in both runs. Local native/unsigned packaging and production navigation/current authority checks pass separately. Google development-parent/five-child readback verifies all 34 added paragraphs while preserving earlier content/styles and all 30 tabs. [Releases](RELEASES.md) records exact evidence. This is not production-scale load certification, hosted deployment or whole-product completion; [AI controls usability](AI_CONTROLS_USABILITY_PLAN.md) is the next independent increment.
 
 ## Previous verified source: Release 1.35 package-specific Related work
 
