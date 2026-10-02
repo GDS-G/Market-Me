@@ -1,5 +1,9 @@
 # Cloud continuous integration
 
+## Release 1.55 verified checkpoint
+
+Reviewed runtime `42c2eb81daf0912b54f08d00484bc0a0c3701503` passes [feature CI 37007972549](https://github.com/GDS-G/Market-Me/actions/runs/37007972549) in 5:07 and [main CI 37008632859](https://github.com/GDS-G/Market-Me/actions/runs/37008632859) in 4:08. Each clean locked install adds 609/audits 622 packages, applies 131 migrations, reproduces 4,885 tests/235 files and 44 quality cases, and passes all static/frontend/native-dependency checks plus both zero-vulnerability audits. Feature/main Next compile takes 15.9/11.8s, 116-page generation 566/462ms and companion frontend 188/133ms. Native packaging and actual browser acceptance are local, separate evidence. Developing authoring safeguards and migration 0132 are excluded from these exact-source runs.
+
 ## Release 1.53 verified checkpoint
 
 Reviewed runtime `1dbb15a723ce9a484d15ef192ede71f0429a3126` passes [feature CI 36998870459](https://github.com/GDS-G/Market-Me/actions/runs/36998870459) in 5:07 and [main CI 36999434420](https://github.com/GDS-G/Market-Me/actions/runs/36999434420) in 4:09. Each clean locked install adds 609/audits 622 packages, applies all 129 migrations, reproduces 4,643 tests/226 files and 44 quality cases, and passes static/frontend/native-dependency checks plus both zero-vulnerability audits. Next compile 15.8/12.1 seconds, 116-page generation 495/486 milliseconds and companion build 181/136 milliseconds respectively.

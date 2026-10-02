@@ -1,6 +1,6 @@
 # Read-only campaign inspection and role-aware editor access
 
-Status: locally verified 1.55 on `codex/campaign-inspection`, separate from accepted 1.54 runtime `156729d3ebf909d450c095cc4ca927ea065a6a25` and final documentation `6267fc288fead4fc092e4ee9d6f7f96f9021285b`. The corrected-source full gate passes 4,885 tests/235 files and 44 quality cases. Development/production desktop/mobile, read-only fingerprint preservation, clean audits, unsigned native packaging and the Google foundation are verified. Publication, independent cloud acceptance and final Google evidence synchronization are pending. Evidence is separate from 1.54 totals and maintained in [Releases](RELEASES.md).
+Status: verified 1.55 runtime `42c2eb81daf0912b54f08d00484bc0a0c3701503` is public on main. Local and independent exact-source feature/main CI 37007972549/37008632859 pass 4,885 tests/235 files and 44 quality cases. Development/production desktop/mobile, read-only fingerprint preservation, clean audits, unsigned native packaging and final Google preservation are verified separately. [Releases](RELEASES.md) records exact evidence and distinguishes this accepted increment from independent authoring-safety work. Whole-product completion is not claimed.
 
 ## Observed gap and intended result
 
