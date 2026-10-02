@@ -1,5 +1,9 @@
 # Cloud continuous integration
 
+## Release 1.49 candidate verification
+
+Full local gate passes **3,920 tests/202 files without skips**,44 quality cases,twelve typechecks,lint,both frontends,cargo check and three Rust tests. Split:web1644/86,workflow-worker68/5,protocol4/1,connectors166/10,database1614/72,domain157/7,generation121/8,ingestion79/8,media24/2,workflows43/3. Next compile5.7s/TypeScript12.4s/111-page generation488ms;companion128ms/201.34kB JavaScript64.02kB gzip;native check3.11s/test build15.38s. New coverage51 database/model plus37 net web cases (including shared navigation),with existing safe-switch/lifecycle tests extended. Exact-source cloud verification is pending,not inferred from1.48. [Releases](RELEASES.md) records separate unsigned packaging and browser evidence.
+
 ## Release 1.48 verified checkpoint
 
 Exact runtime `43a4cd0da50a5a7706d6ca0c5c46386b08aa8f98` passes [feature CI36975734338](https://github.com/GDS-G/Market-Me/actions/runs/36975734338) in4:35 and [main CI36976167274](https://github.com/GDS-G/Market-Me/actions/runs/36976167274) in3:10. Each locked install adds609/audits622 packages,applies121 migrations,reproduces3832 tests/198 files and44 quality cases,and passes static/frontend/native-dependency smoke and both zero-vulnerability audits. Next compile14.3/11.1s,110-page generation561/422ms,companion175/120ms respectively. Final Google readback verifies45 paragraphs with all30 tabs,prior bodies/styles and old list definitions intact. Developing asset inventory is excluded from this checkpoint.

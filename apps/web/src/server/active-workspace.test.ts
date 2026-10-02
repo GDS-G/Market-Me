@@ -53,6 +53,8 @@ describe("active workspace selection", () => {
     expect(workspaceSwitchReturnPath("/settings")).toBe("/settings");
     expect(workspaceSwitchReturnPath("/getting-started")).toBe("/getting-started");
     expect(workspaceSwitchReturnPath("/analytics")).toBe("/analytics");
+    expect(workspaceSwitchReturnPath("/assets")).toBe("/assets");
+    expect(workspaceSwitchReturnPath("/assets?q=old&role=original")).toBe("/");
     expect(workspaceSwitchReturnPath("/analytics?campaignId=old")).toBe("/");
     expect(workspaceSwitchReturnPath("/getting-started?workspaceId=foreign")).toBe("/");
   });

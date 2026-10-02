@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, BarChart3, BookOpenCheck, BrainCircuit, CalendarDays, Compass, FilePenLine, FileStack,
+import { ArrowUpRight, BarChart3, BookOpenCheck, BrainCircuit, CalendarDays, Compass, FilePenLine, Files, FileStack,
   FolderKanban, LayoutDashboard, Megaphone, MessageSquareText, MonitorSmartphone, PlugZap, Settings,
   ShieldCheck, Users, UsersRound } from "lucide-react";
 
@@ -10,6 +10,7 @@ const navigation = [
   { href: "/context-packs", label: "Context Packs", icon: BookOpenCheck },
   { href: "/content-packages", label: "Content Packages", icon: FileStack },
   { href: "/drafts", label: "Drafts", icon: FilePenLine },
+  { href: "/assets", label: "Assets", icon: Files },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/approvals", label: "Approvals", icon: ShieldCheck },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },

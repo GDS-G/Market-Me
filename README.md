@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.48: Searchable draft variants
+## Release 1.49 candidate: Searchable asset inventory
+
+Assets is now a shared desktop/mobile destination with literal filename,MIME and package-title search,recorded-role filters,exact totals and30-record pages. It preserves unknown/zero/large exact file sizes and labels scan/rights state without claiming safety or permission. It loads no thumbnails,downloads or private document bodies. [Programmer reference](docs/ASSET_CATALOG.md) documents all contracts and limits.
+
+Local gate passes3,920 tests/202 files plus44 quality cases. Native/unsigned packaging and actual desktop/mobile/production checks pass with all141 domain tables and both projections unchanged. Exact-source cloud and final Google verification are pending. [Release evidence](docs/RELEASES.md) distinguishes these checks; this is not whole-application completion.
+
+## Previous release 1.48: Searchable draft variants
 
 Drafts now searches current headline/body and Campaign, package and Audience labels, filters recorded status, and shows exact totals with 30-result pages and explicitly shortened copy previews. Generation moves to its own writer-only page without changing exact package-review authority. Both catalog forms also reset their visible controls correctly after workspace/filter changes. [Programmer reference](docs/DRAFT_CATALOG.md) documents contracts, variables, SQL lineage and limits.
 

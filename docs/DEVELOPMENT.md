@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.49 asset-inventory development
+
+Read [Asset catalog](ASSET_CATALOG.md) before changing metadata projection,source/parent scope,added-time ordering,exact bigint byte strings or recorded-state labels. Own metadata1.49.0/schema121;no dependency/environment/migration addition. Shared pool26 getters/navigation19 destinations;exact `/assets` is a safe switch root,query/record paths are not. The page reuses existing catalog CSS and native filter tuple identity. QA149 initializes once with65 synthetic assets and disabled intake,then compares post-login141-table/two-projection snapshots. No preview/download/provider or mutation occurs. User pnpm files remain untouched/excluded; [Releases](RELEASES.md) separates all acceptance evidence.
+
 ## Release 1.48 draft-search development
 
 Read [Draft catalog](DRAFT_CATALOG.md) before changing search fields, current-version/workspace lineage, exact cursor bytes, body previews or the separate generation page. Own metadata1.48.0/schema121; no dependency, environment or migration addition. The shared pool has25 getters. Native GET forms use a JSON tuple key of workspace/query/status to reset uncontrolled inputs on applied navigation. QA148 initializes once with65 synthetic variants, disabled intake and populated-viewer/empty-editor workspaces; capture the baseline after login and use read-only141-table/two-projection comparisons. Never generate, approve, activate or send during this inspection. User pnpm files remain unchanged/excluded. [Releases](RELEASES.md) is the verification authority.

@@ -1,5 +1,11 @@
 # Market Me implementation status
 
+## Release 1.49 asset inventory: local acceptance passed, cloud verification pending
+
+Assets adds current-member metadata search,recorded-role filtering,exact totals/byte strings and added-time microsecond pagination without loading original content,private metadata or previews. Stored scan/rights states are not permission or safety decisions. Shared desktop/mobile navigation19 destinations and26 shared-pool getters are covered. [Full programmer reference](ASSET_CATALOG.md) inventories source/contracts/variables/collections and bounds.
+
+Local gate passes3920 tests/202 files plus44 quality cases;native/unsigned packaging,actual65-record paging,literal filename/MIME/role/reset/null-zero-large-size/empty-workspace,mobile/production and141-table/two-projection preservation checks pass. Independent exact-source feature/main cloud and final Google acceptance remain pending. No input is required to continue,and hosted/whole-product completion is not claimed.
+
 ## Release 1.48 draft catalog: verified and published
 
 Drafts now uses a minimized current-member/current-version read projection with literal copy/label search, status filters, exact totals,30-result pages,320-code-point previews and exact microsecond cursors. Generation has a separate writer-only page; ordinary reads load no generation candidates or evidence. Browser-discovered native-filter reset behavior is corrected for both Drafts and Content Packages. [Full reference](DRAFT_CATALOG.md) inventories all new contracts and variable lifetimes.

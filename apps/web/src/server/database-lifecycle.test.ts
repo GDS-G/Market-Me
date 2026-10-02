@@ -28,7 +28,7 @@ describe("server-only repository pool lifetime", () => {
     vi.stubEnv("NODE_ENV", mode);
     const databaseModule = await import("./database");
     const getters = Object.entries(databaseModule).filter(([name]) => name.startsWith("get") && name.endsWith("Repository"));
-    expect(getters).toHaveLength(25);
+    expect(getters).toHaveLength(26);
     for (const [, getter] of getters) {
       const call = getter as () => unknown;
       const original = call();
