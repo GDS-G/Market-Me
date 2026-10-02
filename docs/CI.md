@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.36 candidate checkpoint
+
+Final local gate: **2,905 tests/158 files, no skips**. Split: web 1085/62; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 29/4; ingestion 33/5; media 24/2; workflows 43/3. All 12 typechecks, lint, both frontend builds, cargo check and three Rust tests pass. Next compile 2.9 s, TypeScript 2.8 s, 104/104 generation 429 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 136 ms.
+
+Schema remains 120/latest frozen 0120 with clean replay and zero CI organizations after tests. The new live web suite must not skip: it checks real backend reuse and fresh membership/label/revocation state. Separate production smoke/navigation, connection observation and unsigned packaging pass. Exact-source cloud feature/main jobs, audits and Google synchronization are pending. The 1.35 runs do not verify the pool correction; see [Releases](RELEASES.md).
+
 ## Verified Release 1.35 checkpoint
 
 Final local gate: **2,892 tests/156 files, no skips**. Split: web 1072/60; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 29/4; ingestion 33/5; media 24/2; workflows 43/3. All 12 typechecks, lint, web/companion builds, cargo check and three Rust tests pass. The full gate was repeated after mobile progressive-disclosure refinement: Next compile 2.5 s, TypeScript 11.6 s, 104/104 generation 422 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms.

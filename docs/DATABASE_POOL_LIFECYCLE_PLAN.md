@@ -1,6 +1,6 @@
 # Production database pool lifecycle correction
 
-Status: identified follow-up after 1.35, not part of its runtime evidence.
+Status: implemented in the locally accepted 1.36 candidate, not part of 1.35 runtime evidence. [Programmer reference](DATABASE_POOL_LIFECYCLE.md) describes the delivered lifecycle; [Releases](RELEASES.md) separates local, cloud and publication gates.
 
 ## Observed defect
 

@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.36 production pooling development
+
+Read [Pool lifecycle](DATABASE_POOL_LIFECYCLE.md) before changing the server global, configuration or shutdown behavior. Own metadata is 1.36.0; third-party dependencies, user pnpm files and all 120 frozen migrations remain unchanged. Deploy matching web code and restart; URL/credential/constructor-origin changes cannot hot-swap a live pool. Never clear the global under active requests.
+
+Focused coverage is eleven unit/two live cases. The pre-fix unit run fails seven reuse invariants; the same read-only live probe shows 28→1 clients, 12→1 sequential backends and 16→10 concurrent backends after correction. Live synthetic rename obeys settings_revision; role downgrade, foreign actor and membership removal remain fresh. Full integration requires market_me_ci; the focused live suite also permits only market_me_qa_136_*. Fixtures and SQL clients are cleaned up. The first full gate caught a Next-reserved test variable name; it was renamed without lint suppression before full rerun. [Releases](RELEASES.md) records exact local/cloud evidence.
+
 ## Release 1.35 Related work development
 
 Read [Package work journey](PACKAGE_WORK_JOURNEY.md) before changing lineage, current/historical state or display limits. Own metadata is 1.35.0; no third-party upgrade, new secret/environment variable, worker or migration. Retain all 120 frozen migrations ending in 0120 and deploy matching database exports/factory/web/navigation code. Restart development after repository class/factory changes; preserve user pnpm files.

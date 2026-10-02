@@ -1,6 +1,12 @@
 # Market Me implementation status
 
-## Current verified source: Release 1.35 package-specific Related work
+## Current candidate: Release 1.36 production pool lifecycle
+
+The server-only lazy factory now retains one shared SQL/repository bundle in production. It does not cache authorization or query results. A bounded read-only probe changes from 28 clients/12 sequential backends/16 concurrent backends to one client/one sequential backend/ten concurrent backends. Real role, name and membership removal changes remain visible through the retained repositories. [Full reference](DATABASE_POOL_LIFECYCLE.md) records variables, configuration lifetime and per-runtime capacity limits.
+
+Final local gate passes 2,905 tests/158 files, all static/frontend/native checks, production authentication/navigation/workspace switching and unsigned packaging. Schema stays at 120 frozen migrations with clean replay/fixture cleanup. Exact cloud verification/publication and Google documentation synchronization are pending. This is not a production-scale load certification, hosted deployment or whole-product completion; independent product work continues.
+
+## Previous verified source: Release 1.35 package-specific Related work
 
 Exact saved preparation lineage now connects one package to captured/current drafts, exact finalization and recent finalized-version runs. This is a read-only navigation improvement with current membership checks, bounded history, explicit historical/unavailable/empty states and no new action authority. [Programmer reference](PACKAGE_WORK_JOURNEY.md) inventories every DTO, helper, collection, join and lifetime.
 

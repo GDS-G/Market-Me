@@ -1,5 +1,11 @@
 # Domain Model and Important Variables
 
+## Release 1.36 shared repository handle
+
+Server `databaseGlobal` aliases `globalThis`; optional `marketMeDatabase` contains the 22 SQL-backed repository handles after complete lazy initialization. Locals `databaseUrl`, `sql` and `repositories` exist only during construction. No user/workspace lookup dictionary, request state, query-result array or authority snapshot is added. Campaign/finalization/publishing retain initialization-time origin options; data and permission checks remain operation-local.
+
+Driver defaults remain max 10, idle timeout 20 seconds, connect timeout 10 seconds and postgres.camel transformation. Test-only client/backend Sets and concurrent result arrays prove bounded reuse and are closed/cleared after each isolated case; they are not runtime caches. [Full variable/accessor reference](DATABASE_POOL_LIFECYCLE.md) lists every field, helper, lifecycle and capacity boundary.
+
 ## Release 1.35 package work projection
 
 `PackageWorkSnapshot` contains exact workspace/package, current title/version/status, current membership role, statement observation time, page/hasMore and at most ten `PackageWorkPreparation` records. Each preserves receipt/Campaign identity, captured package version/time and 1–20 ordered `PackageWorkDraft` records with initial version and nullable exact current version/status. Nullable `PackageWorkFinalization` retains exact final plan and selected draft/version plus at most five `PackageWorkRun` records and hasMoreRuns. All objects/arrays are frozen and explicit-field projected.

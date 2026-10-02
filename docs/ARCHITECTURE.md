@@ -1,5 +1,11 @@
 # Architecture
 
+## Release 1.36 server-runtime database lifecycle
+
+`getRepositories()` now always retains its completed bundle in server `globalThis.marketMeDatabase`, including production. Synchronous lazy construction creates one SQL client shared by all 22 repository accessors in that runtime; module reimports reuse it. Import is inert, missing configuration/failed construction does not cache a partial bundle, and query failures do not trigger replacement pools or write replay. Existing server-only boundary, query parameters and transactions remain unchanged.
+
+This is resource reuse, not membership/result caching. Production URL/constructor-origin changes now explicitly require process restart. The unchanged ten-connection cap applies per runtime/client, not across all replicas/workers/probes. No custom signal handler or public reset endpoint is added. [Lifecycle reference](DATABASE_POOL_LIFECYCLE.md) documents initialization, process isolation, fresh authority and deployment/drain limits.
+
 ## Release 1.35 exact package work journey
 
 The authenticated `/content-packages/[id]/work` server page obtains server-owned active workspace/actor scope, accepts only canonical bounded paging and calls `PackageWorkRepository.getSnapshot`. One membership-scoped SELECT links saved preparation identities to same-workspace Campaign/planning/generation lineage, captured/current drafts, exact finalization and recent exact-finalized-version runs. Root lineage corruption fails; unavailable draft lineage is explicitly null. No inferred sibling/title relationship, current-approval claim or mutation is added.

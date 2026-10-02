@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.35: Package-specific Related work
+## Release 1.36 candidate: Production database pool reuse
+
+The server now lazily shares one database/repository bundle per runtime in production as well as development. Repeated access no longer multiplies pools; membership, role and domain queries still read fresh state. The bounded probe changes from 28 clients to one, with concurrent connections capped at ten. [Lifecycle and variable reference](docs/DATABASE_POOL_LIFECYCLE.md) documents process boundaries, configuration restart rules and capacity limits.
+
+Final local acceptance passes 2,905 tests/158 files, static/frontend/native checks, production authentication/navigation/current workspace scope and unsigned Windows packaging. No migration, dependency upgrade or new authority is added. Exact-source cloud verification, publication and Google synchronization are pending; this is not production deployment or whole-product completion.
+
+## Previous release 1.35: Package-specific Related work
 
 Each Content Package now links to its recorded preparations, captured/current draft versions, exact finalization and recent runs of that finalized plan. The page is read-only, workspace-scoped and explicit about historical revisions and missing records. It does not approve, activate, retry or send. [Design and variable reference](docs/PACKAGE_WORK_JOURNEY.md) documents the complete contract.
 

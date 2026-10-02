@@ -1,5 +1,11 @@
 # Backup and Recovery Runbook
 
+## Release 1.36 pool saturation and configuration recovery
+
+Retain domain data and investigate database connectivity, per-runtime pool demand and deployment concurrency. Do not erase records or replay writes to recover a connection failure. The factory reuses one lazy client; ordinary driver reconnects occur on later queries. URL/credential/constructor-origin changes require draining requests and replacing the process, not clearing the global during traffic.
+
+Each replica, isolate, service and separate explicit client has its own budget; account for overlapping deploys. Idle timeout remains twenty seconds and pool max ten. No new signal handler/shutdown endpoint is added. Explicit sql.end must be coordinated with stopping HTTP admission because it rejects new queries. Rollback reintroduces prior pool multiplication, not a data rollback. [Lifecycle reference](DATABASE_POOL_LIFECYCLE.md) documents these limits; all 120 migration/history records remain intact.
+
 ## Release 1.35 package-history recovery
 
 Refresh saved state or reload the current package's Related work page after ordinary changes. History/current draft snapshots and offset pages can change between reads; they are not a stable export, readiness check or durable recovery token. Missing draft lineage is shown as unavailable without guessing a replacement. A snapshot/query failure requires inspection of membership, service/database diagnostics and exact receipt integrity, not automatic preparation or execution.

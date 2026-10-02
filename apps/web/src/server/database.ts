@@ -202,7 +202,9 @@ function getRepositories(): {
     workspaceStart: new WorkspaceStartRepository(sql),
     packageWork: new PackageWorkRepository(sql),
   };
-  if (process.env.NODE_ENV !== "production")
-    databaseGlobal.marketMeDatabase = repositories;
+  // Share one lazily constructed pool per server runtime in every environment.
+  // Only repositories/SQL are retained, never request data or authorization.
+  // Configuration changes require a process restart, not another live pool.
+  databaseGlobal.marketMeDatabase = repositories;
   return repositories;
 }
