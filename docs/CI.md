@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.52 verified checkpoint
+
+Reviewed runtime `d2219aaa65f3a0ec2cf340a4b29f383095e58c04` passes [feature CI36991697866](https://github.com/GDS-G/Market-Me/actions/runs/36991697866) in4:44 and [main CI36992296811](https://github.com/GDS-G/Market-Me/actions/runs/36992296811) in3:49. Each locked install adds609/audits622 packages,applies126 migrations,reproduces4418 tests/218 files and44 quality cases,and passes static/frontend/native-dependency checks and both zero-vulnerability audits. Next compile14.8/11.4s,114-page generation554/503ms,companion181/151ms respectively. Final Google readback verifies61 paragraphs with all30 tabs,prior bodies/styles/list definitions intact. Developing execution-control code is excluded from this exact source and totals.
+
+Local full gate additionally passes cargo check/three Rust tests; unsigned Windows packaging and isolated desktop/mobile/production removal/rejoin pass separately. Split:web1924/95,workflow-worker68/5,protocol4/1,connectors166/10,database1832/79,domain157/7,generation121/8,ingestion79/8,media24/2,workflows43/3. Production-build QA intentionally reports readiness503 while database/126-migration checks are ready; no hosted-deployment claim. [Releases](RELEASES.md) separates exact evidence and limitations.
+
 ## Release 1.51 verified checkpoint
 
 Exact runtime `bbf84bf893c521b9cabc4f1fc58cf9247da674bf` passes [feature CI36985552830](https://github.com/GDS-G/Market-Me/actions/runs/36985552830) in 4:11 and [main CI36986121507](https://github.com/GDS-G/Market-Me/actions/runs/36986121507) in 4:41. Each locked install adds609/audits622 packages, applies124 migrations, reproduces4205 tests/212 files and44 quality cases, and passes static/frontend/native-dependency smoke and both zero-vulnerability audits. Next compile12.6/14.1s,113-page generation485/669ms,companion146/172ms respectively. Final Google readback verifies52 paragraphs and preserves all30 tabs,prior bodies/styles and list definitions. Developing member-lifecycle source and focused tests are excluded from this checkpoint.

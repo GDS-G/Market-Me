@@ -2,9 +2,9 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## In development: 1.52 safe member lifecycle
+## Verified source: 1.52 safe member lifecycle
 
-The next candidate adds reviewed workspace access removal that preserves history and requires an explicit new invitation to rejoin. It is not accepted or published yet. [Developer reference](docs/WORKSPACE_MEMBER_LIFECYCLE.md) documents the schema, authorization, concurrency, API, UI and recovery contracts; [release evidence](docs/RELEASES.md) separates intermediate tests from pending acceptance. No real collaborator has been removed.
+Reviewed runtime `d2219aaa65f3a0ec2cf340a4b29f383095e58c04` is public on main. Local and independent exact-source feature/main cloud gates pass4,418 tests/218 files and44 quality cases; both cloud audits are clean. Isolated desktop/mobile/production removal and explicit rejoining preserve accounts,other-workspace permissions and historical work. Native/unsigned packaging and final Google61-paragraph readback pass separately,with all30 tabs and prior content preserved. [Developer reference](docs/WORKSPACE_MEMBER_LIFECYCLE.md) and [release evidence](docs/RELEASES.md) document the boundaries. No real collaborator was removed. Execution-hold development continues independently; the application is not complete or deployed.
 
 ## Release 1.51: Personal sign-in session controls
 

@@ -1,6 +1,6 @@
 # Safe workspace member lifecycle
 
-Status: 1.52 local acceptance complete; publication,cloud and final documentation acceptance pending. [Implemented programmer reference](WORKSPACE_MEMBER_LIFECYCLE.md) supersedes the exploratory design language below. Migrations0125/0126 are checksum-fixed and applied only to isolated CI/new synthetic QA. The full gate passes4,418 tests/218 files and44 quality cases,static/frontend/native checks,unsigned packaging and independent desktop/mobile/production removal/rejoin acceptance. No real workspace access has been revoked. Google candidate61 paragraphs preserves all30 tabs and prior content. This bounded lifecycle work does not complete all specification02/18 access-governance requirements or the application.
+Status:1.52 accepted and public on main at reviewed runtime `d2219aaa65f3a0ec2cf340a4b29f383095e58c04`. [Implemented programmer reference](WORKSPACE_MEMBER_LIFECYCLE.md) supersedes the exploratory language below. Local and independent feature/main cloud gates pass4418 tests/218 files and44 quality cases; both cloud audits are clean. Static/frontend/native,unsigned packaging,isolated browser/production and final Google61-paragraph readback pass separately. All30 tabs/prior content remain intact. Migrations0125/0126 are checksum-fixed; no real member was removed. Developing execution-hold work is excluded from this accepted source and totals. The application remains unfinished.
 
 ## Required outcomes
 
