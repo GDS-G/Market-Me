@@ -128,7 +128,7 @@ export class RelationshipRepository {
     const saved = await this.sql.begin(async (transaction) => {
       if (input.assignedOwnerId) {
         const owners = await transaction<{ found: boolean }[]>`
-          SELECT true AS found FROM workspace_membership
+          SELECT true AS found FROM active_workspace_membership
           WHERE workspace_id = ${input.workspaceId} AND user_id = ${input.assignedOwnerId}
         `;
         if (!owners[0]) {
@@ -716,7 +716,7 @@ export class RelationshipRepository {
     actorUserId: string,
   ) {
     const memberships = await transaction<{ found: boolean }[]>`
-      SELECT true AS found FROM workspace_membership
+      SELECT true AS found FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId}
         AND user_id = ${actorUserId}
         AND role IN ('owner', 'admin', 'editor')

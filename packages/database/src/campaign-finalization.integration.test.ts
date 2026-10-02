@@ -166,7 +166,7 @@ describe.skipIf(!databaseUrl)("atomic exact-preview campaign finalization", () =
     expect(await f.finalizations.get(f.workspace.workspaceId, receipt.id, f.user.id)).toEqual(receipt);
     expect(await f.finalizations.getPreviewSelection(f.workspace.workspaceId, f.receipt.id, f.preview.id, f.user.id)).toEqual(f.exact);
     await expect(f.finalizations.finalize(f.input, f.key, f.user.id)).rejects.toMatchObject({ code: "access_denied" });
-    await sql`DELETE FROM workspace_membership WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.user.id}`;
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.user.id}`;
     expect(await f.finalizations.get(f.workspace.workspaceId, receipt.id, f.user.id)).toBeUndefined();
     expect(await f.finalizations.getByKey(f.workspace.workspaceId, f.key, f.user.id)).toBeUndefined();
     expect(await f.finalizations.getForCampaign(f.workspace.workspaceId, receipt.campaignId, f.user.id)).toBeUndefined();

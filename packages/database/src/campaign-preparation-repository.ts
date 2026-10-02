@@ -236,7 +236,7 @@ export class CampaignPreparationRepository {
   async get(workspaceId: string, preparationId: string, actorUserId: string): Promise<StoredCampaignPreparation | undefined> {
     const rows = await this.sql<ReceiptRow[]>`
       SELECT receipt.* FROM campaign_preparation receipt
-      JOIN workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
+      JOIN active_workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
       WHERE receipt.workspace_id = ${workspaceId} AND receipt.id = ${key(preparationId)}
     `;
     return rows[0] ? publicReceipt(rows[0]) : undefined;
@@ -246,7 +246,7 @@ export class CampaignPreparationRepository {
   async listForWorkspace(workspaceId: string, actorUserId: string): Promise<readonly Pick<StoredCampaignPreparation, "id" | "campaignId">[]> {
     return this.sql<Pick<StoredCampaignPreparation, "id" | "campaignId">[]>`
       SELECT receipt.id, receipt.campaign_id FROM campaign_preparation receipt
-      JOIN workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
+      JOIN active_workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
       WHERE receipt.workspace_id = ${workspaceId} ORDER BY receipt.created_at DESC, receipt.id
     `;
   }
@@ -254,7 +254,7 @@ export class CampaignPreparationRepository {
   async getByKey(workspaceId: string, idempotencyKey: string, actorUserId: string): Promise<StoredCampaignPreparation | undefined> {
     const rows = await this.sql<ReceiptRow[]>`
       SELECT receipt.* FROM campaign_preparation receipt
-      JOIN workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
+      JOIN active_workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
       WHERE receipt.workspace_id = ${workspaceId} AND receipt.idempotency_key = ${key(idempotencyKey)}
     `;
     return rows[0] ? publicReceipt(rows[0]) : undefined;
@@ -267,7 +267,7 @@ export class CampaignPreparationRepository {
     const workspace = await transaction`SELECT id FROM workspace WHERE id = ${workspaceId} FOR SHARE`;
     const actor = await transaction`SELECT id FROM app_user WHERE id = ${actorUserId} FOR KEY SHARE`;
     const membership = await transaction<{ role: string }[]>`
-      SELECT role FROM workspace_membership WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId} FOR SHARE
+      SELECT role FROM active_workspace_membership WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId} FOR SHARE
     `;
     if (!workspace[0] || !actor[0] || !membership[0] || !["owner", "admin", "editor"].includes(membership[0].role)) {
       throw new CampaignPreparationError("access_denied", "Current workspace writer access is required to prepare a campaign.");

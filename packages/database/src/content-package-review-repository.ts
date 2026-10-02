@@ -38,7 +38,7 @@ export async function assertPackageReviewAccessInTransaction(tx: TransactionSql,
   const workspace = await tx`SELECT id FROM workspace WHERE id=${input.workspaceId} FOR SHARE`;
   const actor = await tx`SELECT id FROM app_user WHERE id=${input.actorUserId} FOR KEY SHARE`;
   const row = (await tx<{ role: string }[]>`
-    SELECT role FROM workspace_membership WHERE workspace_id=${input.workspaceId}
+    SELECT role FROM active_workspace_membership WHERE workspace_id=${input.workspaceId}
       AND user_id=${input.actorUserId} FOR SHARE
   `)[0];
   const roles: readonly string[] = mode === "approve" ? ["owner", "admin", "approver"]

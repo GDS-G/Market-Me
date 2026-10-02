@@ -71,7 +71,7 @@ describe.skipIf(!url)("read-only workspace start guide", () => {
   }));
   it("returns no snapshot after membership removal even for an organization owner", async () => using(async f => {
     await content(f);
-    await sql`DELETE FROM workspace_membership WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`;
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`;
     expect(await f.repository.getSnapshot(f.workspace.workspaceId, f.user.id)).toBeUndefined();
     expect(await sql`SELECT role FROM organization_membership WHERE organization_id=${f.workspace.organizationId} AND user_id=${f.user.id}`).toEqual([{ role: "owner" }]);
   }));

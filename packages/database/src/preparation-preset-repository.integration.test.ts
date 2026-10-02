@@ -98,8 +98,8 @@ describe.skipIf(!url)("versioned preparation preset library",()=>{
     await sql`INSERT INTO workspace_membership(workspace_id,user_id,role) VALUES (${r.workspaceId},${other.user.id},'editor')`;
     expect(await f.presets.getReceipt(r.workspaceId,r.requestId,other.user.id)).toBeUndefined();
     await expect(f.presets.mutate(f.request,other.user.id)).rejects.toMatchObject({code:"request_conflict"});
-    await sql`DELETE FROM workspace_membership WHERE workspace_id=${r.workspaceId} AND user_id=${other.user.id}`;
-    await sql`DELETE FROM workspace_membership WHERE workspace_id=${r.workspaceId} AND user_id=${f.user.id}`;
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${r.workspaceId} AND user_id=${other.user.id}`;
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${r.workspaceId} AND user_id=${f.user.id}`;
     await expect(f.presets.mutate(f.request,f.user.id)).rejects.toMatchObject({code:"access_denied"});
   })));
   it("requires current published profile references and obeys communication ceilings",async()=>using(async f=>{

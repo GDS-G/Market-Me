@@ -16,7 +16,7 @@ export class WorkspaceStartRepository {
         c.campaign_count,c.draft_only_plan_count,c.other_published_plan_count,
         r.run_count,r.open_run_count,r.attention_run_count,r.completed_run_count,
         da.pending_draft_approvals,wa.pending_workflow_approvals
-      FROM workspace_membership m
+      FROM active_workspace_membership m
       CROSS JOIN LATERAL (
         SELECT count(*) AS source_count,count(*) FILTER (WHERE enabled) AS enabled_source_count
         FROM smart_source WHERE workspace_id=m.workspace_id

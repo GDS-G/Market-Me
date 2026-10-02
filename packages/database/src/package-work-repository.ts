@@ -9,7 +9,7 @@ export class PackageWorkRepository {
     const rows = await this.sql`
       WITH scope AS (
         SELECT p.id,p.workspace_id,left(p.title,200) AS title,p.version,p.status,m.role
-        FROM content_package p JOIN workspace_membership m ON m.workspace_id=p.workspace_id AND m.user_id=${actor}
+        FROM content_package p JOIN active_workspace_membership m ON m.workspace_id=p.workspace_id AND m.user_id=${actor}
         WHERE p.workspace_id=${workspace} AND p.id=${contentPackage}
       ), selected AS (
         SELECT p.* FROM campaign_preparation p JOIN scope s ON s.id=p.content_package_id AND s.workspace_id=p.workspace_id

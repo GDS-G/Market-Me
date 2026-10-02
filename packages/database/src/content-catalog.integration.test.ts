@@ -28,12 +28,12 @@ describe.skipIf(!url)("authorized lightweight content catalog", () => {
   it.each(["owner", "admin", "editor", "approver", "analyst", "viewer"])("allows current %s membership and observes subsequent revocation", async role => using(async f => {
     await pkg(f); await sql`UPDATE workspace_membership SET role=${role} WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`;
     expect((await f.repository.getPage(f.workspace.workspaceId, f.user.id))?.totalMatches).toBe("1");
-    await sql`DELETE FROM workspace_membership WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`; expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toBeUndefined();
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`; expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toBeUndefined();
   }));
   it("returns genuine empty metadata but denies organization-only/foreign scope", async () => using(async f => {
     const result = await f.repository.getPage(f.workspace.workspaceId, f.user.id); expect(result).toMatchObject({ totalPackages: "0", totalMatches: "0", items: [], nextCursor: null, filters: { query: "", status: null } });
     await using(async other => { await pkg(other); expect(await f.repository.getPage(other.workspace.workspaceId, f.user.id)).toBeUndefined(); });
-    await sql`DELETE FROM workspace_membership WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`; expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toBeUndefined();
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`; expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toBeUndefined();
   }));
   it("matches literal title/filename substrings without reading private bodies or treating SQL/wildcards as syntax", async () => using(async f => {
     const a = await pkg(f, { title: "Café launch_100%", files: ["Brand quote'\\Guide.txt"] }); await pkg(f, { title: "Other package", files: ["sale.pdf"] });

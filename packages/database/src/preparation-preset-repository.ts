@@ -124,7 +124,7 @@ export class PreparationPresetRepository {
     const rows = await this.sql<(Omit<PreparationPresetSummary,"updatedAt"> & { updatedAt: string | Date })[]>`
       SELECT p.id,p.workspace_id,p.revision,p.latest_version_number,p.archived,p.updated_at,v.title,v.notes
       FROM preparation_preset p JOIN preparation_preset_version v ON v.preset_id=p.id AND v.version_number=p.latest_version_number
-      JOIN workspace_membership m ON m.workspace_id=p.workspace_id AND m.user_id=${actor}
+      JOIN active_workspace_membership m ON m.workspace_id=p.workspace_id AND m.user_id=${actor}
       WHERE p.workspace_id=${scope} ORDER BY p.updated_at DESC,p.id
       LIMIT ${PREPARATION_PRESET_LIMITS.list + 1} OFFSET ${(page - 1) * PREPARATION_PRESET_LIMITS.list}`;
     return { items: rows.slice(0,PREPARATION_PRESET_LIMITS.list).map(row=>({ ...row,updatedAt:new Date(row.updatedAt).toISOString() })), more: rows.length>PREPARATION_PRESET_LIMITS.list };
@@ -138,7 +138,7 @@ export class PreparationPresetRepository {
     const rows=await this.sql<(VersionRow & { revision: number; latestVersionNumber: number; archived: boolean })[]>`
       SELECT v.*,p.revision,p.latest_version_number,p.archived FROM preparation_preset p
       JOIN preparation_preset_version v ON v.preset_id=p.id AND v.version_number=COALESCE(${versionNumber ?? null}::integer,p.latest_version_number)
-      JOIN workspace_membership m ON m.workspace_id=p.workspace_id AND m.user_id=${actor}
+      JOIN active_workspace_membership m ON m.workspace_id=p.workspace_id AND m.user_id=${actor}
       WHERE p.workspace_id=${scope} AND p.id=${id}`;
     const row=rows[0];
     return row ? { root:{id,workspaceId:scope,revision:row.revision,latestVersionNumber:row.latestVersionNumber,archived:row.archived},version:version(row) } : undefined;
@@ -151,7 +151,7 @@ export class PreparationPresetRepository {
     if(beforeVersion!==undefined) preparationPresetInteger(beforeVersion);
     const rows=await this.sql<{versionNumber:number;title:string;createdAt:string|Date}[]>`
       SELECT v.version_number,v.title,v.created_at FROM preparation_preset_version v
-      JOIN workspace_membership m ON m.workspace_id=v.workspace_id AND m.user_id=${actor}
+      JOIN active_workspace_membership m ON m.workspace_id=v.workspace_id AND m.user_id=${actor}
       WHERE v.workspace_id=${scope} AND v.preset_id=${id} AND (${beforeVersion??null}::integer IS NULL OR v.version_number<${beforeVersion??null})
       ORDER BY v.version_number DESC LIMIT ${PREPARATION_PRESET_LIMITS.history+1}`;
     return {items:rows.slice(0,PREPARATION_PRESET_LIMITS.history).map(row=>({...row,createdAt:new Date(row.createdAt).toISOString()})),more:rows.length>PREPARATION_PRESET_LIMITS.history};
@@ -161,7 +161,7 @@ export class PreparationPresetRepository {
     const organization=await tx`SELECT id FROM organization WHERE id=(SELECT organization_id FROM workspace WHERE id=${workspaceId}) FOR KEY SHARE`;
     const workspace=await tx`SELECT id FROM workspace WHERE id=${workspaceId} FOR SHARE`;
     const user=await tx`SELECT id FROM app_user WHERE id=${actor} FOR KEY SHARE`;
-    const membership=await tx<{role:string}[]>`SELECT role FROM workspace_membership WHERE workspace_id=${workspaceId} AND user_id=${actor} FOR SHARE`;
+    const membership=await tx<{role:string}[]>`SELECT role FROM active_workspace_membership WHERE workspace_id=${workspaceId} AND user_id=${actor} FOR SHARE`;
     if(!organization[0]||!workspace[0]||!user[0]||!["owner","admin","editor"].includes(membership[0]?.role??"")) throw new PreparationPresetError("access_denied","Current workspace writer access is required.");
   }
 

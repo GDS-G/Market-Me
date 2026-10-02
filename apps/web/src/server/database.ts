@@ -21,6 +21,7 @@ import {
   PreparationPresetRepository,
   WorkspaceManagementRepository,
   WorkspaceMemberRoleRepository,
+  WorkspaceMemberLifecycleRepository,
   WorkspaceStartRepository,
   PackageWorkRepository,
   WorkspaceAnalyticsRepository,
@@ -54,6 +55,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
     preparationPresets: PreparationPresetRepository;
     workspaceManagement: WorkspaceManagementRepository;
     workspaceMemberRoles: WorkspaceMemberRoleRepository;
+    workspaceMemberLifecycle: WorkspaceMemberLifecycleRepository;
     workspaceStart: WorkspaceStartRepository;
     packageWork: PackageWorkRepository;
     workspaceAnalytics: WorkspaceAnalyticsRepository;
@@ -154,6 +156,10 @@ export function getWorkspaceMemberRoleRepository(): WorkspaceMemberRoleRepositor
   return getRepositories().workspaceMemberRoles;
 }
 
+export function getWorkspaceMemberLifecycleRepository(): WorkspaceMemberLifecycleRepository {
+  return getRepositories().workspaceMemberLifecycle;
+}
+
 export function getWorkspaceStartRepository(): WorkspaceStartRepository {
   return getRepositories().workspaceStart;
 }
@@ -207,6 +213,7 @@ function getRepositories(): {
   preparationPresets: PreparationPresetRepository;
   workspaceManagement: WorkspaceManagementRepository;
   workspaceMemberRoles: WorkspaceMemberRoleRepository;
+  workspaceMemberLifecycle: WorkspaceMemberLifecycleRepository;
   workspaceStart: WorkspaceStartRepository;
   packageWork: PackageWorkRepository;
   workspaceAnalytics: WorkspaceAnalyticsRepository;
@@ -241,6 +248,7 @@ function getRepositories(): {
     preparationPresets: new PreparationPresetRepository(sql),
     workspaceManagement: new WorkspaceManagementRepository(sql),
     workspaceMemberRoles: new WorkspaceMemberRoleRepository(sql),
+    workspaceMemberLifecycle: new WorkspaceMemberLifecycleRepository(sql),
     workspaceStart: new WorkspaceStartRepository(sql),
     packageWork: new PackageWorkRepository(sql),
     workspaceAnalytics: new WorkspaceAnalyticsRepository(sql),

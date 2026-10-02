@@ -113,7 +113,7 @@ describe("preparation display-token compatibility", () => {
       referenceSnapshot: { contentPackage: { id: packageId, title: "Historical", version: 2,
         ...(proved ? { approvalId, reviewFingerprint: expectedReviewFingerprint } : {}) }, audiences: [] }, createdAt: stamp };
     const h = mockDatabase((query) => query.startsWith("SELECT status, writer_user_id") ? []
-      : query.includes("FROM workspace_membership") ? [{ role: "editor" }]
+      : query.includes("FROM active_workspace_membership") ? [{ role: "editor" }]
       : query.startsWith("SELECT * FROM campaign_preparation") ? [receipt] : [{ id: actorId }]);
     return { ...h, repository: new CampaignPreparationRepository(h.sql) };
   }
@@ -136,7 +136,7 @@ describe("preparation display-token compatibility", () => {
   });
   it("requires a display token for new preparation even though template1 canonical input stays unchanged", async () => {
     const h = mockDatabase((query) => query.startsWith("SELECT status, writer_user_id") ? []
-      : query.includes("FROM workspace_membership") ? [{ role: "editor" }]
+      : query.includes("FROM active_workspace_membership") ? [{ role: "editor" }]
       : query.startsWith("SELECT * FROM campaign_preparation") ? [] : [{ id: actorId }]);
     await expect(new CampaignPreparationRepository(h.sql).prepare(preparationInput, id(30), actorId))
       .rejects.toMatchObject({ code: "invalid_review_input" });
@@ -150,7 +150,7 @@ describe("finalization keeps original approval lineage", () => {
     previewId, expectedPreviewFingerprint: `mm-preview-v1:sha256:${"a".repeat(64)}`, timing: { type: "immediate" } };
   function finalizationHarness(proved: boolean) {
     const h = mockDatabase((query) => {
-      if (query.includes("FROM workspace_membership")) return [{ role: "editor" }];
+      if (query.includes("FROM active_workspace_membership")) return [{ role: "editor" }];
       if (query.startsWith("SELECT receipt.*")) return [];
       if (query.startsWith("SELECT campaign_id FROM campaign_preparation")) return [{ campaignId }];
       if (query.startsWith("SELECT id, status, current_version_id FROM campaign")) return [{ id: campaignId, status: "published", currentVersionId: versionId }];

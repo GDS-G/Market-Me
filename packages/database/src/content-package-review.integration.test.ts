@@ -348,7 +348,7 @@ describe.skipIf(!databaseUrl)("exact Content Package approval", () => {
           WHERE workspace_id=${f.identity.workspaceId} AND user_id=${f.user.id} FOR UPDATE`;
         locked.resolve(Number(pid));
         await release.promise;
-        await tx`DELETE FROM workspace_membership
+        await tx`UPDATE workspace_membership SET revoked_at=clock_timestamp()
           WHERE workspace_id=${f.identity.workspaceId} AND user_id=${f.user.id}`;
       } catch (error) {
         locked.reject(error);
@@ -365,8 +365,10 @@ describe.skipIf(!databaseUrl)("exact Content Package approval", () => {
       release.resolve(undefined);
       await revocationWork;
       await expect(approvalPromise).rejects.toMatchObject({ code: "access_denied" });
-      expect(await sql`SELECT user_id FROM workspace_membership
+      expect(await sql`SELECT user_id FROM active_workspace_membership
         WHERE workspace_id=${f.identity.workspaceId} AND user_id=${f.user.id}`).toHaveLength(0);
+      expect(await sql`SELECT user_id FROM workspace_membership
+        WHERE workspace_id=${f.identity.workspaceId} AND user_id=${f.user.id} AND revoked_at IS NOT NULL`).toHaveLength(1);
       expect(await sql`SELECT id FROM content_package_approval WHERE idempotency_key=${attempt.idempotencyKey}`).toHaveLength(0);
       expect(await sql`SELECT id FROM learning_review WHERE content_package_id=${f.pkg.id} AND action='package_approved'`).toHaveLength(0);
     } finally {

@@ -21,7 +21,7 @@ export class WorkspaceManagementRepository {
         EXISTS (SELECT 1 FROM organization_membership om WHERE om.organization_id=w.organization_id
           AND om.user_id=${actor} AND om.role='owner') AS can_create_workspace
       FROM workspace w JOIN organization o ON o.id=w.organization_id
-      JOIN workspace_membership wm ON wm.workspace_id=w.id AND wm.user_id=${actor}
+      JOIN active_workspace_membership wm ON wm.workspace_id=w.id AND wm.user_id=${actor}
       WHERE w.id=${workspace}`)[0];
   }
 
@@ -98,7 +98,7 @@ export class WorkspaceManagementRepository {
     if (scope.operation !== "rename") throw new WorkspaceManagementError("invalid_input", "Choose a supported workspace operation.");
     const id = workspaceManagementUuid(scope.workspaceId);
     const rows = await tx<{ organizationId: string }[]>`SELECT w.organization_id FROM workspace w
-      JOIN workspace_membership wm ON wm.workspace_id=w.id AND wm.user_id=${actor} AND wm.role IN ('owner','admin')
+      JOIN active_workspace_membership wm ON wm.workspace_id=w.id AND wm.user_id=${actor} AND wm.role IN ('owner','admin')
       WHERE w.id=${id} FOR SHARE OF wm`;
     if (!rows[0]) throw new WorkspaceManagementError("access_denied", "Current workspace owner or administrator access is required to rename this workspace.");
     return rows[0].organizationId;

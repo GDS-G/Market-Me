@@ -29,12 +29,12 @@ describe.skipIf(!url)("current-member metadata-only asset catalog", () => {
   it.each(["owner", "admin", "editor", "approver", "analyst", "viewer"])("allows current %s and observes subsequent revocation", async role => using(async f => {
     await asset(f); await sql`UPDATE workspace_membership SET role=${role} WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`;
     expect((await f.repository.getPage(f.workspace.workspaceId, f.user.id))?.totalAssets).toBe("1");
-    await sql`DELETE FROM workspace_membership WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`; expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toBeUndefined();
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`; expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toBeUndefined();
   }));
   it("distinguishes an empty inventory from inaccessible or organization-only scope", async () => using(async f => {
     expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toMatchObject({ totalAssets: "0", totalMatches: "0", items: [], nextCursor: null, filters: { query: "", role: null } });
     await using(async other => { await asset(other); expect(await f.repository.getPage(other.workspace.workspaceId, f.user.id)).toBeUndefined(); });
-    await sql`DELETE FROM workspace_membership WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`; expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toBeUndefined();
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`; expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toBeUndefined();
   }));
   it("searches literal filenames, MIME and package titles, not private bodies or keys", async () => using(async f => {
     const a = await asset(f, { name: "Quote'\\launch_100%.PDF", mime: "application/pdf" }); await asset(f, { name: "Other.txt" });

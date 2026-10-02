@@ -49,7 +49,7 @@ describe.skipIf(!url)("account display-name persistence", () => {
   }));
 
   it("does not require any workspace membership to edit the own label", async () => using(async f => {
-    await sql`DELETE FROM workspace_membership WHERE user_id=${f.user.id}`;
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE user_id=${f.user.id}`;
     expect((await f.repository.save(f.request, f.user.id)).receipt.revision).toBe(2);
   }));
 

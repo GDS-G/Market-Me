@@ -11,7 +11,7 @@ export class ContentCatalogRepository {
     const at = filters.cursor?.at ?? null, id = filters.cursor?.id ?? null;
     const [row] = await this.sql<{ snapshot: string }[]>`
       WITH scope AS (
-        SELECT w.id FROM workspace w JOIN workspace_membership m ON m.workspace_id=w.id AND m.user_id=${actor} WHERE w.id=${workspace}
+        SELECT w.id FROM workspace w JOIN active_workspace_membership m ON m.workspace_id=w.id AND m.user_id=${actor} WHERE w.id=${workspace}
       ), packages AS (
         SELECT p.id,p.title,p.status,p.confidence,p.updated_at FROM content_package p JOIN scope s ON s.id=p.workspace_id
         JOIN smart_source ss ON ss.id=p.smart_source_id AND ss.workspace_id=p.workspace_id

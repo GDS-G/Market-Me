@@ -77,7 +77,7 @@ describe.skipIf(!url)("own-account session persistence", () => {
   }));
 
   it("requires no workspace membership and never rewrites profile settings", async () => using(async f => {
-    await sql`DELETE FROM workspace_membership WHERE user_id=${f.user.id}`;
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE user_id=${f.user.id}`;
     expect((await f.repository.list(f.user.id, f.current.actor)).current.sessionId).toBe(f.current.sessionId);
     expect((await f.repository.revoke(f.request, f.current.actor)).replayed).toBe(false);
   }));

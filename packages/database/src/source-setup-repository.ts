@@ -75,7 +75,7 @@ export class SourceSetupRepository {
       (SELECT organization_id FROM workspace WHERE id = ${workspaceId}) FOR KEY SHARE`;
     const workspace = await tx`SELECT id FROM workspace WHERE id = ${workspaceId} FOR SHARE`;
     const user = await tx`SELECT id FROM app_user WHERE id = ${actor} FOR KEY SHARE`;
-    const membership = await tx<{ role: string }[]>`SELECT role FROM workspace_membership
+    const membership = await tx<{ role: string }[]>`SELECT role FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actor} FOR SHARE`;
     if (!organization[0] || !workspace[0] || !user[0] || !["owner", "admin", "editor"].includes(membership[0]?.role ?? "")) {
       throw new SourceSetupError("access_denied", "Current workspace writer access is required.");

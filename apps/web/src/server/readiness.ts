@@ -1,8 +1,8 @@
 import { createDatabaseClient, OperationsRepository } from "@market-me/database";
 import { objectStoreConfigurationFromEnvironment } from "@market-me/media";
 
-export const EXPECTED_DATABASE_MIGRATION = "0124_account_session_controls.sql";
-export const EXPECTED_DATABASE_MIGRATION_COUNT = 124;
+export const EXPECTED_DATABASE_MIGRATION = "0126_workspace_member_removal_receipts.sql";
+export const EXPECTED_DATABASE_MIGRATION_COUNT = 126;
 
 export const READINESS_CHECK_NAMES = [
   "database_configuration",

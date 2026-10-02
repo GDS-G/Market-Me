@@ -32,7 +32,7 @@ describe.skipIf(!url)("live production database pool reuse", () => {
       expect((await start.getSnapshot(workspace.workspaceId, user.id))?.role).toBe("viewer");
       expect(await core.getWorkspaceAccess(user.id, workspace.workspaceId)).toMatchObject({ role: "viewer", workspaceName: "Changed synthetic workspace" });
       expect(await start.getSnapshot(workspace.workspaceId, randomUUID())).toBeUndefined();
-      await sql`DELETE FROM workspace_membership WHERE workspace_id=${workspace.workspaceId} AND user_id=${user.id}`;
+      await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${workspace.workspaceId} AND user_id=${user.id}`;
       expect(await start.getSnapshot(workspace.workspaceId, user.id)).toBeUndefined();
       expect(await databaseModule.getRepository().listWorkspaceAccess(user.id)).toEqual([]);
     } finally {
@@ -67,5 +67,6 @@ describe.skipIf(!url)("live production database pool reuse", () => {
     expect(reimported.getAssetCatalogRepository()).toBe(databaseModule.getAssetCatalogRepository());
     expect(reimported.getAccountProfileRepository()).toBe(databaseModule.getAccountProfileRepository());
     expect(reimported.getAccountSessionRepository()).toBe(databaseModule.getAccountSessionRepository());
+    expect(reimported.getWorkspaceMemberLifecycleRepository()).toBe(databaseModule.getWorkspaceMemberLifecycleRepository());
   });
 });

@@ -1,0 +1,17 @@
+.panel { display: grid; gap: 18px; min-width: 0; overflow-wrap: anywhere; }
+.members { display: grid; gap: 14px; padding: 0; list-style: none; }
+.card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line, #ded9e7); border-radius: 12px; padding: 16px; }
+.card > div { min-width: 0; flex: 1 1 240px; } .card h3 { margin: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.panel :is(button, a) { min-height: 44px; padding: 11px 15px; border: 1px solid #c8bdd6; border-radius: 8px; background: #fff; }
+.panel button[type="submit"] { background: #833354; color: #fff; border-color: #833354; }
+.panel button:disabled { opacity: .55; cursor: not-allowed; }
+.panel a { display: inline-flex; align-items: center; justify-self: start; }
+.panel :is(button, input, a, [tabindex="-1"]):focus-visible { outline: 3px solid #7144b8; outline-offset: 3px; }
+.confirmation { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; min-height: 44px; }
+.confirmation input { flex: none; width: 20px; height: 20px; margin-top: 2px; }
+.reason { display: grid; gap: 8px; } .reason input { width: 100%; min-width: 0; min-height: 44px; border: 1px solid #c8bdd6; border-radius: 8px; padding: 10px; }
+.notice { background: #faf6fb; border: 1px solid #ddd3ed; border-radius: 12px; padding: 16px; }
+.impact { display: grid; gap: 0; } .impact > div { display: grid; grid-template-columns: 1fr auto; gap: 14px; padding: 10px 0; border-bottom: 1px solid #e4ddeb; }
+.impact dt { min-width: 0; } .impact dd { margin: 0; font-weight: 700; max-width: 10rem; }
+@media (max-width: 600px) { .card > button { width: 100%; } .actions { align-items: stretch; } .actions > button { flex: 1 1 180px; } }

@@ -1382,7 +1382,7 @@ export class ConversationRepository {
       )
       SELECT thread.workspace_id, thread.id, membership.user_id, now()
       FROM conversation_thread thread
-      JOIN workspace_membership membership
+      JOIN active_workspace_membership membership
         ON membership.workspace_id = thread.workspace_id
         AND membership.user_id = ${userId}
       WHERE thread.workspace_id = ${workspaceId}
@@ -1883,7 +1883,7 @@ export class ConversationRepository {
       `;
       if (!threads[0]) return false;
       const reviewers = await transaction<{ userId: string }[]>`
-        SELECT user_id FROM workspace_membership
+        SELECT user_id FROM active_workspace_membership
         WHERE workspace_id = ${input.workspaceId}
           AND user_id = ${input.requestedReviewerId}
           AND role IN ('owner', 'admin', 'editor')
@@ -1898,7 +1898,7 @@ export class ConversationRepository {
       }
       if (mentionedUserIds.length > 0) {
         const mentioned = await transaction<{ userId: string }[]>`
-          SELECT user_id FROM workspace_membership
+          SELECT user_id FROM active_workspace_membership
           WHERE workspace_id = ${input.workspaceId}
             AND user_id IN ${transaction(mentionedUserIds)}
         `;
@@ -2239,7 +2239,7 @@ export class ConversationRepository {
           AND (rule.urgency IS NULL OR rule.urgency = thread.urgency)
           AND (
             rule.target_owner_id IS NULL OR EXISTS (
-              SELECT 1 FROM workspace_membership routing_owner
+              SELECT 1 FROM active_workspace_membership routing_owner
               WHERE routing_owner.workspace_id = rule.workspace_id
                 AND routing_owner.user_id = rule.target_owner_id
                 AND routing_owner.role IN ('owner', 'admin', 'editor')
@@ -2799,7 +2799,7 @@ export class ConversationRepository {
   ) {
     if (!assignedOwnerId) return;
     const owners = await transaction<{ found: boolean }[]>`
-      SELECT true AS found FROM workspace_membership
+      SELECT true AS found FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${assignedOwnerId}
         AND role IN ('owner', 'admin', 'editor')
     `;
@@ -2820,7 +2820,7 @@ export class ConversationRepository {
     actorUserId: string,
   ): Promise<void> {
     const rows = await transaction<{ found: boolean }[]>`
-      SELECT true AS found FROM workspace_membership
+      SELECT true AS found FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId}
         AND role IN ('owner', 'admin', 'editor')
     `;
@@ -2839,7 +2839,7 @@ export class ConversationRepository {
     actorUserId: string,
   ): Promise<void> {
     const rows = await transaction<{ found: boolean }[]>`
-      SELECT true AS found FROM workspace_membership
+      SELECT true AS found FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId}
         AND role IN ('owner', 'admin', 'approver')
     `;
@@ -2967,7 +2967,7 @@ export class ConversationRepository {
   ) {
     if (!targetOwnerId) return;
     const owners = await transaction<{ found: boolean }[]>`
-      SELECT true AS found FROM workspace_membership
+      SELECT true AS found FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${targetOwnerId}
         AND role IN ('owner', 'admin', 'editor')
     `;

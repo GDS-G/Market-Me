@@ -168,7 +168,7 @@ describe.skipIf(!url)("existing workspace member roles", () => {
     const target = await member(f), request = change(f, target), first = await f.repository.mutate(request, f.user.id);
     await expect(sql`UPDATE workspace_member_role_receipt SET reason='Rewritten' WHERE workspace_id=${f.workspace.workspaceId}`).rejects.toMatchObject({ code: "23514" });
     await expect(sql`DELETE FROM workspace_member_role_receipt WHERE workspace_id=${f.workspace.workspaceId}`).rejects.toMatchObject({ code: "23514" });
-    await sql`DELETE FROM workspace_membership WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${target}`;
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${target}`;
     expect(await f.repository.mutate(request, f.user.id)).toEqual({ ...first, replayed: true });
     await expect(sql`DELETE FROM app_user WHERE id=${target}`).rejects.toMatchObject({ code: "23001" });
     await sql`DELETE FROM workspace WHERE id=${f.workspace.workspaceId}`;

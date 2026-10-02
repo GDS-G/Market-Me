@@ -22,13 +22,13 @@ export class WorkspaceMemberRoleRepository {
       throw new WorkspaceMemberRoleError("invalid_input", "Choose a supported member-list page.");
     }
     return this.sql.begin(async tx => {
-      const access = (await tx<{ role: WorkspaceRole }[]>`SELECT role FROM workspace_membership
+      const access = (await tx<{ role: WorkspaceRole }[]>`SELECT role FROM active_workspace_membership
         WHERE workspace_id=${workspace} AND user_id=${actor} FOR SHARE`)[0];
       if (!access) throw new WorkspaceMemberRoleError("access_denied", "Current workspace membership is required to view its team.");
       const permitted = canManage(access.role);
       const rows = await tx<ManagedWorkspaceMember[]>`SELECT wm.user_id,u.display_name,wm.role,wm.role_revision AS revision,
         (${permitted} AND wm.user_id<>${actor} AND wm.role<>'owner') AS can_change_role
-        FROM workspace_membership wm JOIN app_user u ON u.id=wm.user_id WHERE wm.workspace_id=${workspace}
+        FROM active_workspace_membership wm JOIN app_user u ON u.id=wm.user_id WHERE wm.workspace_id=${workspace}
         ORDER BY wm.created_at,wm.user_id LIMIT ${WORKSPACE_MEMBER_ROLE_LIMITS.pageSize + 1}
         OFFSET ${(page - 1) * WORKSPACE_MEMBER_ROLE_LIMITS.pageSize}`;
       return { workspaceId: workspace, page, more: rows.length > WORKSPACE_MEMBER_ROLE_LIMITS.pageSize,
@@ -41,7 +41,7 @@ export class WorkspaceMemberRoleRepository {
     return this.sql.begin(async tx => {
       // Immutable user IDs establish one global order, including A->B / B->A
       // changes. Do not hold the actor separately before acquiring the target.
-      const members = await tx<MembershipRow[]>`SELECT user_id,role,role_revision AS revision FROM workspace_membership
+      const members = await tx<MembershipRow[]>`SELECT user_id,role,role_revision AS revision FROM active_workspace_membership
         WHERE workspace_id=${request.workspaceId} AND user_id IN (${actor},${request.targetUserId}) ORDER BY user_id FOR UPDATE`;
       if (!canManage(members.find(member => member.userId === actor)?.role)) {
         throw new WorkspaceMemberRoleError("access_denied", "Current workspace owner or administrator access is required to change member roles.");
@@ -66,7 +66,7 @@ export class WorkspaceMemberRoleRepository {
       if (target.role === request.newRole) throw new WorkspaceMemberRoleError("invalid_input", "This member already has that role. Choose a different role.");
       const previousRole = target.role as ManagedMemberRole, revision = target.revision + 1;
       // The SQL trigger, not a client-supplied counter, advances role_revision.
-      await tx`UPDATE workspace_membership SET role=${request.newRole} WHERE workspace_id=${request.workspaceId} AND user_id=${request.targetUserId}`;
+      await tx`UPDATE active_workspace_membership SET role=${request.newRole} WHERE workspace_id=${request.workspaceId} AND user_id=${request.targetUserId}`;
       const saved = (await tx<ReceiptRow[]>`INSERT INTO workspace_member_role_receipt
         (workspace_id,request_id,target_user_id,created_by,previous_role,new_role,revision,reason,canonical_request)
         VALUES (${request.workspaceId},${request.requestId},${request.targetUserId},${actor},${previousRole},${request.newRole},${revision},${request.reason},${canonical}) RETURNING *`)[0]!;
@@ -89,7 +89,7 @@ export class WorkspaceMemberRoleRepository {
   }
 
   private async lockAuthority(tx: TransactionSql, workspace: string, actor: string): Promise<void> {
-    const rows = await tx`SELECT user_id FROM workspace_membership
+    const rows = await tx`SELECT user_id FROM active_workspace_membership
       WHERE workspace_id=${workspace} AND user_id=${actor} AND role IN ('owner','admin') FOR SHARE`;
     if (!rows.length) throw new WorkspaceMemberRoleError("access_denied", "Current workspace owner or administrator access is required to recover role changes.");
   }

@@ -818,7 +818,7 @@ export class SourcePreparationRepository {
         command.next_attempt_at, command.lease_expires_at, command.last_error_code, command.safe_error,
         command.preparation_id, command.campaign_id, command.created_at, command.updated_at, command.completed_at
       FROM source_preparation_command command
-      JOIN workspace_membership member ON member.workspace_id = command.workspace_id AND member.user_id = ${actor}
+      JOIN active_workspace_membership member ON member.workspace_id = command.workspace_id AND member.user_id = ${actor}
       WHERE command.workspace_id = ${scope} AND command.content_package_id = ${contentPackage}
         AND command.expected_approval_id = ${approval}
       LIMIT 1
@@ -838,7 +838,7 @@ export class SourcePreparationRepository {
         command.next_attempt_at, command.lease_expires_at, command.last_error_code, command.safe_error,
         command.preparation_id, command.campaign_id, command.created_at, command.updated_at, command.completed_at
       FROM source_preparation_command command
-      JOIN workspace_membership member ON member.workspace_id = command.workspace_id AND member.user_id = ${actor}
+      JOIN active_workspace_membership member ON member.workspace_id = command.workspace_id AND member.user_id = ${actor}
       WHERE command.workspace_id = ${scope} AND command.smart_source_id = ${source}
       ORDER BY command.created_at DESC, command.id DESC LIMIT ${boundedLimit}
     `;
@@ -846,7 +846,7 @@ export class SourcePreparationRepository {
   }
 
   private async canRead(tx: TransactionSql, workspaceId: string, actorUserId: string): Promise<boolean> {
-    return Boolean((await tx`SELECT true FROM workspace_membership
+    return Boolean((await tx`SELECT true FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId}`)[0]);
   }
 
@@ -858,7 +858,7 @@ export class SourcePreparationRepository {
     const users = [...new Set([actorUserId, ...(writerUserId ? [writerUserId] : [])])].sort();
     const lockedUsers = await tx<{ id: string }[]>`SELECT id FROM app_user WHERE id IN ${tx(users)} ORDER BY id FOR KEY SHARE`;
     const memberships = await tx<{ userId: string; role: string }[]>`
-      SELECT user_id, role FROM workspace_membership WHERE workspace_id = ${workspaceId}
+      SELECT user_id, role FROM active_workspace_membership WHERE workspace_id = ${workspaceId}
         AND user_id IN ${tx(users)} ORDER BY user_id FOR SHARE
     `;
     const roles = new Map(memberships.map((member) => [member.userId, member.role]));

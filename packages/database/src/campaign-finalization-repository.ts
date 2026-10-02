@@ -107,7 +107,7 @@ export class CampaignFinalizationRepository {
         SELECT preparation.workspace_id, preparation.campaign_id, preparation.planning_version_id,
           preparation.generation_id, preparation.prepared_drafts::text AS prepared_drafts_json
         FROM campaign_preparation preparation
-        JOIN workspace_membership member ON member.workspace_id = preparation.workspace_id AND member.user_id = ${actorUserId}
+        JOIN active_workspace_membership member ON member.workspace_id = preparation.workspace_id AND member.user_id = ${actorUserId}
         WHERE preparation.workspace_id = ${scope} AND preparation.id = ${attemptKey(preparationId)}
       `)[0];
       if (!preparation) return undefined;
@@ -232,7 +232,7 @@ export class CampaignFinalizationRepository {
       SELECT receipt.*, receipt.compiled_definition::text AS compiled_definition_json,
         to_char(receipt.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS created_at_iso
       FROM campaign_finalization receipt
-      JOIN workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
+      JOIN active_workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
       WHERE receipt.workspace_id = ${workspaceId} AND receipt.id = ${attemptKey(finalizationId)}
     `;
     return rows[0] ? publicReceipt(rows[0]) : undefined;
@@ -243,7 +243,7 @@ export class CampaignFinalizationRepository {
       SELECT receipt.*, receipt.compiled_definition::text AS compiled_definition_json,
         to_char(receipt.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS created_at_iso
       FROM campaign_finalization receipt
-      JOIN workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
+      JOIN active_workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
       WHERE receipt.workspace_id = ${workspaceId} AND receipt.idempotency_key = ${attemptKey(idempotencyKey)}
     `;
     return rows[0] ? publicReceipt(rows[0]) : undefined;
@@ -254,7 +254,7 @@ export class CampaignFinalizationRepository {
       SELECT receipt.*, receipt.compiled_definition::text AS compiled_definition_json,
         to_char(receipt.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS created_at_iso
       FROM campaign_finalization receipt
-      JOIN workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
+      JOIN active_workspace_membership member ON member.workspace_id = receipt.workspace_id AND member.user_id = ${actorUserId}
       WHERE receipt.workspace_id = ${workspaceId} AND receipt.campaign_id = ${attemptKey(campaignId)}
     `;
     return rows[0] ? publicReceipt(rows[0]) : undefined;
@@ -265,7 +265,7 @@ export class CampaignFinalizationRepository {
     const workspace = await transaction`SELECT id FROM workspace WHERE id = ${workspaceId} FOR SHARE`;
     const actor = await transaction`SELECT id FROM app_user WHERE id = ${actorUserId} FOR KEY SHARE`;
     const membership = await transaction<{ role: string }[]>`
-      SELECT role FROM workspace_membership WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId} FOR SHARE
+      SELECT role FROM active_workspace_membership WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId} FOR SHARE
     `;
     if (!workspace[0] || !actor[0] || !membership[0] || !["owner", "admin", "editor"].includes(membership[0].role)) {
       throw new CampaignFinalizationError("access_denied", "Current workspace writer access is required to finalize a Campaign.");

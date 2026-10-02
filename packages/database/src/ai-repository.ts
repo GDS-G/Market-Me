@@ -400,7 +400,7 @@ export class AiRepository {
   }
 
   private async lockPolicySaveWriter(tx: TransactionSql, workspaceId: string, actor: string): Promise<void> {
-    const rows = await tx`SELECT user_id FROM workspace_membership WHERE workspace_id=${workspaceId}
+    const rows = await tx`SELECT user_id FROM active_workspace_membership WHERE workspace_id=${workspaceId}
       AND user_id=${actor} AND role IN ('owner','admin','editor') FOR SHARE`;
     if (!rows.length) throw new AiPolicySaveError("access_denied", "Current workspace authoring access is required to save or recover policy settings.");
   }
@@ -5072,7 +5072,7 @@ export class AiRepository {
     lock = false,
   ) {
     const rows = await transaction<{ found: boolean }[]>`
-      SELECT true AS found FROM workspace_membership
+      SELECT true AS found FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId}
         AND role IN ('owner', 'admin', 'editor')
       ${lock ? transaction`FOR SHARE` : transaction``}
@@ -5092,7 +5092,7 @@ export class AiRepository {
     actorUserId: string,
   ) {
     const rows = await transaction<{ found: boolean }[]>`
-      SELECT true AS found FROM workspace_membership
+      SELECT true AS found FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId}
     `;
     if (!rows[0])
@@ -5111,7 +5111,7 @@ export class AiRepository {
     lock = false,
   ) {
     const rows = await transaction<{ found: boolean }[]>`
-      SELECT true AS found FROM workspace_membership
+      SELECT true AS found FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId}
         AND role IN ('owner', 'admin', 'approver')
       ${lock ? transaction`FOR SHARE` : transaction``}
@@ -5131,7 +5131,7 @@ export class AiRepository {
     actorUserId: string,
   ) {
     const rows = await transaction<{ found: boolean }[]>`
-      SELECT true AS found FROM workspace_membership
+      SELECT true AS found FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId}
         AND role IN ('owner', 'admin')
     `;

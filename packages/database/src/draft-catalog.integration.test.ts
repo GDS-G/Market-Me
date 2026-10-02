@@ -46,7 +46,7 @@ describe.skipIf(!url)("current-member draft catalog", () => {
   it.each(["owner", "admin", "editor", "approver", "analyst", "viewer"])("allows current %s access and observes revocation", async role => using(async f => {
     await draft(f); await sql`UPDATE workspace_membership SET role=${role} WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`;
     expect((await f.repository.getPage(f.workspace.workspaceId, f.user.id))?.totalDrafts).toBe("1");
-    await sql`DELETE FROM workspace_membership WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`; expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toBeUndefined();
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`; expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toBeUndefined();
   }));
   it("distinguishes genuine empty from absent and foreign scope", async () => using(async f => {
     expect(await f.repository.getPage(f.workspace.workspaceId, f.user.id)).toMatchObject({ totalDrafts: "0", totalMatches: "0", items: [], nextCursor: null });

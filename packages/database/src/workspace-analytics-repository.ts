@@ -10,7 +10,7 @@ export class WorkspaceAnalyticsRepository {
     const [row] = await this.sql<{ snapshot: string }[]>`
       WITH scope AS (
         SELECT w.id AS workspace_id,c.id AS campaign_id,c.name AS campaign_name
-        FROM workspace w JOIN workspace_membership m ON m.workspace_id=w.id AND m.user_id=${actor}
+        FROM workspace w JOIN active_workspace_membership m ON m.workspace_id=w.id AND m.user_id=${actor}
         LEFT JOIN campaign c ON c.workspace_id=w.id AND c.id=${campaign}
         WHERE w.id=${workspace} AND (${campaign}::uuid IS NULL OR c.id IS NOT NULL)
       ), runs AS (

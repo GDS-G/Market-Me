@@ -34,6 +34,8 @@ export * from "./workspace-management-models";
 export * from "./workspace-management-repository";
 export * from "./workspace-member-role-models";
 export * from "./workspace-member-role-repository";
+export * from "./workspace-member-lifecycle-models";
+export * from "./workspace-member-lifecycle-repository";
 export * from "./workspace-start-models";
 export * from "./workspace-start-repository";
 export * from "./package-work-models";

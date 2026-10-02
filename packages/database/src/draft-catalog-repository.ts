@@ -9,7 +9,7 @@ export class DraftCatalogRepository {
     const at = filters.cursor?.at ?? null, id = filters.cursor?.id ?? null;
     const [row] = await this.sql<{ snapshot: string }[]>`
       WITH scope AS (
-        SELECT w.id FROM workspace w JOIN workspace_membership m ON m.workspace_id=w.id AND m.user_id=${actor} WHERE w.id=${workspace}
+        SELECT w.id FROM workspace w JOIN active_workspace_membership m ON m.workspace_id=w.id AND m.user_id=${actor} WHERE w.id=${workspace}
       ), drafts AS (
         SELECT d.id,d.status,d.updated_at,v.id AS version_id,v.version_number,v.headline,v.body,
           c.id AS campaign_id,c.name AS campaign_name,p.id AS package_id,p.title AS package_title,a.name AS audience_name

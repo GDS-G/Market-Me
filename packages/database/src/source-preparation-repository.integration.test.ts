@@ -216,7 +216,7 @@ describe.skipIf(!databaseUrl)("Smart Source preparation outbox", () => {
         .rejects.toMatchObject({ code: "source_unavailable" });
       await expect(f.sourcePreparations.previewSourcePreparationPlan({ ...input, audienceProfileVersionIds: [foreign.audienceVersionA.id] }, f.owner.id))
         .rejects.toMatchObject({ code: "audience_unavailable" });
-      await sql`DELETE FROM workspace_membership WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.writer.id}`;
+      await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.writer.id}`;
       await expect(f.sourcePreparations.previewSourcePreparationPlan(input, f.writer.id)).rejects.toMatchObject({ code: "access_denied" });
     } finally { await foreign.cleanup(); }
   }));
@@ -385,7 +385,7 @@ describe.skipIf(!databaseUrl)("Smart Source preparation outbox", () => {
     await expect(f.sourcePreparations.getSourcePreparationCommandForApproval(
       f.workspace.workspaceId, randomUUID(), approved.approval.id, f.owner.id,
     )).resolves.toBeUndefined();
-    await sql`DELETE FROM workspace_membership WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.writer.id}`;
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.writer.id}`;
     await expect(f.sourcePreparations.getSourcePreparationCommandForApproval(
       f.workspace.workspaceId, f.contentPackage.id, approved.approval.id, f.writer.id,
     )).resolves.toBeUndefined();

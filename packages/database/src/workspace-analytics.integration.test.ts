@@ -96,7 +96,7 @@ describe.skipIf(!url)("workspace analytics coherent read projection", () => {
     expect((await f.repository.getSnapshot(f.workspace.workspaceId, f.user.id))?.workspaceId).toBe(f.workspace.workspaceId);
   }));
   it("rejects revoked membership even when organization ownership survives", async () => using(async f => {
-    await sql`DELETE FROM workspace_membership WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`;
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`;
     expect(await f.repository.getSnapshot(f.workspace.workspaceId, f.user.id)).toBeUndefined();
   }));
   it("does not reveal another workspace or its Campaigns", async () => using(async f => using(async other => {

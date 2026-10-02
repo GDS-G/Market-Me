@@ -311,7 +311,7 @@ export class ConversationAssistantRepository {
   ): Promise<void> {
     const rows = await transaction<{ found: boolean }[]>`
       SELECT true AS found
-      FROM workspace_membership
+      FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId}
         AND role IN ('owner', 'admin', 'editor')
     `;

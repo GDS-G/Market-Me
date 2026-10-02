@@ -1,5 +1,9 @@
 # Market Me implementation status
 
+## Release 1.52 member lifecycle: development candidate
+
+Safe retained-identity removal, actor/target grant fencing, impact review, explicit invitation rejoining and the Team workflow pass local acceptance:4,418 tests/218 files,44 quality cases,static/frontend/native checks,unsigned packaging and isolated desktop/mobile/production browser journeys. Migrations 0125/0126 are applied only to CI and a new synthetic126-migration QA database; no real collaborator has been removed. First removal preserves140/145 measured tables; the full remove/reinvite/sign-in/remove journey preserves139/145, with only expected access/audit/invitation/receipt/session/OIDC-login activity changed. Google candidate61 paragraphs/six sections preserves all30 tabs and prior content. Publication,exact-source cloud gates and final documentation readback remain pending. [Programmer reference](WORKSPACE_MEMBER_LIFECYCLE.md) records every schema/DTO/count/key/local/global lifetime, lock, audit, API, recovery and compatibility boundary. The prior accepted 1.51 evidence below is unchanged.
+
 ## Release 1.51 personal sessions: verified and published
 
 Settings separates the actual current sign-in from bounded pages of other own-account sessions. Selected review/confirmation, account-serialized revocation, post-lock expiry checks, atomic immutable receipts/audits and explicit read-only recovery protect exact intent. No device identity, IP/location, token or token hash enters the public projection. [Programmer reference](ACCOUNT_SESSIONS.md) documents all contracts and operational boundaries.

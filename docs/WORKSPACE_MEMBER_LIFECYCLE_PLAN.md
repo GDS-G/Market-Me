@@ -1,6 +1,6 @@
 # Safe workspace member lifecycle
 
-Status: independent development after 1.51; initial removal-intent contracts and rollback-only migration tests have 51 passing focused cases, and database type-checking passes. Draft migration 0125 and the current-authority query transition are not deployed or accepted yet; public mutation, rejoin coordination, impact preview and browser workflow are unfinished. All this work is excluded from the session-controls release. The implementation matrix and specification 02/18 leave member lifecycle and access governance incomplete. Existing Team supports invitations and governed role edits but cannot safely remove a collaborator with retained work history.
+Status: 1.52 local acceptance complete; publication,cloud and final documentation acceptance pending. [Implemented programmer reference](WORKSPACE_MEMBER_LIFECYCLE.md) supersedes the exploratory design language below. Migrations0125/0126 are checksum-fixed and applied only to isolated CI/new synthetic QA. The full gate passes4,418 tests/218 files and44 quality cases,static/frontend/native checks,unsigned packaging and independent desktop/mobile/production removal/rejoin acceptance. No real workspace access has been revoked. Google candidate61 paragraphs preserves all30 tabs and prior content. This bounded lifecycle work does not complete all specification02/18 access-governance requirements or the application.
 
 ## Required outcomes
 

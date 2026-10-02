@@ -155,7 +155,8 @@ describe.skipIf(!databaseUrl)("OIDC authentication persistence", () => {
       `;
       expect(audit).toEqual([
         { eventType: "workspace.invitation_created", data: { role: "editor" } },
-        { eventType: "workspace.invitation_accepted", data: { role: "editor" } },
+        { eventType: "workspace.invitation_accepted", data: { role: "editor", membershipGranted: true, revision: 1,
+          incarnationId: (await sql`SELECT incarnation_id FROM active_workspace_membership WHERE workspace_id=${owner.workspace.workspaceId} AND user_id=${result.user.id}`)[0]!.incarnationId } },
       ]);
     } finally {
       await sql`DELETE FROM organization WHERE id = ${owner.workspace.organizationId}`;

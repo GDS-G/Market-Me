@@ -1,12 +1,13 @@
 import { getActiveWorkspace } from "@/server/active-workspace";
 import { notFound, redirect } from "next/navigation";
-import { WORKSPACE_MEMBER_ROLE_LIMITS } from "@market-me/database";
+import { WORKSPACE_MEMBER_ROLE_LIMITS, isWorkspaceMemberLifecycleError } from "@market-me/database";
 import { TeamInvitations } from "@/components/team-invitations";
 import { WorkspaceMemberRoleForm } from "@/components/workspace-member-role-form";
+import { WorkspaceMemberRemovalPanel } from "@/components/workspace-member-removal-panel";
 import styles from "@/components/workspace-management.module.css";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { getAuthenticatedUser } from "@/server/auth";
-import { getRepository, getWorkspaceMemberRoleRepository } from "@/server/database";
+import { getRepository, getWorkspaceMemberRoleRepository, getWorkspaceMemberLifecycleRepository } from "@/server/database";
 
 export default async function TeamPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getAuthenticatedUser();
@@ -15,12 +16,19 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   const workspace = await getActiveWorkspace(user.id);
   if (!workspace) redirect("/login");
   const query = await searchParams;
-  if (Object.keys(query).some(key => key !== "page") || typeof query.page !== "undefined" && (typeof query.page !== "string" || !/^[1-9]\d{0,3}$/.test(query.page))) notFound();
+  if (Object.keys(query).some(key => key !== "page" && key !== "invitationMember") || typeof query.page !== "undefined" && (typeof query.page !== "string" || !/^[1-9]\d{0,3}$/.test(query.page))) notFound();
+  if (query.invitationMember !== undefined && (typeof query.invitationMember !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(query.invitationMember))) notFound();
   const page = Number(query.page ?? "1");
   if (page > WORKSPACE_MEMBER_ROLE_LIMITS.maxPage) notFound();
   const team = await getWorkspaceMemberRoleRepository().listMembers(workspace.workspaceId, user.id, page);
   const canManage = team.canManage;
-  const invitations = canManage ? await repository.listWorkspaceInvitations(workspace.workspaceId) : [];
+  if (query.invitationMember && !canManage) notFound();
+  let invitations;
+  try {
+    invitations = canManage ? query.invitationMember
+      ? await getWorkspaceMemberLifecycleRepository().listPendingInvitations(workspace.workspaceId, query.invitationMember, user.id)
+      : await repository.listWorkspaceInvitations(workspace.workspaceId) : [];
+  } catch (error) { if (isWorkspaceMemberLifecycleError(error) && (error.code === "not_found" || error.code === "access_denied")) notFound(); throw error; }
   return (
     <WorkspaceShell activePath="/team" workspaceName={workspace.workspaceName} userName={user.displayName}>
       <div className="resource-page">
@@ -34,9 +42,12 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
         </section>
         {canManage && <section className={`resource-panel ${styles.panel}`}><h2>Member role management</h2>
           <WorkspaceMemberRoleForm userId={user.id} workspaceId={workspace.workspaceId} members={team.members} /></section>}
-        {canManage && <section className="resource-panel">
+        {canManage && <section className={`resource-panel ${styles.panel}`}><h2>Remove workspace access</h2>
+          <WorkspaceMemberRemovalPanel userId={user.id} workspaceId={workspace.workspaceId} members={team.members} /></section>}
+        {canManage && <section className="resource-panel" id="identity-invitations">
           <div className="resource-panel-head"><div><h2>Identity invitations</h2><p>Pending grants expire automatically and are consumed only by a matching verified email.</p></div></div>
-          <TeamInvitations workspaceId={workspace.workspaceId} invitations={invitations} canManage={canManage} />
+          {query.invitationMember && <p>Related pending invitations for member {query.invitationMember}: incoming grants or grants issued by that member, at most 200 shown. Review and revoke only the invitations you intend to cancel. Reloading after each change reveals remaining related grants; unrelated invitations are excluded. <a href="/team#identity-invitations">Return to all recent invitations</a></p>}
+          <TeamInvitations key={`${user.id}:${workspace.workspaceId}:${query.invitationMember ?? "recent"}`} workspaceId={workspace.workspaceId} invitations={invitations} canManage={canManage} showCreateForm={!query.invitationMember} />
         </section>}
       </div>
     </WorkspaceShell>

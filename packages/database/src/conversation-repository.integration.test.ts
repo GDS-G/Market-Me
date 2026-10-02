@@ -1127,7 +1127,7 @@ describe.skipIf(!databaseUrl)("conversation repository", () => {
         issues: [expect.objectContaining({ field: "targetOwnerId" })],
       });
       await sql`
-        DELETE FROM workspace_membership
+        UPDATE workspace_membership SET revoked_at=clock_timestamp()
         WHERE workspace_id = ${first.workspace.workspaceId}
           AND user_id = ${second.user.id}
       `;

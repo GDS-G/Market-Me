@@ -194,7 +194,7 @@ export class ConversationComposerRepository {
   ): Promise<void> {
     await this.sql`
       DELETE FROM conversation_drafting_presence presence
-      USING workspace_membership membership
+      USING active_workspace_membership membership
       WHERE presence.workspace_id = ${workspaceId}
         AND presence.conversation_thread_id = ${conversationThreadId}
         AND presence.actor_kind = ${actorKind}
@@ -233,7 +233,7 @@ export class ConversationComposerRepository {
     actorUserId: string,
   ): Promise<void> {
     const rows = await transaction<{ found: boolean }[]>`
-      SELECT true AS found FROM workspace_membership
+      SELECT true AS found FROM active_workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId}
         AND role IN ('owner', 'admin', 'editor')
     `;

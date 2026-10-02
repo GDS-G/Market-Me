@@ -6,6 +6,7 @@ import type {
   ContextPackVersion,
 } from "@market-me/domain";
 import type { DatabaseClient } from "./client";
+import { lockWorkspaceMemberGrant } from "./workspace-member-grant-lock";
 import { ContentPackageReviewRepository, assertPackageReviewUuid } from "./content-package-review-repository";
 import { ContentPackageReviewError, type ContentPackageApprovalInput, type ContentPackageApprovalResult, type ContentPackageReview } from "./content-package-review-models";
 import {
@@ -93,7 +94,7 @@ export class MarketMeRepository {
       >`
         SELECT w.id AS workspace_id, w.organization_id, w.name AS workspace_name, wm.role
         FROM workspace w
-        JOIN workspace_membership wm ON wm.workspace_id = w.id
+        JOIN active_workspace_membership wm ON wm.workspace_id = w.id
         WHERE wm.user_id = ${user.id}
         ORDER BY w.created_at
         LIMIT 1
@@ -206,6 +207,9 @@ export class MarketMeRepository {
   }): Promise<OidcSignInResult> {
     const normalizedEmail = normalizeEmail(input.email);
     return this.sql.begin(async (transaction) => {
+      // Serialize same-email provisioning without taking an app_user UPDATE lock
+      // before membership locks. Role/removal receipts need user FK KEY SHARE.
+      await transaction`SELECT pg_advisory_xact_lock(hashtextextended(${JSON.stringify(["oidc-account-provision-v1", normalizedEmail])},0))`;
       const linked = await transaction<(AuthenticatedUser & { normalizedEmail: string })[]>`
         SELECT app_user.id, app_user.email, app_user.display_name, app_user.normalized_email
         FROM oidc_identity
@@ -234,14 +238,13 @@ export class MarketMeRepository {
           AND status = 'pending' AND expires_at > now()
         ORDER BY created_at
         LIMIT 100
-        FOR UPDATE
       `;
 
       let users = await transaction<AuthenticatedUser[]>`
         SELECT id, email, display_name
         FROM app_user
         WHERE normalized_email = ${normalizedEmail}
-        FOR UPDATE
+        FOR KEY SHARE
       `;
       let bootstrapped = false;
       if (!users[0]) {
@@ -266,7 +269,7 @@ export class MarketMeRepository {
       );
 
       const access = await transaction<{ found: boolean }[]>`
-        SELECT true AS found FROM workspace_membership
+        SELECT true AS found FROM active_workspace_membership
         WHERE user_id = ${user.id}
         LIMIT 1
       `;
@@ -329,6 +332,15 @@ export class MarketMeRepository {
     userId: string,
     normalizedEmail: string,
   ): Promise<boolean> {
+    // Discover a bounded set without locks, then acquire grant keys in a stable
+    // workspace order before invitation/member rows. New other-workspace invites
+    // are deliberately left for a later sign-in, never accepted without a key.
+    const candidates = await transaction<{ workspaceId: string }[]>`
+      SELECT workspace_id FROM workspace_invitation WHERE normalized_email=${normalizedEmail}
+        AND status='pending' AND expires_at>clock_timestamp() ORDER BY workspace_id LIMIT 100`;
+    const scopes = [...new Set(candidates.map(row => row.workspaceId))].sort();
+    if (!scopes.length) return false;
+    for (const workspaceId of scopes) await lockWorkspaceMemberGrant(transaction, workspaceId, normalizedEmail);
     const invitations = await transaction<{
       id: string;
       workspaceId: string;
@@ -340,22 +352,32 @@ export class MarketMeRepository {
       FROM workspace_invitation invitation
       JOIN workspace ON workspace.id = invitation.workspace_id
       WHERE invitation.normalized_email = ${normalizedEmail}
+        AND invitation.workspace_id IN ${transaction(scopes)}
         AND invitation.status = 'pending'
-        AND invitation.expires_at > now()
-      ORDER BY invitation.created_at
+        AND invitation.expires_at > clock_timestamp()
+      ORDER BY invitation.workspace_id, invitation.id
       LIMIT 100
       FOR UPDATE OF invitation
     `;
+    let accepted = false;
     for (const invitation of invitations) {
+      await transaction`SELECT user_id FROM workspace_membership
+        WHERE workspace_id=${invitation.workspaceId} AND user_id=${userId} FOR UPDATE`;
+      // Expiry must be checked after possible invitation/member lock waits.
+      if (!(await transaction`SELECT id FROM workspace_invitation WHERE id=${invitation.id}
+        AND status='pending' AND expires_at>clock_timestamp()`)[0]) continue;
       await transaction`
         INSERT INTO organization_membership (organization_id, user_id, role)
         VALUES (${invitation.organizationId}, ${userId}, 'member')
         ON CONFLICT (organization_id, user_id) DO NOTHING
       `;
-      await transaction`
+      const granted = await transaction<{ incarnationId: string; roleRevision: number }[]>`
         INSERT INTO workspace_membership (workspace_id, user_id, role)
         VALUES (${invitation.workspaceId}, ${userId}, ${invitation.role})
-        ON CONFLICT (workspace_id, user_id) DO NOTHING
+        ON CONFLICT (workspace_id, user_id) DO UPDATE SET
+          role=EXCLUDED.role,revoked_at=NULL,incarnation_id=gen_random_uuid()
+        WHERE workspace_membership.revoked_at IS NOT NULL
+        RETURNING incarnation_id,role_revision
       `;
       await transaction`
         UPDATE workspace_invitation
@@ -368,11 +390,13 @@ export class MarketMeRepository {
         ) VALUES (
           ${randomUUID()}, ${invitation.workspaceId}, ${userId},
           'workspace.invitation_accepted', 'workspace_invitation', ${invitation.id},
-          ${transaction.json({ role: invitation.role } as JSONValue)}
+          ${transaction.json({ role: invitation.role, membershipGranted: granted.length > 0,
+            ...(granted[0] ? { incarnationId: granted[0].incarnationId, revision: granted[0].roleRevision } : {}) } as JSONValue)}
         )
       `;
+      accepted = true;
     }
-    return invitations.length > 0;
+    return accepted;
   }
 
   async listWorkspaceAccess(
@@ -381,7 +405,7 @@ export class MarketMeRepository {
     return this.sql<WorkspaceAccess[]>`
       SELECT w.id AS workspace_id, w.organization_id, w.name AS workspace_name, wm.role
       FROM workspace w
-      JOIN workspace_membership wm ON wm.workspace_id = w.id
+      JOIN active_workspace_membership wm ON wm.workspace_id = w.id
       WHERE wm.user_id = ${userId}
       -- Stable fallback selection: a new workspace or display-name edit must not
       -- silently switch users who have not saved an active-workspace cookie.
@@ -396,7 +420,7 @@ export class MarketMeRepository {
     const rows = await this.sql<WorkspaceAccess[]>`
       SELECT w.id AS workspace_id, w.organization_id, w.name AS workspace_name, wm.role
       FROM workspace w
-      JOIN workspace_membership wm ON wm.workspace_id = w.id
+      JOIN active_workspace_membership wm ON wm.workspace_id = w.id
       WHERE wm.user_id = ${userId} AND w.id = ${workspaceId}
       LIMIT 1
     `;
@@ -410,7 +434,7 @@ export class MarketMeRepository {
       SELECT membership.user_id, app_user.display_name, membership.role,
         membership.role IN ('owner', 'admin', 'editor')
           AS assignable_to_conversations
-      FROM workspace_membership membership
+      FROM active_workspace_membership membership
       JOIN app_user ON app_user.id = membership.user_id
       WHERE membership.workspace_id = ${workspaceId}
       ORDER BY lower(app_user.display_name), app_user.id
@@ -438,8 +462,9 @@ export class MarketMeRepository {
   }): Promise<WorkspaceInvitation> {
     const normalizedEmail = normalizeEmail(input.email);
     return this.sql.begin(async (transaction) => {
+      await lockWorkspaceMemberGrant(transaction, input.workspaceId, normalizedEmail);
       const actor = await transaction<{ role: WorkspaceRole }[]>`
-        SELECT role FROM workspace_membership
+        SELECT role FROM active_workspace_membership
         WHERE workspace_id = ${input.workspaceId} AND user_id = ${input.invitedBy}
         FOR UPDATE
       `;
@@ -493,8 +518,11 @@ export class MarketMeRepository {
     revokedBy: string;
   }): Promise<WorkspaceInvitation | undefined> {
     return this.sql.begin(async (transaction) => {
+      const [scope] = await transaction<{ normalizedEmail: string }[]>`SELECT normalized_email FROM workspace_invitation
+        WHERE id=${input.invitationId} AND workspace_id=${input.workspaceId}`;
+      if (scope) await lockWorkspaceMemberGrant(transaction, input.workspaceId, scope.normalizedEmail);
       const actor = await transaction<{ role: WorkspaceRole }[]>`
-        SELECT role FROM workspace_membership
+        SELECT role FROM active_workspace_membership
         WHERE workspace_id = ${input.workspaceId} AND user_id = ${input.revokedBy}
         FOR UPDATE
       `;

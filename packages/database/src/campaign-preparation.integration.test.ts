@@ -313,7 +313,7 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
     expect(await f.preparation.get(f.workspace.workspaceId, receipt.id, randomUUID())).toBeUndefined();
     expect(await f.preparation.listForWorkspace(f.workspace.workspaceId, randomUUID())).toEqual([]);
     expect(await f.preparation.listForWorkspace(randomUUID(), f.user.id)).toEqual([]);
-    await sql`DELETE FROM workspace_membership WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.user.id}`;
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.user.id}`;
     expect(await f.preparation.get(f.workspace.workspaceId, receipt.id, f.user.id)).toBeUndefined();
     expect(await f.preparation.getByKey(f.workspace.workspaceId, key, f.user.id)).toBeUndefined();
     expect(await f.preparation.listForWorkspace(f.workspace.workspaceId, f.user.id)).toEqual([]);

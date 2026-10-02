@@ -26,7 +26,7 @@ describe.skipIf(!url)("exact read-only package work lineage", () => {
     expect(await repository.getSnapshot(f.workspace.workspaceId, other.contentPackage.id, f.user.id)).toBeUndefined();
     expect(await repository.getSnapshot(other.workspace.workspaceId, other.contentPackage.id, f.user.id)).toBeUndefined();
     expect(await repository.getSnapshot(f.workspace.workspaceId, randomUUID(), f.user.id)).toBeUndefined();
-    await sql`DELETE FROM workspace_membership WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`;
+    await sql`UPDATE workspace_membership SET revoked_at=clock_timestamp() WHERE workspace_id=${f.workspace.workspaceId} AND user_id=${f.user.id}`;
     expect(await repository.getSnapshot(f.workspace.workspaceId, f.contentPackage.id, f.user.id)).toBeUndefined();
   })));
   it("returns a real empty package rather than treating absence or pending work as a preparation", async () => using(async (f, repository) => {
