@@ -1,6 +1,6 @@
 # Outcome-first AI controls
 
-Status: implemented in the 1.37 candidate; final gates remain separate from focused tests/browser checks. [Programmer reference](AI_CONTROLS_USABILITY.md) inventories the delivered controls, state and boundaries. Specification sections 01/19 require ordinary users to choose practical outcomes and see cost/privacy boundaries without starting with provider internals.
+Status: implemented and published on main in verified 1.37. Final local, exact-source feature/main cloud and Google development-tab gates pass; [Releases](RELEASES.md) separates the evidence. [Programmer reference](AI_CONTROLS_USABILITY.md) inventories the delivered controls, state and boundaries. Specification sections 01/19 require ordinary users to choose practical outcomes and see cost/privacy boundaries without starting with provider internals.
 
 ## Observed gap and intended result
 

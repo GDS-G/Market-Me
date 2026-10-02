@@ -2,7 +2,7 @@
 
 ## Release 1.37 AI control affordances
 
-Reader policy/mode/alert controls are disabled or replaced by read-only values, while independent approver spend review remains. These are presentation checks; existing API current-member/role guards remain mandatory. All provider/recovery controls remain explicit behind native disclosures; opening them sends no provider request or approval. Workspace/role/policy key changes reset stale editor state. Static indicators, open execution windows and loaded incident counts are not permission, price, quality or complete readiness evidence. No secret, schema, external call, new authority or monetary reinterpretation is introduced. See [AI controls](AI_CONTROLS_USABILITY.md); exact candidate cloud audits remain pending.
+Reader policy/mode/alert controls are disabled or replaced by read-only values, while independent approver spend review and its error feedback remain. These are presentation checks; existing API current-member/role guards remain mandatory. All provider/recovery controls remain explicit behind native disclosures; opening them sends no provider request or approval. Workspace/role/policy key changes reset stale editor state. Static indicators, open execution windows and loaded incident counts are not permission, price, quality or complete readiness evidence. No secret, schema, external call, new authority or monetary reinterpretation is introduced. See [AI controls](AI_CONTROLS_USABILITY.md); exact-source feature/main production and full dependency audits each report zero vulnerabilities.
 
 ## Release 1.36 pooling is not authority caching
 

@@ -1,10 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.37 candidate checkpoint
+## Release 1.37 verified checkpoint
 
 Final local gate: **2,944 tests/161 files, no skips**. Split: web 1124/65; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 29/4; ingestion 33/5; media 24/2; workflows 43/3. All 12 typechecks, lint, both frontends, cargo check and three Rust tests pass. Next compile 2.7 s, TypeScript 3.2 s, 104/104 generation 466 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms. Schema remains 120/latest frozen 0120 with clean replay/fixture cleanup.
 
-Focused coverage adds 39 cases across pure nine-field dirty labels, rendered policy role/cost semantics and authenticated page/disclosure/scoping. Local desktop/mobile/keyboard, unsaved-state workspace reset, production authentication/current-role rendering and unsigned Windows packaging pass separately. All 36 synthetic AI/audit table fingerprints remain unchanged. Exact-source cloud feature/main tests/audits and final Google verification are pending; [Releases](RELEASES.md) is the evidence ledger.
+Focused coverage adds 39 cases across pure nine-field dirty labels, rendered policy role/cost/feedback semantics and authenticated page/disclosure/scoping. Local desktop/mobile/keyboard, unsaved-state workspace reset, production authentication/current-role rendering and unsigned Windows packaging pass separately. All 36 synthetic AI/audit table fingerprints remain unchanged. Exact runtime `1b222fe1bafc1c9a0a8c8207b9edbc3d7cfc9949` passes [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36949997266) in 2:59 and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36950294817) in 4:03. Each reproduces the full test split, 120 migrations, native dependency smoke, static/build checks, cleanup and both zero-vulnerability audits; locked installs add 609 packages/audit 622. Next compile is 10.7/13.4 s; 104/104 generation 286/548 ms respectively. Final Google readback passes; [Releases](RELEASES.md) is the evidence ledger.
 
 ## Release 1.36 verified checkpoint
 

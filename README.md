@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.37 candidate: Practical AI controls
+## Release 1.37: Practical AI controls
 
 AI & Cost now starts with outcome preferences, honest saved/default/unsaved labels and recorded budget boundaries. Technical configuration and diagnostics remain available in four native keyboard-accessible disclosures; safety opens automatically for active issues, stops or an execution window. Readers can inspect policy without writer controls, and editor state resets across workspace/role/policy changes. [Programmer reference](docs/AI_CONTROLS_USABILITY.md) records all props, collections and limits.
 
-Final local acceptance passes 2,944 tests/161 files, static/frontend/native checks, desktop/mobile/keyboard and production scope checks, plus unsigned Windows packaging. All 36 synthetic AI/audit table fingerprints remain unchanged during browser interactions. Cloud verification/publication and Google synchronization are pending. No provider execution, new monetary semantics or whole-product completion is claimed. [Responsive workspace navigation](docs/RESPONSIVE_WORKSPACE_NAVIGATION_PLAN.md) is the next independent increment.
+Reviewed runtime `1b222fe1bafc1c9a0a8c8207b9edbc3d7cfc9949` is public on main. Exact [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36949997266) and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36950294817) each pass 2,944 tests/161 files, 120 migrations, static/build checks and both clean audits. Local native/unsigned packaging, desktop/mobile/keyboard and production scope checks pass separately. All 36 synthetic AI/audit table fingerprints remain unchanged; all six Google development tabs are verified with prior content/styles and the 30-tab structure preserved. No provider execution, new monetary semantics or whole-product completion is claimed. [Responsive workspace navigation](docs/RESPONSIVE_WORKSPACE_NAVIGATION_PLAN.md) is the next independent increment.
 
 ## Previous release 1.36: Production database pool reuse
 

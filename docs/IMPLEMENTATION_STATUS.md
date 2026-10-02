@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Current candidate: Release 1.37 AI controls usability
+## Current verified source: Release 1.37 AI controls usability
 
 Outcome preferences, saved/default/dirty labeling, loaded-cap usage, role-honest read-only policy and four optional technical disclosures are implemented. Editor remount identity prevents unsaved values surviving workspace, role or saved-policy changes. No provider, spend or approval authority is added. [Full programmer reference](AI_CONTROLS_USABILITY.md) includes the legacy currency-formatting limit and unchanged query cost.
 
-Final local gate passes 2,944 tests/161 files plus static/frontend/native checks, unsigned packaging, desktop/mobile/keyboard and production scope acceptance. All 36 synthetic AI/audit fingerprints and existing journey counts remain unchanged. Cloud and Google publication evidence are pending. Broader product scope remains unfinished. [Responsive workspace navigation](RESPONSIVE_WORKSPACE_NAVIGATION_PLAN.md) addresses the next confirmed usability gap: the existing mobile shell hides navigation entirely.
+Reviewed runtime `1b222fe1bafc1c9a0a8c8207b9edbc3d7cfc9949` is public on main. Local and independent exact-source feature/main cloud gates each pass 2,944 tests/161 files plus static/frontend checks and 120 migrations; both cloud audits are clean in both runs. Local native/unsigned packaging, desktop/mobile/keyboard and production scope acceptance pass separately. All 36 synthetic AI/audit fingerprints and existing journey counts remain unchanged. Final Google readback verifies all 35 added paragraphs and preserves prior content/styles and all 30 tabs. [Releases](RELEASES.md) records exact evidence. Broader product scope remains unfinished; [responsive workspace navigation](RESPONSIVE_WORKSPACE_NAVIGATION_PLAN.md) is the next independently scoped correction.
 
 ## Previous verified source: Release 1.36 production pool lifecycle
 

@@ -1,6 +1,6 @@
 # AI controls: preferences, saved boundaries and optional technical detail
 
-Implemented in the 1.37 candidate from [the scoped plan](AI_CONTROLS_USABILITY_PLAN.md). This reorganizes `/ai-settings` and corrects presentation/state lifetime; it does not grant execution, connect a provider, reserve money or change monetary/storage semantics. [Releases](RELEASES.md) distinguishes candidate, local, cloud and publication evidence.
+Implemented and published on main in verified 1.37 from [the scoped plan](AI_CONTROLS_USABILITY_PLAN.md). This reorganizes `/ai-settings` and corrects presentation/state lifetime; it does not grant execution, connect a provider, reserve money or change monetary/storage semantics. [Releases](RELEASES.md) distinguishes local, cloud and publication evidence.
 
 ## Page topology and authority
 
