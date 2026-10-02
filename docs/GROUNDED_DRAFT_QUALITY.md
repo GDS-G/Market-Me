@@ -1,6 +1,6 @@
 # Grounded draft presentation and offline quality gate
 
-Candidate 1.39 implements the [scoped quality plan](GROUNDED_DRAFT_QUALITY_PLAN.md). [Releases](RELEASES.md) tracks final evidence separately. This is a deterministic copy repair and a synthetic regression gate, not semantic understanding, a language model evaluation, factual truth verification or permission to publish.
+Verified release 1.39 implements the [scoped quality plan](GROUNDED_DRAFT_QUALITY_PLAN.md). Reviewed runtime `726bf19ff10d8cd37cb056d70e52b574d37f6cf4` is public on main; [Releases](RELEASES.md) records independent local/cloud/browser/native and Google evidence. This is a deterministic copy repair and a synthetic regression gate, not semantic understanding, a language model evaluation, factual truth verification or permission to publish.
 
 ## Reproduced defects and selected contract
 

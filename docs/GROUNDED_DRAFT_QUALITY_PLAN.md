@@ -1,6 +1,6 @@
 # Grounded draft quality and representative evaluation
 
-Status: implemented for the 1.39 candidate. Full local, 44-case evaluation, native/package and browser/production checks pass; cloud publication and Google synchronization remain pending. [Programmer reference](GROUNDED_DRAFT_QUALITY.md) records the delivered contract. Specification sections 06, 19 and 23 require traceable output and representative quality gates, not just a count of passing infrastructure tests. The scope below preserves original intent and reproduced findings.
+Status: delivered in verified release 1.39, runtime `726bf19ff10d8cd37cb056d70e52b574d37f6cf4`, public on main. Full local and independent exact-source feature/main cloud gates pass 3,055 tests/165 files, 44/44 evaluations and both cloud audits; native/package, browser/production and final Google readback pass separately. [Programmer reference](GROUNDED_DRAFT_QUALITY.md) records the delivered contract. Specification sections 06, 19 and 23 require traceable output and representative quality gates, not just a count of passing infrastructure tests. The scope below preserves original intent and reproduced findings.
 
 ## Observed implementation and gaps
 

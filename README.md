@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.39 candidate: Evidence-preserving copy and quality checks
+## Release 1.39: Evidence-preserving copy and quality checks
 
 Generated and revised drafts now preserve approved question/exclamation punctuation, share a clearly scoped copy-length measurement and report the actual selected format in errors. New output is versioned; historical drafts remain unchanged. A 44-case synthetic corpus covers all format/depth/promotion choices and exact boundaries, with evaluator self-tests that reject altered facts and citations. [Programmer reference](docs/GROUNDED_DRAFT_QUALITY.md) explains the contracts and limits.
 
-Local acceptance passes 3,055 tests/165 files, all static/frontend/native checks, unsigned packaging, browser successor/mobile and production reload checks. Cloud publication and Google synchronization are pending. This is a deterministic copy gate, not semantic understanding, real-model quality acceptance or whole-product completion; see [Releases](docs/RELEASES.md).
+Reviewed runtime `726bf19ff10d8cd37cb056d70e52b574d37f6cf4` is public on main. Local and independent exact-source feature/main cloud gates pass 3,055 tests/165 files and 44/44 evaluations; both cloud audits are clean in both runs. Native/unsigned packaging, browser/mobile/production checks and final Google development-tab readback pass separately. This is a deterministic copy gate, not semantic understanding, real-model acceptance or whole-product completion; see [Releases](docs/RELEASES.md). [Source-evidence integrity](docs/SOURCE_EVIDENCE_INTEGRITY_PLAN.md) is the next independent increment.
 
 ## Previous release 1.38: Responsive workspace navigation
 

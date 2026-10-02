@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Current local candidate: Release 1.39 grounded-draft quality
+## Current verified source: Release 1.39 grounded-draft quality
 
 Shared generation/manual/AI-application rendering preserves approved punctuation and consistently counts body/CTA UTF-16 units. New batches and presentation snapshots carry distinct version identities; no history is rewritten. The independent 44-case synthetic oracle plus evaluator self-tests covers evidence/citation preservation, depth/promotion choices, audience parity and exact format boundaries. [Full reference](GROUNDED_DRAFT_QUALITY.md) separates deterministic evaluation from semantic understanding and real model/provider quality.
 
-Local acceptance passes 3,055 tests/165 files, 44/44 offline evaluations, all static/frontend/native checks, unsigned packaging, browser successor/mobile and production reload. Cloud publication and Google synchronization are pending. Broader product scope remains unfinished; no user input is needed for continuing independent work.
+Reviewed runtime `726bf19ff10d8cd37cb056d70e52b574d37f6cf4` is public on main. Local and independent exact-source feature/main cloud gates each pass 3,055 tests/165 files and 44/44 offline evaluations; cloud gates apply all 120 migrations and pass both clean audits. Local static/native/unsigned packaging and browser/mobile/production checks pass separately. Final Google readback verifies 35 authored paragraphs, prior bodies/styles and all 30 tabs. [Source-evidence integrity](SOURCE_EVIDENCE_INTEGRITY_PLAN.md) is underway independently: its reproduced failures and new fixes/tests are excluded from these accepted totals. Broader product scope remains unfinished; no user input is needed merely to continue.
 
 ## Previous verified source: Release 1.38 responsive navigation
 
