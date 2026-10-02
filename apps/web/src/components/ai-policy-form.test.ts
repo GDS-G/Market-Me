@@ -7,7 +7,7 @@ import { AiPolicyForm } from "./ai-policy-form";
 const mocks = vi.hoisted(() => ({ refresh: vi.fn(), fetch: vi.fn(), formError: "", emptyStateCount: 0 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh }) }));
 // Preserve real hooks, but inject the existing error state for SSR feedback tests.
-// The component's three initially-empty strings are justification, selected ID, error.
+// The first three empty strings are justification, selected ID, and the budget recovery error.
 vi.mock("react", async importOriginal => {
   const actual = await importOriginal<typeof import("react")>();
   return { ...actual, useState(initial: unknown) {
@@ -34,7 +34,7 @@ describe("role-honest AI policy presentation", () => {
   it("keeps request failure feedback visible to an approver without a policy form", () => {
     mocks.formError = "Synthetic spend decision failure";
     const html = render({ ...props(), canApproveSpendException: true });
-    expect(html).toContain('role="alert">Synthetic spend decision failure</p>');
+    expect(html).toMatch(/<p[^>]*role="alert"[^>]*>Synthetic spend decision failure<\/p>/);
     expect(html).not.toContain("<form"); expect(html).not.toContain("Save AI policy");
   });
   it.each(["owner", "admin", "editor", "approver", "analyst", "viewer"])("renders %s affordances according to existing independent capabilities", role => {

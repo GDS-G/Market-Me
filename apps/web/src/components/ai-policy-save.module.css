@@ -17,3 +17,17 @@
 .fields > button { justify-self: start; padding: 12px 18px; border-radius: 9px; }
 .fields > button:disabled { opacity: .65; cursor: default; }
 @media (max-width: 600px) { .notice, .result { padding: 16px; } .actions button { flex: 1 1 160px; } }
+.budgetPanel { min-width: 0; overflow-wrap: anywhere; }
+.budgetPanel :global(.resource-panel-head) { padding: 20px; min-height: auto; }
+.budgetPanel :global(.resource-panel-head) h2 { font-size: 18px; }
+.budgetPanel :global(.resource-panel-head) p { font-size: 13px; line-height: 1.6; }
+.budgetPanel :global(.ai-budget-alert-list), .budgetPanel :global(.ai-spend-exception-list) { padding: 0 20px 20px; font-size: 14px; line-height: 1.6; }
+.budgetPanel :global(.ai-spend-exception-form) { margin: 0 20px; }
+.budgetPanel :global(.field) > span { font-size: 12px; }
+.budgetPanel :global(.field) select, .budgetPanel :global(.field) textarea { font-size: 14px; }
+.budgetPanel button { min-height: 44px; padding: 10px 16px; border-radius: 9px; font-size: 14px; }
+.budgetPanel button:disabled { opacity: .55; cursor: default; }
+.budgetPanel button:focus-visible, .recovery button:focus-visible, .result a:focus-visible { outline: 3px solid #7b50b1; outline-offset: 3px; }
+.budgetPanel :global(.ai-spend-exception-actions) { flex-wrap: wrap; }
+.budgetPanel article > div { min-width: 0; }
+@media (max-width: 600px) { .budgetPanel :global(.ai-spend-exception-form) { margin: 0 12px; } .budgetPanel :global(.ai-spend-exception-actions) { width: 100%; } }

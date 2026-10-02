@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.42 budget-action recovery
+
+Three existing mutations share closed bounded same-origin transport and a minimized entity projection. Membership FOR SHARE precedes the existing target lock through commit. Explicit GET recovery rechecks the appropriate current ability and reads the exact alert, denied-reservation request or exception without mutation. The hydration-gated browser retains one original action per account/workspace tab, blocks same-tick duplicates and freezes budget actions until acknowledged clearing/reload. Unlike policy saves, this is mutable current-state recovery with no retry or immutable receipt. [Complete design and compatibility](AI_BUDGET_ACTION_RECOVERY.md) documents the distinction. Schema remains121; no provider/reservation authority is added.
+
 ## Release 1.41 policy-save transaction and recovery
 
 The same-origin bounded API calls AiRepository.savePolicyExactly: lock current writer membership, serialize exact request key, replay immutable original receipt or compare/lock revision, then atomically write policy/receipt/audit. Conditional upsert closes the missing-row race; the revision trigger covers all trusted writers. Read-only recovery rechecks current original-actor authority. The hydration-gated client persists account/workspace-scoped exact settings before transport, freezes editing and offers explicit lookup/replay without automatic refresh or retry. [Complete design](AI_POLICY_SAVE_RECOVERY.md) records locks, per-form refs, response validation and rollback limits. No provider or spend authority is introduced.

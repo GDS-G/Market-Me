@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
 import type {
   AiMode,
   AiModeIndicators,
@@ -15,6 +14,7 @@ import { AI_MODES } from "@market-me/domain";
 import type { WorkspaceAiPolicyWrite } from "@market-me/database";
 import { aiPolicyChoiceLabel } from "./ai-policy-presentation";
 import { AiPolicySaveRecovery, useAiPolicySaveRecovery } from "./ai-policy-save-recovery";
+import { BudgetActionRecovery, useBudgetActionRecovery } from "./ai-budget-action-recovery";
 import styles from "./ai-policy-save.module.css";
 
 const modeDescriptions: Readonly<Record<AiMode, string>> = {
@@ -46,7 +46,7 @@ const subscribe = () => () => {}, browser = () => true, server = () => false;
 export function AiPolicyForm(props: AiPolicyFormProps) {
   const ready = useSyncExternalStore(subscribe, browser, server);
   // Static preview never reads browser recovery storage. Remount once hydrated or scope changes.
-  return <AiPolicyPanel key={JSON.stringify([props.userId, props.workspaceId, props.canEditPolicy, props.policyRevision, ready])} {...props} recoveryReady={ready} />;
+  return <AiPolicyPanel key={JSON.stringify([props.userId, props.workspaceId, props.canEditPolicy, props.canRequestSpendException, props.canApproveSpendException, props.policyRevision, ready])} {...props} recoveryReady={ready} />;
 }
 export function AiPolicyPanel({
   userId,
@@ -65,12 +65,11 @@ export function AiPolicyPanel({
   hasSavedPolicy,
   modeIndicators,
 }: AiPolicyFormProps & { recoveryReady: boolean }) {
-  const router = useRouter();
-  const [pendingAlertId, setPendingAlertId] = useState<string>();
-  const [pendingSpendExceptionAction, setPendingSpendExceptionAction] = useState<string>();
   const [exceptionJustification, setExceptionJustification] = useState("");
   const [selectedDeniedReservationId, setSelectedDeniedReservationId] = useState("");
-  const [error, setError] = useState("");
+  const budgetRecovery = useBudgetActionRecovery({ userId, workspaceId, recoveryReady, canAcknowledge: canEditPolicy, canRequest: canRequestSpendException, canDecide: canApproveSpendException });
+  const pendingAlertId = budgetRecovery.pending && budgetRecovery.attempt?.action.kind === "acknowledge_alert" ? budgetRecovery.attempt.action.targetId : undefined;
+  const pendingSpendExceptionAction = budgetRecovery.pending && budgetRecovery.attempt?.action.kind === "request_exception" ? "request" : undefined;
   const recovery = useAiPolicySaveRecovery({ userId, workspaceId, policyRevision, policy, canEditPolicy, recoveryReady });
   const { values, setValues, pending, frozen } = recovery;
   const selectedIndicators = modeIndicators[values.mode];
@@ -93,74 +92,22 @@ export function AiPolicyPanel({
   }
 
   async function acknowledgeAlert(alertId: string) {
-    if (!canEditPolicy) return;
-    setPendingAlertId(alertId);
-    setError("");
-    const response = await fetch(
-      `/api/v1/ai-budget-alerts/${alertId}/acknowledge`,
-      {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ workspaceId }),
-      },
-    );
-    const body = await response.json().catch(() => ({}));
-    setPendingAlertId(undefined);
-    if (!response.ok) {
-      setError(body?.error?.message ?? "Could not acknowledge the budget alert.");
-      return;
-    }
-    router.refresh();
+    await budgetRecovery.run({ kind: "acknowledge_alert", workspaceId, targetId: alertId });
   }
 
   async function requestSpendException(event: React.FormEvent) {
     event.preventDefault();
     const deniedReservationId =
       selectedDeniedReservationId || eligibleDeniedReservations[0]?.id;
-    if (!deniedReservationId) return;
-    setPendingSpendExceptionAction("request");
-    setError("");
-    const response = await fetch("/api/v1/ai-spend-exceptions", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        workspaceId,
-        deniedReservationId,
-        justification: exceptionJustification,
-      }),
-    });
-    const body = await response.json().catch(() => ({}));
-    setPendingSpendExceptionAction(undefined);
-    if (!response.ok) {
-      setError(body?.error?.message ?? "Could not request the spend exception.");
-      return;
-    }
-    setExceptionJustification("");
-    setSelectedDeniedReservationId("");
-    router.refresh();
+    if (!deniedReservationId || !eligibleDeniedReservations.some(reservation => reservation.id === deniedReservationId)) return;
+    await budgetRecovery.run({ kind: "request_exception", workspaceId, targetId: deniedReservationId, justification: exceptionJustification });
   }
 
   async function decideSpendException(
     requestId: string,
     decision: "approved" | "rejected",
   ) {
-    setPendingSpendExceptionAction(`${requestId}:${decision}`);
-    setError("");
-    const response = await fetch(
-      `/api/v1/ai-spend-exceptions/${requestId}/decision`,
-      {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ workspaceId, decision }),
-      },
-    );
-    const body = await response.json().catch(() => ({}));
-    setPendingSpendExceptionAction(undefined);
-    if (!response.ok) {
-      setError(body?.error?.message ?? "Could not record the spend exception decision.");
-      return;
-    }
-    router.refresh();
+    await budgetRecovery.run({ kind: "decide_exception", workspaceId, targetId: requestId, decision });
   }
 
   return (
@@ -271,7 +218,6 @@ export function AiPolicyPanel({
         </dl>
       </section>}
       {canEditPolicy && recoveryReady && <AiPolicySaveRecovery recovery={recovery} />}
-      {error && <p className="form-error" role="alert">{error}</p>}
 
       <section className="resource-panel ai-usage-panel">
         <div className="resource-panel-head">
@@ -347,7 +293,7 @@ export function AiPolicyPanel({
         </div>
       </section>
 
-      <section className="resource-panel ai-budget-alert-panel">
+      <section className={`resource-panel ai-budget-alert-panel ${styles.budgetPanel}`}>
         <div className="resource-panel-head">
           <div>
             <p className="eyebrow">Configured threshold notices</p>
@@ -369,7 +315,7 @@ export function AiPolicyPanel({
                   <p>{money(alert.committedCostMinor, alert.currency)} committed of {money(alert.capMinor, alert.currency)} · {alertWindowLabel(alert)}</p>
                 </div>
                 {alert.status === "open" && canEditPolicy ? (
-                  <button className="button-secondary" disabled={pendingAlertId === alert.id} onClick={() => acknowledgeAlert(alert.id)} type="button">
+                  <button className="button-secondary" disabled={budgetRecovery.frozen} onClick={() => acknowledgeAlert(alert.id)} type="button">
                     {pendingAlertId === alert.id ? "Acknowledging…" : "Acknowledge"}
                   </button>
                 ) : (
@@ -381,7 +327,9 @@ export function AiPolicyPanel({
         </div>
       </section>
 
-      <section className="resource-panel ai-spend-exception-panel">
+      <BudgetActionRecovery recovery={budgetRecovery} />
+
+      <section className={`resource-panel ai-spend-exception-panel ${styles.budgetPanel}`}>
         <div className="resource-panel-head">
           <div>
             <p className="eyebrow">One-time cap override</p>
@@ -396,7 +344,7 @@ export function AiPolicyPanel({
           <form className="ai-spend-exception-form" onSubmit={requestSpendException}>
             <label className="field">
               <span>Denied estimate</span>
-              <select value={selectedDeniedReservationId || eligibleDeniedReservations[0]?.id} onChange={(event) => setSelectedDeniedReservationId(event.target.value)}>
+              <select disabled={budgetRecovery.frozen} value={selectedDeniedReservationId || eligibleDeniedReservations[0]?.id} onChange={(event) => setSelectedDeniedReservationId(event.target.value)}>
                 {eligibleDeniedReservations.map((reservation) => (
                   <option key={reservation.id} value={reservation.id}>{label(reservation.capability)} · {money(reservation.estimatedCostMinor, reservation.currency)} · {reservation.exceededScopes.map(label).join(", ")}</option>
                 ))}
@@ -404,9 +352,9 @@ export function AiPolicyPanel({
             </label>
             <label className="field">
               <span>Business justification</span>
-              <textarea maxLength={1000} required value={exceptionJustification} onChange={(event) => setExceptionJustification(event.target.value)} placeholder="Explain why this one estimate should exceed the configured cap." />
+              <textarea disabled={budgetRecovery.frozen} maxLength={1000} required value={budgetRecovery.attempt?.action.kind === "request_exception" ? budgetRecovery.attempt.action.justification : exceptionJustification} onChange={(event) => setExceptionJustification(event.target.value)} placeholder="Explain why this one estimate should exceed the configured cap." />
             </label>
-            <button className="button-secondary" disabled={pendingSpendExceptionAction === "request" || !exceptionJustification.trim()} type="submit">
+            <button className="button-secondary" disabled={budgetRecovery.frozen || !exceptionJustification.trim()} type="submit">
               {pendingSpendExceptionAction === "request" ? "Requesting…" : "Request approval"}
             </button>
           </form>
@@ -425,8 +373,8 @@ export function AiPolicyPanel({
                 <span className={`status-pill ${request.status === "approved" ? "status-green" : request.status === "rejected" || request.status === "expired" ? "status-red" : "status-amber"}`}>{request.consumedAt ? "Consumed" : label(request.status)}</span>
                 {request.status === "pending" && canApproveSpendException && (
                   <>
-                    <button className="button-primary" disabled={Boolean(pendingSpendExceptionAction)} onClick={() => decideSpendException(request.id, "approved")} type="button">Approve</button>
-                    <button className="button-secondary" disabled={Boolean(pendingSpendExceptionAction)} onClick={() => decideSpendException(request.id, "rejected")} type="button">Reject</button>
+                    <button className="button-primary" disabled={budgetRecovery.frozen} onClick={() => decideSpendException(request.id, "approved")} type="button">Approve</button>
+                    <button className="button-secondary" disabled={budgetRecovery.frozen} onClick={() => decideSpendException(request.id, "rejected")} type="button">Reject</button>
                   </>
                 )}
               </div>

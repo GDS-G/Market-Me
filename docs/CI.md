@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.42 local checkpoint
+
+Final local gate passes **3,323 tests/178 files without skips**, 44/44 standalone quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web1315/73; workflow-worker68/5; companion protocol4/1; connectors166/10; database1384/63; domain128/6; generation112/7; ingestion79/8; media24/2; workflows43/3. Final rerun follows scoped spacing/focus improvements: Next compile2.5s, TypeScript12.7s,106/106 generation600ms; companion18 modules,201.34kB/64.02kB gzip,141ms; cargo check0.81s, Rust test build4.70s.
+
+New coverage is 27 browser-contract,15 handler,26 route and eight live database cases, including lock-evidenced role-demotion races for all three mutation paths. Schema stays121; no dependency upgrades. Native packaging and browser/mobile/production checks pass separately. Exact-source cloud gates/audits and final Google acceptance are pending; [Releases](RELEASES.md) is authoritative.
+
 ## Release 1.41 verified checkpoint
 
 The corrected full local gate passes **3,247 tests/174 files without skips**, 44/44 standalone quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web1247/70; workflow-worker68/5; companion protocol4/1; connectors166/10; database1376/62; domain128/6; generation112/7; ingestion79/8; media24/2; workflows43/3. Next compile5.0s, TypeScript12.6s, 105/105 generation438ms; companion18 modules, 201.34kB/64.02kB gzip,131ms; cargo check3.10s, Rust test build14.27s.

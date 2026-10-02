@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.41: Recoverable AI-policy saves
+## Release 1.42: Recoverable budget actions
+
+Alert acknowledgement, exception requests and decisions now retain the original action across uncertain responses and reloads. Explicit checks report current saved state without retrying, replacing the original explanation or implying that spending was approved. [Programmer reference](docs/AI_BUDGET_ACTION_RECOVERY.md) documents the contracts, permissions, API compatibility and recovery limits.
+
+Final local checks pass 3,323 tests/178 files and 44/44 quality cases, all static/frontend/native checks and unsigned packaging. Synthetic browser/mobile/production acceptance preserves all six reservations; production lookup leaves all 141 measured tables unchanged. Cloud publication and Google documentation acceptance remain pending in [Releases](docs/RELEASES.md). No provider execution, hosted deployment or whole-product completion is implied.
+
+## Previous release 1.41: Recoverable AI-policy saves
 
 Policy changes now retain an exact request before sending, reject stale revisions and recover the original result after response loss without overwriting newer settings. Current writer authority, actor-private immutable receipts, bounded transport and synchronous duplicate-submit guards apply to both save endpoints. [Programmer reference](docs/AI_POLICY_SAVE_RECOVERY.md) documents every new contract, field, state, lock and recovery limit.
 

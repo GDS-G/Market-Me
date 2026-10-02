@@ -4514,7 +4514,7 @@ export class AiRepository {
         },
       ]);
     return this.sql.begin(async (transaction) => {
-      await this.requireWriter(transaction, input.workspaceId, actorUserId);
+      await this.requireWriter(transaction, input.workspaceId, actorUserId, true);
       const denied = await transaction<StoredAiSpendReservation[]>`
         SELECT id, workspace_id, campaign_id, spend_exception_request_id,
           cost_quote_id, capability, feature, currency, estimated_cost_minor, actual_cost_minor,
@@ -4628,7 +4628,7 @@ export class AiRepository {
         { field: "note", message: "Decision note cannot exceed 1,000 characters." },
       ]);
     return this.sql.begin(async (transaction) => {
-      await this.requireApprover(transaction, workspaceId, actorUserId);
+      await this.requireApprover(transaction, workspaceId, actorUserId, true);
       const selected = await selectSpendException(
         transaction,
         workspaceId,
@@ -4889,7 +4889,7 @@ export class AiRepository {
     asOf: Date = new Date(),
   ): Promise<AiBudgetAlert> {
     return this.sql.begin(async (transaction) => {
-      await this.requireWriter(transaction, workspaceId, actorUserId);
+      await this.requireWriter(transaction, workspaceId, actorUserId, true);
       const rows = await transaction<StoredAiBudgetAlert[]>`
         SELECT id, workspace_id, campaign_id, source_reservation_id, scope,
           window_key, threshold_percentage, committed_cost_minor, cap_minor,
@@ -4922,6 +4922,36 @@ export class AiRepository {
         alert,
       );
       return alert;
+    });
+  }
+
+  /** Current entity state, not an immutable action receipt. Never creates or consumes spend. */
+  async getBudgetActionState(
+    workspaceId: string,
+    kind: "acknowledge_alert" | "request_exception" | "decide_exception",
+    targetId: string,
+    actorUserId: string,
+    asOf: Date = new Date(),
+  ): Promise<AiBudgetAlert | AiSpendExceptionRequest | undefined> {
+    // Validate trusted callers too; a mistyped kind must not choose a weaker permission.
+    if (!["acknowledge_alert", "request_exception", "decide_exception"].includes(kind))
+      throw new AiPolicyValidationError([{ field: "kind", message: "Unknown budget action." }]);
+    return this.sql.begin(async transaction => {
+      if (kind === "decide_exception") await this.requireApprover(transaction, workspaceId, actorUserId, true);
+      else await this.requireWriter(transaction, workspaceId, actorUserId, true);
+      if (kind === "acknowledge_alert") {
+        const rows = await transaction<StoredAiBudgetAlert[]>`
+          SELECT id, workspace_id, campaign_id, source_reservation_id, scope,
+            window_key, threshold_percentage, committed_cost_minor, cap_minor,
+            currency, status, acknowledged_by, acknowledged_at, created_at, updated_at
+          FROM ai_budget_alert WHERE workspace_id = ${workspaceId} AND id = ${targetId}
+        `;
+        return rows[0] ? normalizeBudgetAlert(rows[0]) : undefined;
+      }
+      const row = await selectSpendException(transaction, workspaceId,
+        kind === "decide_exception" ? targetId : undefined,
+        kind === "request_exception" ? targetId : undefined);
+      return row ? normalizeSpendException(row, asOf) : undefined;
     });
   }
 
@@ -5010,11 +5040,13 @@ export class AiRepository {
     transaction: TransactionSql,
     workspaceId: string,
     actorUserId: string,
+    lock = false,
   ) {
     const rows = await transaction<{ found: boolean }[]>`
       SELECT true AS found FROM workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId}
         AND role IN ('owner', 'admin', 'editor')
+      ${lock ? transaction`FOR SHARE` : transaction``}
     `;
     if (!rows[0])
       throw new AiPolicyValidationError([
@@ -5047,11 +5079,13 @@ export class AiRepository {
     transaction: TransactionSql,
     workspaceId: string,
     actorUserId: string,
+    lock = false,
   ) {
     const rows = await transaction<{ found: boolean }[]>`
       SELECT true AS found FROM workspace_membership
       WHERE workspace_id = ${workspaceId} AND user_id = ${actorUserId}
         AND role IN ('owner', 'admin', 'approver')
+      ${lock ? transaction`FOR SHARE` : transaction``}
     `;
     if (!rows[0])
       throw new AiPolicyValidationError([

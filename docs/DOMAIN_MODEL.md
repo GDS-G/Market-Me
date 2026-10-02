@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.42 budget-action fields and lifetimes
+
+BudgetAction is the closed acknowledge_alert/request_exception/decide_exception union with workspaceId/targetId plus the applicable justification or decision/optional note. BudgetActionAttempt version1 binds userId/action; BudgetActionState is the minimized alert or exception projection with original actor/time and expiry/consumption state. Frozen BUDGET_ACTION_LIMITS bounds8192-byte requests,16384-byte storage/responses and20000ms transport. No persistent schema/global cache is added. [Complete variable inventory](AI_BUDGET_ACTION_RECOVERY.md) covers storage keys, strict schemas, chunks/buffers, response/status sets, permissions, per-mount React state/ref fencing and compatibility with existing entity semantics.
+
 ## Release 1.41 policy-save fields and collections
 
 Migration 0121 adds policy revision and immutable workspace_ai_policy_save_receipt rows keyed by workspace/request, with original actor, committed revision, policy JSON snapshot, bounded canonical request and database timestamp. AI_POLICY_SAVE_LIMITS, branded AiPolicySaveError, AiPolicySaveRequest/Receipt and RevisionedWorkspaceAiPolicy define the server contract. The closed policy enums and ascending threshold array remain existing domain concepts; stored money is not reinterpreted. Browser PolicySaveAttempt version 1, AI_POLICY_BROWSER_LIMITS, frozen error dictionary, scoped storage key and per-form state/ref lifetimes are documented in the [full variable reference](AI_POLICY_SAVE_RECOVERY.md). Receipt identity is historical evidence, not current-policy or execution authority.

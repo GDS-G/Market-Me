@@ -1,5 +1,9 @@
 # Backup and Recovery Runbook
 
+## Release 1.42 budget-action current-state recovery
+
+Keep the retained acknowledgement/request/decision after any uncertain response. Check saved budget result is read-only and never resubmits. Missing/open/pending state can still precede a committed action; expiry is not approval. Another actor's or different-payload entity is explicitly not confirmation of this action. There is no retry button or immutable action receipt. Clearing requires explicit acknowledgement and unchanged storage bytes, then reload; it removes only the local copy and cannot cancel work. Current permission, tab storage and exact target are required. [Full runbook](AI_BUDGET_ACTION_RECOVERY.md) covers corruption, expiry/consumption, workspace erasure and restore limits. No migration rollback is needed; matching UI/API deployment is required for the new minimized response shape.
+
 ## Release 1.41 exact policy-save recovery
 
 Keep the retained request after every outcome. Check saved policy result performs read-only current-authority lookup; Retry same policy request reuses the original key/settings/revision. A success receipt describes its original revision, not the latest policy. A 404, timeout or broken response does not prove failure. Do not generate a fresh key merely to retry uncertain work. Explicit local clearing requires acknowledgement and exact current storage bytes, then full reload for fresh revision/authority; it never cancels an in-flight save or erases the server receipt. [Full runbook](AI_POLICY_SAVE_RECOVERY.md) explains missing-key/tab-close/role-revocation/restore limitations. Apply and retain migration 0121; stop policy mutation before any older-application rollback.

@@ -1,6 +1,6 @@
 # Budget-action recovery plan
 
-Status: independently reproduced; not included in release 1.41 acceptance. Six handler regressions fail against that source: alert acknowledgement and exception approval each reject on lost responses, refresh on malformed successful JSON, and send twice on same-tick submission.
+Status: implemented in release 1.42, with the full local gate passing 3,323 tests/178 files and 44/44 quality cases. Browser/mobile/production and unsigned native packaging pass; cloud publication and final documentation acceptance are tracked separately in [Releases](RELEASES.md). [Programmer reference](AI_BUDGET_ACTION_RECOVERY.md) inventories all contracts and variables. Six pre-fix regressions against 1.41 reproduced lost responses, malformed-success refresh and duplicate acknowledgement/approval submission; 1.42 evidence does not alter the frozen 1.41 totals.
 
 ## Scope and intent
 

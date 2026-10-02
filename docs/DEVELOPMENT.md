@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.42 budget-action development
+
+Read [Budget-action recovery](AI_BUDGET_ACTION_RECOVERY.md) before changing the three write endpoints, current-state projection, membership lock ordering or retained-action UI. Deploy matching web/API together: success now returns minimized data with kind instead of full domain DTOs. No migration/new environment/dependency is required; schema remains121 and own metadata1.42.0. Final local gate passes3,323 tests/178files plus44 quality cases; new suites add27 contract,15 handler,26 route and8 live cases. Lock-race tests observe real PostgreSQL waits. Ignored QA fixtures seed once; use read-only --status afterward and invoke the verifier directly with node node_modules/tsx/dist/cli.mjs .market-me/verify-ai-budget-142.ts --production. See [Releases](RELEASES.md) for distinct browser/native/cloud evidence.
+
 ## Release 1.41 policy-save development
 
 Read [AI-policy save recovery](AI_POLICY_SAVE_RECOVERY.md) before changing either save endpoint, canonical request field order, revision locks, receipt retention or client recovery state. Apply frozen migration 0121 before the web build; readiness expects 121 migrations. Browser input is independently validated on the server; never replace the guarded legacy PUT with an unconditional writer. A missing/aborted response is not rollback proof. No new dependencies or environment variables are required; own package/native metadata is 1.41.0 and user pnpm files remain untouched.

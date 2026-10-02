@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.42 budget-action authority
+
+Acknowledgement/request require current write ability; decision requires current approve ability. Mutations and lookup repeat authorization inside a transaction and hold membership FOR SHARE through commit. Same-origin closed bounded mutation input rejects actor/path-ID overrides; lookup is exact workspace/kind/target with no extra query authority. Returned mutable entities remain shared with existing authorized workspace roles, not actor-private receipts; original actors are shown for honest attribution. Scoped plaintext sessionStorage is never authority and never silently replaces a retained explanation. Safe output/logging excludes private persistence details. [Full boundary](AI_BUDGET_ACTION_RECOVERY.md) includes role revocation, no automatic retry, exact local clearing and unchanged spend/provider gates.
+
 ## Release 1.41 policy recovery authority
 
 Both POST saves and legacy PUT require exact Origin, authentication, closed bounded JSON and the loaded revision. Current owner/admin/editor membership is locked through commit. Same-key replay additionally binds original actor and canonical settings; lookup never exposes another actor's receipt and a missing row does not authorize a fresh overwrite. Receipt mutation/deletion and policy-history reset fail at the database boundary, except existing workspace erasure cascades. Browser storage is scoped, verified before sending and never treated as authorization; safe responses/logs exclude private SQL and payloads. [Security and recovery reference](AI_POLICY_SAVE_RECOVERY.md) records sessionStorage limits, immutable history and the unchanged provider/spend/approval gates.
