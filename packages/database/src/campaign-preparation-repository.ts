@@ -6,6 +6,10 @@ import { DraftRepository } from "./draft-repository";
 import { compileGeneralAnnouncementPreparation, type NormalizedCampaignPreparationInput } from "./campaign-preparation-template";
 import { assertCurrentContentPackageApprovalInTransaction } from "./content-package-review-repository";
 import { ContentPackageReviewError, type ContentPackageReviewErrorCode } from "./content-package-review-models";
+import { GENERATOR_MODEL, GENERATOR_PROVIDER, GENERATOR_VERSION, PROMPT_VERSION, generateGroundedDraftVariants } from "@market-me/generation";
+import type { AudienceProfileData, BrandProfileData } from "@market-me/domain";
+import { approvedDraftEvidence } from "./approved-draft-evidence";
+import { CAMPAIGN_PREPARATION_PREVIEW_LIMITS, type CampaignPreparationPreview } from "./campaign-preparation-preview";
 
 export interface PreparationProfileSnapshot {
   id: string;
@@ -51,7 +55,7 @@ type ReceiptRow = Omit<StoredCampaignPreparation, "createdAt"> & { canonicalPayl
 export type CampaignPreparationErrorCode = "access_denied" | "invalid_idempotency_key" | "idempotency_conflict"
   | "package_unavailable" | "package_version_mismatch" | "package_not_approved"
   | "brand_unavailable" | "audience_unavailable" | "destination_unavailable" | "planning_version_conflict"
-  | ContentPackageReviewErrorCode;
+  | "preview_too_large" | "preview_generation_failed" | ContentPackageReviewErrorCode;
 
 export class CampaignPreparationError extends Error {
   constructor(readonly code: CampaignPreparationErrorCode, message: string, readonly existingPreparationId?: string) {
@@ -88,6 +92,51 @@ function publicReceipt({ canonicalPayload: _canonicalPayload, ...receipt }: Rece
 
 export class CampaignPreparationRepository {
   constructor(private readonly sql: DatabaseClient) {}
+
+  async preview(input: unknown, actorUserId: string, options: CampaignPreparationOptions = {}): Promise<CampaignPreparationPreview> {
+    const compiled = compileGeneralAnnouncementPreparation(input), configuration = compiled.normalizedInput;
+    if (typeof options.expectedReviewFingerprint !== "string" || !/^mm-package-review-v1:sha256:[0-9a-f]{64}$/.test(options.expectedReviewFingerprint))
+      throw new CampaignPreparationError("invalid_review_input", "Load the exact approved package review before previewing.");
+    const expectedApprovalId = options.expectedApprovalId === undefined ? undefined : approvalKey(options.expectedApprovalId);
+    return this.sql.begin(async transaction => {
+      await this.lockWriter(transaction, configuration.workspaceId, actorUserId);
+      const { referenceSnapshot: references, approval } = await this.lockReferences(transaction, configuration, options.expectedReviewFingerprint!, expectedApprovalId);
+      await new CampaignRepository(this.sql).validateReferencesInTransaction(transaction, compiled.campaign);
+      const { usable } = approvedDraftEvidence(approval.effectiveEvidence);
+      let drafts;
+      try {
+        drafts = generateGroundedDraftVariants({ packageTitle: references.contentPackage.title, evidence: usable,
+          informationDepth: configuration.informationDepth, promotionalStrength: configuration.promotionalStrength, format: "channel_neutral",
+          ...(references.brand ? { brand: { name: references.brand.name, profile: references.brand.profile as unknown as BrandProfileData } } : {}),
+        }, references.audiences.map(audience => ({ name: audience.name, profile: audience.profile as unknown as AudienceProfileData })));
+      } catch {
+        throw new CampaignPreparationError("preview_generation_failed", "The approved evidence cannot produce this exact preview. Review the package and presentation settings.");
+      }
+      const step = compiled.campaign.steps[0];
+      if (compiled.campaign.objective !== "awareness" || compiled.campaign.autonomyMode !== "draft_only" || compiled.campaign.steps.length !== 1
+        || !step || step.operationType !== "request_approval" || step.approvalRequired !== true || step.scheduleType !== "immediate"
+        || step.executionMethods.length !== 1 || step.executionMethods[0] !== "manual_handoff") throw new Error("Unexpected preparation preview compiler authority.");
+      if (references.destination && (typeof references.destination.id !== "string" || typeof references.destination.title !== "string"))
+        throw new Error("Unexpected preparation destination projection.");
+      const preview: CampaignPreparationPreview = {
+        schemaVersion: 1, workspaceId: configuration.workspaceId, configuration,
+        contentPackage: { ...references.contentPackage, approvalId: approval.approvalId, reviewFingerprint: approval.reviewFingerprint },
+        ...(references.brand ? { brand: { versionId: references.brand.id, name: references.brand.name, versionNumber: references.brand.versionNumber } } : {}),
+        ...(references.destination ? { destination: { id: references.destination.id as string, title: references.destination.title as string } } : {}),
+        campaign: { objective: "awareness", autonomyMode: "draft_only", steps: [{ id: step.id, name: step.name, operationType: "request_approval", executionMethods: ["manual_handoff"], approvalRequired: true, scheduleType: "immediate" }] },
+        generator: { provider: GENERATOR_PROVIDER, model: GENERATOR_MODEL, version: GENERATOR_VERSION, promptVersion: PROMPT_VERSION },
+        variants: drafts.map(({ presentationChoices: _presentation, ...draft }, position) => {
+          const audience = references.audiences[position];
+          return { position, audience: audience ? { kind: "audience", versionId: audience.id, name: audience.name, versionNumber: audience.versionNumber } : { kind: "general", name: "General" }, draft };
+        }),
+        evidence: usable.map(({ id, claim, provenance, sourceReferences }) => ({ id, claim, provenance, sourceReferences })),
+        effects: { persisted: false, providerRequest: false, budgetReservation: false, approved: false, activated: false },
+      };
+      if (Buffer.byteLength(JSON.stringify({ data: preview }), "utf8") > CAMPAIGN_PREPARATION_PREVIEW_LIMITS.responseBytes)
+        throw new CampaignPreparationError("preview_too_large", "The exact preview is too large to display safely. Reduce selected audiences or review a smaller package; nothing was saved.");
+      return preview;
+    });
+  }
 
   async prepare(input: unknown, idempotencyKey: unknown, actorUserId: string,
     options: CampaignPreparationOptions = {}): Promise<{
@@ -144,7 +193,7 @@ export class CampaignPreparationRepository {
       if (typeof options.expectedReviewFingerprint !== "string" || !/^mm-package-review-v1:sha256:[0-9a-f]{64}$/.test(options.expectedReviewFingerprint)) {
         throw new CampaignPreparationError("invalid_review_input", "Select the exact currently approved package review before preparing a Campaign.");
       }
-      const referenceSnapshot = await this.lockReferences(transaction, configuration, options.expectedReviewFingerprint, expectedApprovalId);
+      const { referenceSnapshot } = await this.lockReferences(transaction, configuration, options.expectedReviewFingerprint, expectedApprovalId);
       const campaigns = new CampaignRepository(this.sql);
       // Existing graph/reference/communication-policy validation remains authoritative;
       // all stricter preparation references are now locked through receipt insertion.
@@ -226,7 +275,7 @@ export class CampaignPreparationRepository {
   }
 
   private async lockReferences(transaction: TransactionSql, configuration: NormalizedCampaignPreparationInput,
-    expectedReviewFingerprint: string, expectedApprovalId?: string): Promise<PreparationReferenceSnapshot> {
+    expectedReviewFingerprint: string, expectedApprovalId?: string) {
     const approval = await assertCurrentContentPackageApprovalInTransaction(transaction, {
       workspaceId: configuration.workspaceId, contentPackageId: configuration.contentPackageId,
       expectedPackageVersion: configuration.expectedPackageVersion, expectedReviewFingerprint, expectedApprovalId,
@@ -266,7 +315,7 @@ export class CampaignPreparationRepository {
       if (destination?.status !== "published") throw new CampaignPreparationError("destination_unavailable", "Choose a published Destination in this workspace.");
       snapshot.destination = destination;
     }
-    return snapshot;
+    return { referenceSnapshot: snapshot, approval };
   }
 
   private async lockProfile(transaction: TransactionSql, kind: "brand" | "audience", workspaceId: string, versionId: string): Promise<PreparationProfileSnapshot> {

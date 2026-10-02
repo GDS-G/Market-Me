@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.44 preparation-preview development
+
+Read [Preparation preview](CAMPAIGN_PREPARATION_PREVIEW.md) before editing the shared evidence/variant path, display DTO or form cancellation. Preserve generator1.1.0/promptgrounded-draft-v2 parity and separate durable recovery. Metadata1.44.0/schema121; no new dependency/environment key. The ignored loopback market_me_qa_144_preview_v1 helper initializes once, then captures141-table read-only snapshots. Never repeat --init or click save/approval/activation during preview-only browser acceptance. User pnpm files remain excluded; [Releases](RELEASES.md) is the verification authority.
+
 ## Release 1.43 money-unit development
 
 Read [Money-unit boundary](AI_BUDGET_UNIT_BOUNDARY.md) before editing quote precision, budget arithmetic, reservation lineage, exception consumption or provider settlement. Deploy matching consumers for required unitIntegrity on budget/usage DTOs; do not interpret raw incompatible totals as verified money. Schema remains121; own metadata1.43.0; no dependency/environment change. The ignored loopback market_me_qa_143_units_v1 fixture seeds once, then read-only --status captures141 table fingerprints. Invoke its verifier directly with node node_modules/tsx/dist/cli.mjs .market-me/verify-ai-units-143.ts --production. Existing pnpm files are user-owned and excluded. [Releases](RELEASES.md) separates synthetic/provider/native/cloud acceptance.

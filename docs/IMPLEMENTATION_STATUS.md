@@ -1,5 +1,11 @@
 # Market Me implementation status
 
+## Release 1.44 campaign/draft preview: local acceptance passed
+
+Users can inspect actual channel-neutral draft variants, selected settings, a manual planning step and approved citations without saving anything. Shared approved-evidence projection/variant generation preserves durable output parity; current-role/reference locks and independent later preparation validation remain authoritative. Browser request correlation, byte/time limits, busy/cancellation fences and invalidation are in the [implementation reference](CAMPAIGN_PREPARATION_PREVIEW.md).
+
+Local3,482 tests/185files and44 quality cases pass, with all twelve typechecks, lint, frontend/native checks and unsigned packaging. Isolated desktop/mobile/production acceptance passes; all141 fingerprints are identical around production previewing. Initial development login changes only the synthetic user's timestamp, verified separately. Cloud/publication and Google readback remain pending. The application remains incomplete; no new user input is needed to continue.
+
 ## Release 1.43 money-unit boundary: verified and published
 
 Four reproduced quote-scale defects are corrected by explicit hundredths compatibility, all-history quote-lineage checks, guarded exceptions and provider prepare/claim/complete/settlement boundaries. Historical integers and receipts are unchanged; release/rejection/inspection remain available. [Implementation reference](AI_BUDGET_UNIT_BOUNDARY.md) records the semantics and deliberately excluded automatic conversion/reconciliation.

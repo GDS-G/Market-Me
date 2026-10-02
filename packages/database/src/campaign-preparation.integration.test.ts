@@ -141,6 +141,73 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
   beforeAll(() => { sql = createDatabaseClient(databaseUrl!); });
   afterAll(async () => { vi.restoreAllMocks(); await sql?.end(); });
 
+  it("previews the exact ordered draft copy without persistence and matches subsequent preparation", async () => withFixture(async f => {
+    const before = await counts(f.workspace.workspaceId);
+    const auditBefore = await sql`SELECT * FROM audit_event WHERE workspace_id = ${f.workspace.workspaceId} ORDER BY id`;
+    const preview = await f.preparation.preview(f.input, f.user.id, f.reviewOptions);
+    expect(preview.configuration).toEqual(compileGeneralAnnouncementPreparation(f.input).normalizedInput);
+    expect(preview.contentPackage).toMatchObject({ id: f.contentPackage.id, version: 1, reviewFingerprint: f.reviewOptions.expectedReviewFingerprint });
+    expect(preview.variants.map(v => v.audience.kind === "audience" ? v.audience.versionId : undefined)).toEqual(f.input.audienceProfileVersionIds);
+    expect(preview.effects).toEqual({ persisted: false, providerRequest: false, budgetReservation: false, approved: false, activated: false });
+    expect(preview.campaign).toMatchObject({ objective: "awareness", autonomyMode: "draft_only", steps: [{ operationType: "request_approval", executionMethods: ["manual_handoff"] }] });
+    expect(preview.generator).toEqual({ provider: "market-me", model: "grounded-template", version: "1.1.0", promptVersion: "grounded-draft-v2" });
+    expect(preview).not.toHaveProperty("referenceSnapshot"); expect(preview).not.toHaveProperty("idempotencyKey");
+    expect(preview.brand).not.toHaveProperty("profile");
+    expect(await counts(f.workspace.workspaceId)).toEqual(before);
+    expect(await sql`SELECT * FROM audit_event WHERE workspace_id = ${f.workspace.workspaceId} ORDER BY id`).toEqual(auditBefore);
+    const saved = (await f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions)).preparation;
+    for (const [index, item] of saved.preparedDrafts.entries()) {
+      const draft = (await f.drafts.get(f.workspace.workspaceId, item.draftId))!.currentVersion!;
+      expect(draft).toMatchObject(preview.variants[index]!.draft);
+    }
+  }));
+
+  it("previews one General variant without inferring optional references", async () => withFixture(async f => {
+    const preview = await f.preparation.preview({ workspaceId: f.workspace.workspaceId, contentPackageId: f.contentPackage.id, expectedPackageVersion: 1 }, f.user.id, f.reviewOptions);
+    expect(preview.variants).toHaveLength(1); expect(preview.variants[0]!.audience).toEqual({ kind: "general", name: "General" });
+    expect(preview).not.toHaveProperty("brand"); expect(preview).not.toHaveProperty("destination");
+    expect(await counts(f.workspace.workspaceId)).toEqual(zero);
+  }));
+
+  it.each(["owner", "admin", "editor", "approver", "analyst", "viewer"])("requires current writer authority for read-only preparation preview (%s)", async role => withFixture(async f => {
+    await sql`UPDATE workspace_membership SET role = ${role} WHERE workspace_id = ${f.workspace.workspaceId} AND user_id = ${f.user.id}`;
+    if (["owner", "admin", "editor"].includes(role)) expect((await f.preparation.preview(f.input, f.user.id, f.reviewOptions)).variants).toHaveLength(2);
+    else await expect(f.preparation.preview(f.input, f.user.id, f.reviewOptions)).rejects.toMatchObject({ code: "access_denied" });
+    expect(await counts(f.workspace.workspaceId)).toEqual(zero);
+  }));
+
+  it.each(revocations)("rejects changed $name authority before displaying a preview", async change => withFixture(async f => {
+    await sql.begin(tx => change.change(tx, f));
+    await expect(f.preparation.preview(f.input, f.user.id, f.reviewOptions)).rejects.toMatchObject({ code: change.code });
+    expect(await counts(f.workspace.workspaceId)).toEqual(zero);
+  }));
+
+  it("requires the exact current approved package fingerprint for preview", async () => withFixture(async f => {
+    await expect(f.preparation.preview(f.input, f.user.id)).rejects.toMatchObject({ code: "invalid_review_input" });
+    await expect(f.preparation.preview(f.input, f.user.id, { expectedReviewFingerprint: `mm-package-review-v1:sha256:${"0".repeat(64)}` })).rejects.toMatchObject({ code: "review_changed" });
+    await expect(f.preparation.preview(f.input, f.user.id, { ...f.reviewOptions, expectedApprovalId: randomUUID() })).rejects.toMatchObject({ code: "approval_unavailable" });
+    expect(await counts(f.workspace.workspaceId)).toEqual(zero);
+  }));
+
+  it("repeats concurrent previews without any durable result or audience reordering", async () => withFixture(async f => {
+    const inputs = [f.input, { ...f.input, audienceProfileVersionIds: [...f.input.audienceProfileVersionIds!].reverse() }, f.input];
+    const before = await sql`SELECT * FROM audit_event WHERE workspace_id = ${f.workspace.workspaceId} ORDER BY id`;
+    const previews = await Promise.all(inputs.map(input => f.preparation.preview(input, f.user.id, f.reviewOptions)));
+    for (const [index, preview] of previews.entries()) expect(preview.variants.map(v => v.audience.kind === "audience" ? v.audience.versionId : undefined)).toEqual(inputs[index]!.audienceProfileVersionIds);
+    expect(previews[0]).toEqual(previews[2]); expect(await counts(f.workspace.workspaceId)).toEqual(zero);
+    expect(await sql`SELECT * FROM audit_event WHERE workspace_id = ${f.workspace.workspaceId} ORDER BY id`).toEqual(before);
+  }));
+
+  it("fails an oversized exact preview without truncating evidence or saving rows", async () => withFixture(async f => {
+    const changed = await f.core.saveContentPackage({ ...f.packageInput, evidence: [{ ...f.packageInput.evidence[0]!, id: randomUUID(), sourceReferences: Array.from({ length: 240 }, (_, index) => `source:${index}:${"x".repeat(4_500)}`) }] });
+    const reviewed = await packageReviewPrecondition(sql, f.workspace.workspaceId, changed.id, f.user.id);
+    await f.core.approveContentPackage({ workspaceId: f.workspace.workspaceId, packageId: changed.id, actorUserId: f.user.id, ...reviewed, idempotencyKey: randomUUID() });
+    const before = await sql`SELECT * FROM audit_event WHERE workspace_id = ${f.workspace.workspaceId} ORDER BY id`;
+    await expect(f.preparation.preview({ ...f.input, expectedPackageVersion: changed.version }, f.user.id, reviewed)).rejects.toMatchObject({ code: "preview_too_large" });
+    expect(await counts(f.workspace.workspaceId)).toEqual(zero);
+    expect(await sql`SELECT * FROM audit_event WHERE workspace_id = ${f.workspace.workspaceId} ORDER BY id`).toEqual(before);
+  }));
+
   it("atomically pins one planning campaign and generation, every ordered variant and exact receipt, without execution or approval", async () => withFixture(async (f) => {
     const key = randomUUID();
     const result = await f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions);
@@ -260,6 +327,8 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
       : kind === "destination" ? { destinationId: foreign.destination.id } : { workspaceId: foreign.workspace.workspaceId };
     await expect(f.preparation.prepare({ ...f.input, ...overrides }, randomUUID(), f.user.id, f.reviewOptions))
       .rejects.toMatchObject({ code: kind === "workspace" ? "access_denied" : `${kind}_unavailable` });
+    await expect(f.preparation.preview({ ...f.input, ...overrides }, f.user.id, f.reviewOptions))
+      .rejects.toMatchObject({ code: kind === "workspace" ? "access_denied" : `${kind}_unavailable` });
     expect(await counts(f.workspace.workspaceId)).toEqual(zero);
     expect(await counts(foreign.workspace.workspaceId)).toEqual(zero);
   })));
@@ -267,6 +336,8 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
   it.each(["version", "approval"])("rejects stale package %s without partial writes", async (kind) => withFixture(async (f) => {
     if (kind === "approval") await sql`UPDATE content_package SET status = 'ready' WHERE id = ${f.contentPackage.id}`;
     await expect(f.preparation.prepare({ ...f.input, expectedPackageVersion: kind === "version" ? 2 : 1 }, randomUUID(), f.user.id, f.reviewOptions))
+      .rejects.toMatchObject({ code: kind === "version" ? "package_version_mismatch" : "approval_unavailable" });
+    await expect(f.preparation.preview({ ...f.input, expectedPackageVersion: kind === "version" ? 2 : 1 }, f.user.id, f.reviewOptions))
       .rejects.toMatchObject({ code: kind === "version" ? "package_version_mismatch" : "approval_unavailable" });
     expect(await counts(f.workspace.workspaceId)).toEqual(zero);
   }));
@@ -300,6 +371,7 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
       { code: kind === "information" ? "information_depth_ceiling" : "promotional_strength_ceiling", message: expect.any(String) },
     ]) };
     await expect(f.preparation.prepare(input, randomUUID(), f.user.id, f.reviewOptions)).rejects.toMatchObject(expectedError);
+    await expect(f.preparation.preview(input, f.user.id, f.reviewOptions)).rejects.toMatchObject(expectedError);
     // The beginner entry point and advanced Campaign authoring share the same
     // nullable profile-policy boundary; neither may bypass another profile's ceiling.
     await expect(f.campaigns.createCampaign(compileGeneralAnnouncementPreparation(input).campaign, f.user.id))
@@ -322,6 +394,34 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
     expect(await counts(f.workspace.workspaceId)).toEqual(zero);
     expect(await f.preparation.getByKey(f.workspace.workspaceId, key, f.user.id)).toBeUndefined();
     expect((await f.preparation.prepare(f.input, key, f.user.id, f.reviewOptions)).replayed).toBe(false);
+  }));
+
+  it.each(revocations)("observes $name revocation committed ahead of preview", async revocation => withFixture(async f => {
+    let reportLock!: (pid: number) => void, releaseMutation!: () => void;
+    const locked = new Promise<number>(resolve => { reportLock = resolve; }), release = new Promise<void>(resolve => { releaseMutation = resolve; });
+    const mutation = sql.begin(async transaction => {
+      await revocation.change(transaction, f); reportLock((await transaction<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid); await release;
+    });
+    const holderPid = await locked, previewing = f.preparation.preview(f.input, f.user.id, f.reviewOptions).then(value => ({ value }), (error: unknown) => ({ error }));
+    try { await assertBlockedOn(holderPid); } finally { releaseMutation(); await mutation; }
+    expect(await previewing).toMatchObject({ error: { code: revocation.code } }); expect(await counts(f.workspace.workspaceId)).toEqual(zero);
+  }));
+
+  it.each(revocations)("holds $name authorization until its coherent preview finishes", async revocation => withFixture(async f => {
+    let reportLock!: (pid: number) => void, releasePreview!: () => void;
+    const locked = new Promise<number>(resolve => { reportLock = resolve; }), release = new Promise<void>(resolve => { releasePreview = resolve; });
+    const original = CampaignRepository.prototype.validateReferencesInTransaction;
+    const spy = vi.spyOn(CampaignRepository.prototype, "validateReferencesInTransaction").mockImplementationOnce(async function (this: CampaignRepository, transaction, input) {
+      await original.call(this, transaction, input); reportLock((await transaction<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid); await release;
+    });
+    const previewing = f.preparation.preview(f.input, f.user.id, f.reviewOptions).then(value => ({ value }), (error: unknown) => ({ error }));
+    let mutation: Promise<unknown> | undefined;
+    try { const holderPid = await locked; mutation = sql.begin(tx => revocation.change(tx, f)); await assertBlockedOn(holderPid); }
+    finally { releasePreview(); await previewing; await mutation; spy.mockRestore(); }
+    expect(await previewing).toMatchObject({ value: { effects: { persisted: false }, variants: expect.any(Array) } });
+    // A preview never carries authority through to a later write after revocation.
+    await expect(f.preparation.prepare(f.input, randomUUID(), f.user.id, f.reviewOptions)).rejects.toMatchObject({ code: revocation.code });
+    expect(await counts(f.workspace.workspaceId)).toEqual(zero);
   }));
 
   it.each(revocations)("observes $name revocation committed ahead of preparation", async (revocation) => withFixture(async (f) => {

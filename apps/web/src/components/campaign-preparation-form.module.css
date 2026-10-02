@@ -14,4 +14,18 @@
 .receipt small { display: block; margin-top: 6px; overflow-wrap: anywhere; }
 .receipt details { padding: 16px; border: 1px solid #e9e5ef; border-radius: 10px; }
 .receipt summary { cursor: pointer; font-weight: 600; }
+.preview { margin: 18px 0; overflow-wrap: anywhere; }
+.preview h3 { margin: 18px 0 10px; }
+.preview h4 { margin: 12px 0; }
+.preview dl { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 3fr); gap: 10px; }
+.preview dd { margin: 0; }
+.preview dt { font-weight: 600; }
+.preview li { margin: 8px 0; }
+.preview details { margin-top: 14px; }
+.preview summary { cursor: pointer; padding: 10px 0; min-height: 44px; }
+.preview summary:focus-visible { outline: 3px solid #7652ca; outline-offset: 3px; }
+.previewDraft { padding: 16px; margin-top: 18px; border: 1px solid #dcd5ec; border-radius: 10px; background: white; }
+.previewCopy { white-space: pre-wrap; }
+.preview blockquote { margin: 8px 0; border-left: 3px solid #dcd5ec; padding-left: 12px; }
+@media (max-width: 700px) { .preview dl { grid-template-columns: 1fr; } .previewDraft { padding: 12px; } }
 @media (max-width: 700px) { .receipt dl { grid-template-columns: 1fr; } }

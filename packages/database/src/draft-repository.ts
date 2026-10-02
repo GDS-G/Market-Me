@@ -5,7 +5,7 @@ import {
   GENERATOR_PROVIDER,
   GENERATOR_VERSION,
   PROMPT_VERSION,
-  generateGroundedDraft,
+  generateGroundedDraftVariants,
   renderGroundedFact,
   draftCopyCharacterCount,
   draftCopyPresentation,
@@ -20,10 +20,10 @@ import type {
   BrandProfileData,
   ContentDraftVersion,
   DraftFormat,
-  EvidenceItem,
 } from "@market-me/domain";
 import { DRAFT_FORMAT_CHARACTER_LIMITS } from "@market-me/generation";
 import type { DatabaseClient } from "./client";
+import { approvedDraftEvidence } from "./approved-draft-evidence";
 import { assertCurrentContentPackageApprovalInTransaction, assertPackageReviewAccessInTransaction } from "./content-package-review-repository";
 import { ContentPackageReviewError } from "./content-package-review-models";
 import type {
@@ -157,15 +157,7 @@ export class DraftRepository {
     });
     // Effective facts come from the exact attestation, never all current live
     // evidence. Keep the old generation snapshot order before generator ranking.
-    const effective = [...approval.effectiveEvidence].sort((left, right) =>
-      left.createdAtUtcMicros < right.createdAtUtcMicros ? -1 : left.createdAtUtcMicros > right.createdAtUtcMicros ? 1
-        : left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-    const usable: EvidenceItem[] = effective.map((item) => ({
-      id: item.id, claim: item.claim, provenance: item.provenance, sourceReferences: item.sourceReferences,
-      ...(item.factKey === null ? {} : { factKey: item.factKey }),
-      ...(item.confidence === null ? {} : { confidence: item.confidence }),
-      ...(item.contextPackVersionId === null ? {} : { contextPackVersionId: item.contextPackVersionId }),
-    }));
+    const { usable, snapshot: evidenceSnapshot } = approvedDraftEvidence(approval.effectiveEvidence);
     if (!usable.length)
       throw new DraftValidationError([
         {
@@ -194,24 +186,17 @@ export class DraftRepository {
       name?: string;
       profile?: AudienceProfileData;
     }[] = audiences.length ? audiences : [{}];
-    const characterBudgetAudienceName = audiences.reduce<string | undefined>(
-      (longest, audience) =>
-        !longest || audience.name.length > longest.length
-          ? audience.name
-          : longest,
-      undefined,
-    );
+    let generatedVariants;
+    try {
+      generatedVariants = generateGroundedDraftVariants({
+        packageTitle: approval.snapshot.package.title, evidence: usable,
+        informationDepth: campaign.informationDepth, promotionalStrength: campaign.promotionalStrength,
+        format: input.draftFormat ?? "channel_neutral", ...(brandRows[0] ? { brand: brandRows[0] } : {}),
+      }, audiences);
+    } catch (error) {
+      throw new DraftValidationError([{ code: "format_limit", message: error instanceof Error ? error.message : "The selected format cannot contain the approved evidence." }]);
+    }
     const generationId = randomUUID();
-    const evidenceSnapshot = effective.map(
-      ({ id, factKey, claim, provenance, sourceReferences, confidence }) => ({
-        id,
-        ...(factKey === null ? {} : { factKey }),
-        claim,
-        provenance,
-        sourceReferences,
-        confidence,
-      }),
-    );
     await transaction`
       INSERT INTO draft_generation (id, workspace_id, campaign_version_id, content_package_id, content_package_version,
         brand_profile_version_id, information_depth, promotional_strength, evidence_snapshot,
@@ -222,34 +207,8 @@ export class DraftRepository {
     `;
     const draftIds: string[] = [];
     const draftReferences: { draftId: string; versionId: string }[] = [];
-    for (const audience of variants) {
-      let generated;
-      try {
-        generated = generateGroundedDraft({
-          packageTitle: approval.snapshot.package.title,
-          evidence: usable,
-          informationDepth: campaign.informationDepth,
-          promotionalStrength: campaign.promotionalStrength,
-          format: input.draftFormat ?? "channel_neutral",
-          ...(characterBudgetAudienceName
-            ? { characterBudgetAudienceName }
-            : {}),
-          ...(brandRows[0] ? { brand: brandRows[0] } : {}),
-          ...(audience.id && audience.name && audience.profile
-            ? { audience: { name: audience.name, profile: audience.profile } }
-            : {}),
-        });
-      } catch (error) {
-        throw new DraftValidationError([
-          {
-            code: "format_limit",
-            message:
-              error instanceof Error
-                ? error.message
-                : "The selected format cannot contain the approved evidence.",
-          },
-        ]);
-      }
+    for (const [index, audience] of variants.entries()) {
+      const generated = generatedVariants[index]!;
       const draftId = randomUUID();
       const versionId = randomUUID();
       draftIds.push(draftId);

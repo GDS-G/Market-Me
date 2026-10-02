@@ -137,6 +137,17 @@ export function generateGroundedDraft(input: GroundedDraftInput): GeneratedDraft
   };
 }
 
+/** One shared audience budget and authored variant order for preview and durable generation. */
+export function generateGroundedDraftVariants(
+  input: Omit<GroundedDraftInput, "audience" | "characterBudgetAudienceName">,
+  audiences: readonly NonNullable<GroundedDraftInput["audience"]>[],
+): readonly GeneratedDraft[] {
+  const longestName = audiences.reduce<string | undefined>((longest, audience) =>
+    !longest || audience.name.length > longest.length ? audience.name : longest, undefined);
+  const common = { ...input, ...(longestName ? { characterBudgetAudienceName: longestName } : {}) };
+  return audiences.length ? audiences.map(audience => generateGroundedDraft({ ...common, audience })) : [generateGroundedDraft(common)];
+}
+
 function selectClaimsForFormat(evidence: readonly EvidenceItem[], maximum: number, format: DraftFormat, audienceName: string | undefined, callToAction: string | undefined): EvidenceItem[] {
   const characterLimit = DRAFT_FORMAT_CHARACTER_LIMITS[format];
   const bounded = evidence.slice(0, maximum);

@@ -1,5 +1,7 @@
 # Review-first campaign preparation
 
+Release1.44 adds a separate [unsaved campaign/draft preview](CAMPAIGN_PREPARATION_PREVIEW.md) before this durable operation. It shares approved evidence and ordered generation but writes no rows and grants no later-save authority. Existing preparation receipt/retry/finalization contracts below remain unchanged.
+
 Status: preparation shipped in the verified 1.22 preview. The separate protected [Campaign finalization](CAMPAIGN_FINALIZATION.md) implementation shipped in the verified 1.23 preview. Verified Release 1.25 adds a [source-bound approval outbox](SOURCE_BOUND_DRAFT_PREPARATION.md) that invokes this same preparation transaction, and verified Release 1.26 adds its exact approval-receipt status handoff. This document describes the shared preparation boundary; exact release evidence is in [Releases](RELEASES.md). See [the plan](CAMPAIGN_PREPARATION_PLAN.md) for rationale and broader setup requirements that remain open.
 
 ## User-facing scope

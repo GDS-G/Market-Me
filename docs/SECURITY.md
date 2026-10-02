@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.44 preview authority
+
+Read-only preview requires current writer membership, exact current package approval and eligible scoped profiles/destination under existing locks. Strict same-origin bounded JSON excludes actor/key/activation authority; minimized responses exclude raw profiles/private asset fields. Hash correlation is not a signed permission or lease. No provider/spending/persistence occurs, and later preparation revalidates. Stale client generations are canceled/fenced. [Full boundary](CAMPAIGN_PREPARATION_PREVIEW.md) separates approved citations from independent source verification.
+
 ## Release 1.43 money-unit authority
 
 Quote and currency identity alone do not authorize arithmetic: the ledger accepts only exponent2 quoted spending and blocks known incompatible workspace/currency history before new monetary writes. Provider prepare/claim/complete and explicit charged settlement recheck current evidence; returned browser metadata never authorizes transport. Original policy/quote/receipt/reservation evidence is not converted or deleted. Rejection, release and inspection remain governed by their existing roles. Stop old writers during rollout; this is not protection against arbitrary administrator SQL or a historical-reconciliation procedure. [Detailed boundaries](AI_BUDGET_UNIT_BOUNDARY.md) distinguish evidence compatibility from billing correctness.

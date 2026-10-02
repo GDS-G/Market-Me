@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { INFORMATION_DEPTHS, PROMOTIONAL_STRENGTHS } from "@market-me/domain";
 import {
@@ -11,6 +11,8 @@ import {
 import styles from "./campaign-preparation-form.module.css";
 import { ApprovedPackageReviewPicker } from "./approved-package-review-picker";
 import { presetErrorMessage,presetPayloadData,presetVersionSchema,readPresetResponse } from "./preparation-preset-contract";
+import { CampaignPreparationPreview } from "./campaign-preparation-preview";
+import { requestPreparationPreview, type PreparationPreview } from "./campaign-preparation-preview-contract";
 
 export interface PreparationPackageChoice { id: string; title: string; version: number }
 export interface PreparationProfileChoice { id: string; name: string; versionNumber: number }
@@ -64,10 +66,40 @@ function PreparationEditor(props: PreparationFormProps) {
   const [copyAcknowledgement, setCopyAcknowledgement] = useState("");
   const copyConfirmed = copyAcknowledgement === copySelectionKey;
   const inFlight = useRef(false);
+  const previewAbort = useRef<AbortController | undefined>(undefined);
+  const previewSequence = useRef(0);
+  const [previewPending, setPreviewPending] = useState(false);
+  const [preview, setPreview] = useState<{ identity: string; data: PreparationPreview }>();
+  const previewIdentity = JSON.stringify({ values, reviewFingerprint });
+  useEffect(() => () => { previewSequence.current += 1; previewAbort.current?.abort(); }, []);
+
+  function invalidatePreview() {
+    setPreview(undefined);
+    // A review refresh or input replacement can arrive after a request started.
+    // Cancel that generation even if the form later returns to identical values.
+    if (previewAbort.current) {
+      previewSequence.current += 1; previewAbort.current.abort(); previewAbort.current = undefined;
+      inFlight.current = false; setPending(false); setPreviewPending(false);
+    }
+  }
+
+  async function previewPreparation() {
+    if (inFlight.current || attempt || storageError || !reviewFingerprint) return;
+    inFlight.current = true; setPending(true); setPreviewPending(true); setPreview(undefined); setError(""); setMessage(""); setFieldErrors([]);
+    const sequence = ++previewSequence.current, controller = new AbortController(); previewAbort.current = controller;
+    try {
+      const data = await requestPreparationPreview(values, reviewFingerprint, controller);
+      if (previewSequence.current === sequence) setPreview({ identity: previewIdentity, data });
+    } catch {
+      if (previewSequence.current === sequence) setError("No verified preview was received. Nothing was prepared or sent. Reload the exact approved package review, check current profile settings, and try previewing again.");
+    } finally {
+      if (previewSequence.current === sequence) { inFlight.current = false; previewAbort.current = undefined; setPending(false); setPreviewPending(false); }
+    }
+  }
 
   async function copyPreset() {
     if (!props.preset || props.preset.archived || !copyConfirmed || inFlight.current || attempt || storageError) return;
-    inFlight.current = true; setPending(true); setCopyPending(true); setError(""); setMessage("");
+    inFlight.current = true; setPending(true); setCopyPending(true); setPreview(undefined); setError(""); setMessage("");
     try {
       const response = await fetch(`/api/v1/preparation-presets/${props.preset.id}/copy-settings`, { method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ workspaceId: props.workspaceId, expectedRevision: props.preset.revision, versionNumber: props.preset.versionNumber }) });
@@ -93,6 +125,7 @@ function PreparationEditor(props: PreparationFormProps) {
       setMessage("Ready for a new attempt. Review the package revision and choices before preparing.");
       setResetConfirmed(false);
       setReviewFingerprint("");
+      setPreview(undefined);
       const selected = props.packages.find((item) => item.id === values.contentPackageId);
       setValues((previous) => ({ ...previous, contentPackageId: selected?.id ?? "", expectedPackageVersion: selected?.version ?? 1 }));
     } catch { setStorageError("Browser storage is unavailable. No new request was sent; restore storage access before preparing."); }
@@ -100,7 +133,7 @@ function PreparationEditor(props: PreparationFormProps) {
 
   async function run(checkOnly: boolean) {
     if (inFlight.current || storageError) return;
-    inFlight.current = true; setPending(true); setError(""); setFieldErrors([]); setMessage(""); setExistingId(undefined);
+    inFlight.current = true; setPending(true); setPreview(undefined); setError(""); setFieldErrors([]); setMessage(""); setExistingId(undefined);
     let exact = attempt;
     try {
       if (!exact) {
@@ -166,20 +199,24 @@ function PreparationEditor(props: PreparationFormProps) {
     </section>}
     <fieldset className={styles.fieldset} disabled={pending || Boolean(attempt) || Boolean(storageError)}>
       <legend className="sr-only">Campaign preparation settings</legend>
-      <PreparationFields {...props} values={values} onChange={(next) => { if (next.contentPackageId !== values.contentPackageId) setReviewFingerprint(""); setValues(next); }} />
+      <PreparationFields {...props} values={values} onChange={(next) => { invalidatePreview(); if (next.contentPackageId !== values.contentPackageId) setReviewFingerprint(""); setValues(next); }} />
     </fieldset>
     {!attempt && !storageError && <ApprovedPackageReviewPicker key={`${props.workspaceId}:${values.contentPackageId}`} workspaceId={props.workspaceId} packageId={values.contentPackageId} disabled={pending}
-      onReview={(review) => { setReviewFingerprint(review?.reviewFingerprint ?? ""); if (review) setValues((previous) => ({ ...previous, expectedPackageVersion: review.version })); }} />}
+      onReview={(review) => { invalidatePreview(); setReviewFingerprint(review?.reviewFingerprint ?? ""); if (review) setValues((previous) => ({ ...previous, expectedPackageVersion: review.version })); }} />}
+    {!attempt && !storageError && preview?.identity === previewIdentity && <CampaignPreparationPreview preview={preview.data} />}
     <div className="form-actions">
+      {!attempt && <button type="button" className="button-secondary" disabled={pending || Boolean(storageError) || !reviewFingerprint || !props.packages.some(item => item.id === values.contentPackageId)} onClick={() => void previewPreparation()}>
+        {previewPending ? "Building unsaved preview…" : "Preview campaign and drafts"}
+      </button>}
       <button type="submit" className="button-primary" disabled={pending || Boolean(storageError) || (!attempt && (!reviewFingerprint || !props.packages.some((item) => item.id === values.contentPackageId)))}>
-        {copyPending ? "Copying preset settings…" : pending ? "Checking preparation…" : attempt ? "Retry same preparation" : "Prepare campaign and drafts"}
+        {previewPending ? "Previewing only…" : copyPending ? "Copying preset settings…" : pending ? "Checking preparation…" : attempt ? "Retry same preparation" : "Prepare campaign and drafts"}
       </button>
       <Link href="/content-packages">Review packages</Link>
     </div>
     {storageError && <p className="form-error" role="alert">{storageError}</p>}
     {error && <div className="form-error" role="alert"><p>{error}</p>{fieldErrors.length > 0 && <ul>{fieldErrors.map((field) => <li key={field}>{field}</li>)}</ul>}{existingId && <Link href={preparationResultPath(existingId, props.workspaceId)}>Open existing preparation</Link>}</div>}
     {message && <p className="form-help" role="status">{message}</p>}
-    {pending && <p className="form-help" role="status">{copyPending ? "Validating and copying reusable settings only. No campaign preparation request is being sent." : "Checking your saved preparation request. Do not start another attempt while this request is pending."}</p>}
+    {pending && <p className="form-help" role="status">{previewPending ? "Reading approved evidence and building an unsaved preview. No campaign, draft or spending record is created." : copyPending ? "Validating and copying reusable settings only. No campaign preparation request is being sent." : "Checking your saved preparation request. Do not start another attempt while this request is pending."}</p>}
     <p className="form-help">Only preparation choices and an attempt ID are saved in this browser tab, scoped to your user and workspace. No credentials are stored. Closing the tab clears its recovery copy; the server receipt remains available.</p>
   </form>;
 }

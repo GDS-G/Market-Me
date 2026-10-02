@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.44 preparation-preview fields
+
+CampaignPreparationPreview/PreparationPreview carry normalized configuration, exact package approval, optional Brand/Destination, ordered General/Audience variants, fixed draft-only manual step, generator identity, approved evidence and literal-false effects. requestDigest correlates exact request bytes but grants no authority. approvedDraftEvidence and generateGroundedDraftVariants share deterministic output with durable generation. Frozen byte/time limits, request-local maps, preview identity/state/AbortController/generation fence and all DTO fields are inventoried in [the programmer reference](CAMPAIGN_PREPARATION_PREVIEW.md). No persistence/global configuration changes.
+
 ## Release 1.43 money-unit fields and helpers
 
 AI_BUDGET_LEDGER_EXPONENT=2 and AI_BUDGET_LEDGER_DIVISOR=100 are immutable primitives. AiBudgetUnitIntegrity carries literal ledgerExponent, compatible/incompatible_history status and incompatibleReservationCount; both budget and usage DTOs require it. Raw totals remain integers, not verified money when compatibility fails. readAiBudgetUnitIntegrity returns a fresh scoped lineage count without mutations/cache. Strict quote-unit acceptance and BigInt-based exact hundredths formatting, safe mismatch constants, unitsVerified/ledgerCompatible/canReserve/validQuoteMoney and the private write assertion are inventoried in the [full variable reference](AI_BUDGET_UNIT_BOUNDARY.md). No configurable globals, environment keys, persistence fields or migration are added.

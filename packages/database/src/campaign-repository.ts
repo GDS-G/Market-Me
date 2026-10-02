@@ -1111,6 +1111,12 @@ export class CampaignRepository {
     }
   }
 
+  /** Internal read-only validation; caller must authorize and lock selected references. Not an execution grant. */
+  async validateReferencesInTransaction(transaction: TransactionSql, input: CampaignDraftWrite): Promise<void> {
+    this.assertGraph(input.steps);
+    await this.validateReferences(transaction, input);
+  }
+
   private async validateReferences(
     transaction: TransactionSql,
     input: CampaignDraftWrite,

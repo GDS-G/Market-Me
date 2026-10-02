@@ -1,6 +1,6 @@
 # Review-first campaign and draft preview
 
-Status: next independent increment after the 1.43 money-unit correction. Specification sections 01, 10 and 23 require users to see intended work before creating or activating it, with one coherent content-to-campaign flow. The manual Prepare campaign form currently loads an exact approved package review but immediately creates the planning Campaign and draft generation when submitted. Source-binding plan preview is structural and cannot preview the actual package-specific draft text on this form.
+Status: 1.44.0 candidate implemented; acceptance is in progress. [Programmer reference](CAMPAIGN_PREPARATION_PREVIEW.md) inventories fields and lifetimes. Specification sections 01, 10 and 23 require users to see intended work before creating or activating it. Previously the manual form loaded an exact approved review but immediately created planning/drafts when submitted. Source-binding plan preview remains structural, not package-specific draft text.
 
 ## Product scope
 
@@ -13,6 +13,8 @@ Use the same pure generation/variant-selection path as durable draft creation an
 Normalize with the existing preparation compiler. Inside the existing repository transaction, require current writer membership and lock the same approved package/review and current profile/destination references as preparation. Reuse current communication-policy validation and exact evidence projection; no live unapproved facts or newly inferred claims enter output. Preserve existing lock ordering and retain prepare's independent revalidation. The preview is a bounded observation, not a lease or token that bypasses the write protocol.
 
 Expose a strict same-origin authenticated no-store POST endpoint accepting only input and expectedReviewFingerprint. Reject duplicate/extra query authority, unknown fields, unsupported content types, oversized bodies and mismatched scope. Bound responses without silent truncation; fail with a safe explanation if the exact preview cannot fit. Avoid exposing raw profile JSON, canonical receipt payloads or private persistence errors.
+
+SHA-256 requestDigest binds the response to exact UTF-8 input bytes. This is transport correlation only, not a durable token, receipt, lease or authorization; preparation independently validates current state.
 
 ## Browser behavior
 
