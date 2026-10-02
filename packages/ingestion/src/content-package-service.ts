@@ -8,6 +8,7 @@ import type {
 import type { MarketMeRepository, SourceItemRecord, StoredSmartSource } from "@market-me/database";
 import type { StorageIngestionService } from "./service";
 import type { MediaProcessor, ObjectStore, ProcessedMediaAsset } from "@market-me/media";
+import { assessSourceTextEvidence } from "./source-text-evidence";
 
 const TEXT_MIME_TYPES = new Set([
   "application/json",
@@ -193,13 +194,6 @@ export class ContentPackageService {
       .filter((pack) => source.contextPackIds.includes(pack.id) && pack.currentVersion)
       .map((pack) => pack.currentVersion!);
     const grounded = contextEvidence(packs);
-    const observed: EvidenceItem[] = [{
-      id: randomUUID(),
-      claim: `Observed source item ${item.name} at ${item.displayPath}.`,
-      provenance: "observed",
-      sourceReferences: [`source-item:${item.id}`],
-      confidence: 1,
-    }];
     let extractedText: string | undefined;
     let extractionStatus: "completed" | "skipped" | "failed" = "skipped";
     let extractionError: string | undefined;
@@ -243,18 +237,22 @@ export class ContentPackageService {
           extractedText = new TextDecoder("utf-8", { fatal: false }).decode(bytes).replaceAll("\u0000", "").trim();
           extractionStatus = "completed";
         }
-        if (extractedText) observed.push({
-          id: randomUUID(),
-          claim: extractedText.slice(0, 500),
-          provenance: "observed",
-          sourceReferences: [`source-item:${item.id}`, `content-hash:${contentHash}`],
-          confidence: 1,
-        });
       } catch (error) {
         extractionStatus = "failed";
         extractionError = error instanceof Error ? error.message : "Content extraction failed";
       }
     }
+    const sourceText = assessSourceTextEvidence({ extractedText, extractionStatus, extractionError,
+      metadata: processedAssets?.find((asset) => asset.role === "original")?.metadata });
+    // Transport identity stays on the asset. It is not marketing evidence.
+    const observed: EvidenceItem[] = [{
+      id: randomUUID(),
+      ...(sourceText.reviewRequired ? { factKey: "source.text_review" } : {}),
+      claim: sourceText.claim,
+      provenance: sourceText.provenance,
+      sourceReferences: [`source-item:${item.id}`, `content-hash:${contentHash}`],
+      ...(!sourceText.reviewRequired ? { confidence: 1 } : {}),
+    }];
     if (readinessIssue) observed.push({
       id: randomUUID(),
       factKey: "readiness.ai_recommendation",
@@ -267,7 +265,7 @@ export class ContentPackageService {
     const mediaReviewRequired = processedAssets?.some((asset) => asset.scanStatus !== "clean" || asset.mediaStatus === "unsupported") ?? false;
     const extractionReviewRequired = processedAssets?.some(extractionNeedsReview) ?? false;
     const reviewRequired = grounded.conflicts.length > 0 || grounded.unresolved.length > 0 || Boolean(readinessIssue)
-      || extractionStatus === "failed" || accessibilityReviewRequired || mediaReviewRequired || extractionReviewRequired;
+      || sourceText.reviewRequired || extractionStatus === "failed" || accessibilityReviewRequired || mediaReviewRequired || extractionReviewRequired;
     const confidenceValues = evidence.flatMap((entry) => entry.confidence === undefined ? [] : [entry.confidence]);
     await this.repository.saveContentPackage({
       workspaceId: source.workspaceId,
@@ -283,6 +281,7 @@ export class ContentPackageService {
         rightsStatus: "unchecked" as const,
         metadata: {
           ...asset.metadata,
+          ...(asset.role === "original" ? { sourceEvidence: sourceText.metadata } : {}),
           displayPath: item.displayPath,
           providerItemId: item.providerItemId,
           webUrl: item.webUrl,
@@ -297,7 +296,8 @@ export class ContentPackageService {
           extractedText,
           extractionStatus,
           extractionError,
-          metadata: { displayPath: item.displayPath, providerItemId: item.providerItemId, webUrl: item.webUrl },
+          metadata: { displayPath: item.displayPath, providerItemId: item.providerItemId, webUrl: item.webUrl,
+            sourceEvidence: sourceText.metadata },
         }],
       evidence,
       conflicts: grounded.conflicts,

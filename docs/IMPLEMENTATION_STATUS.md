@@ -1,6 +1,12 @@
 # Market Me implementation status
 
-## Current verified source: Release 1.39 grounded-draft quality
+## Release 1.40 source-evidence integrity: locally accepted candidate
+
+Whole-text admission replaces observed 500-unit prefixes and transport-only facts. Missing, oversized or reported incomplete extraction creates unresolved evidence that the existing exact-review evaluator blocks, regardless of context facts. Captured text, source references and superseded review history remain intact; correction and approval are separate current-role/fingerprint-guarded operations. [Contracts and variables](SOURCE_EVIDENCE_INTEGRITY.md) explain the boundary without implying semantic understanding or source truth.
+
+Local gate passes 3,109 tests/169 files, 44/44 evaluations, static/build/native checks and unsigned Windows packaging. Synthetic browser correction/approval, mobile and production read-only verification pass with expected records only, no runs/publications/AI spending. Cloud publication and final Google synchronization remain pending; [Releases](RELEASES.md) is authoritative. Development may continue independently; the full product remains unfinished.
+
+## Previous verified source: Release 1.39 grounded-draft quality
 
 Shared generation/manual/AI-application rendering preserves approved punctuation and consistently counts body/CTA UTF-16 units. New batches and presentation snapshots carry distinct version identities; no history is rewritten. The independent 44-case synthetic oracle plus evaluator self-tests covers evidence/citation preservation, depth/promotion choices, audience parity and exact format boundaries. [Full reference](GROUNDED_DRAFT_QUALITY.md) separates deterministic evaluation from semantic understanding and real model/provider quality.
 

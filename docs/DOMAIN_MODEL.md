@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.40 source-evidence variables
+
+SOURCE_TEXT_EVIDENCE_VERSION=source-evidence-v1 and SOURCE_TEXT_EVIDENCE_MAX_CODE_UNITS=500 define the automatic whole-text contract. SourceTextEvidenceInput contains optional extractedText/extractionError/readonly metadata and completed/skipped/failed extractionStatus. The six-value SourceTextReviewReason union, readonly reviewMessages dictionary and per-call reasons array determine reviewRequired, claim and provenance. metadata records version, whole_text/review_required state, trimmed characterCount, utf16_code_units, automaticCharacterLimit and all reasons in stable order. No mutable global or schema is added. [Complete symbol reference](SOURCE_EVIDENCE_INTEGRITY.md) covers malformed diagnostic handling, history and manual correction.
+
 ## Release 1.39 grounded-copy variables and evaluation contracts
 
 No schema change. GROUNDED_COPY_VERSION, the format-limit dictionary, renderGroundedFact, draftCopyCharacterCount and draftCopyPresentation define new copy metadata; counts include body/CTA only, not provider-specific extras. DRAFT_QUALITY_CORPUS_VERSION, DraftQualityCase, DRAFT_QUALITY_CASES, independent limit/depth/promotion tuples, DraftGenerator, DraftQualityResult and evaluateDraftCase form the offline oracle. Per-case clones/results/failure arrays are not global state. [Full symbol reference](GROUNDED_DRAFT_QUALITY.md) records every field/check, input lifetime and historical-version boundary.

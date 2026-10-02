@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.40 locally accepted candidate
+
+Final full local gate passes **3,109 tests/169 files without skips**, 44/44 standalone draft-quality evaluations, all twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web 1160/67; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 112/7; ingestion 79/8; media 24/2; workflows 43/3. Next compile 2.4 s, TypeScript 4.4 s, 104/104 generation 428 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms; cargo check 0.76 s, Rust test build 4.67 s.
+
+New ingestion suites add 41 unit and five live cases; eight web page cases cover nullable confidence and authentication/workspace scoping. Live fixtures require market_me_ci or an isolated market_me_qa_140_ database and no preexisting ingestion events because the real claim operation is global. Cleanup removes only exact fixture organizations/users; the CI database ends with zero organizations. Fresh QA applies 120 migrations and replay skips all 120. Local browser/mobile/production and unsigned packaging pass separately; exact-source cloud gates remain pending. [Releases](RELEASES.md) separates each gate.
+
 ## Release 1.39 verified checkpoint
 
 Full local gate passes **3,055 tests/165 files without skips**, plus all twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web 1152/66; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 112/7; ingestion 33/5; media 24/2; workflows 43/3. The explicit offline quality report passes 44/44. Next compile and TypeScript each take 8.9 s; 104/104 generation 496 ms. Companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 285 ms; cargo check 25.11 s and Rust test build 21.07 s.

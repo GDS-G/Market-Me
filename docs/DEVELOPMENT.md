@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.40 source-evidence development
+
+Read [source-evidence contracts](SOURCE_EVIDENCE_INTEGRITY.md) before modifying admission reasons, extraction diagnostic keys, raw capture, correction or historical lineage. SOURCE_TEXT_EVIDENCE_MAX_CODE_UNITS is a whole-extraction admission bound, not permission to truncate. Absent optional diagnostics retain the plain-text contract; present malformed/unknown diagnostics fail closed. Future parser changes must explicitly preserve that distinction. Own metadata is 1.40.0; no schema, dependencies, secrets or environment variables change. Generator/corpus identities remain unchanged from 1.39.
+
+Full local acceptance is 3,109 tests/169 files plus 44/44 quality cases. The new live suite guards its disposable database and exact fixture cleanup. Browser fixture seed is one-time only; later --status checks are read-only. Do not retry an existing approval/correction merely to recreate a screenshot. Nullable list confidence displays Unavailable; actual zero remains 0%. [Release ledger](RELEASES.md) records distinct local/cloud/native/browser acceptance and remaining limitations.
+
 ## Release 1.39 draft-quality development
 
 Run npm run qa:draft-quality for the versioned synthetic JSON report; npm run check and cloud CI require it. All 44 corpus cases pass, including every declared format/depth/promotion choice and whole-claim length boundaries. Generation tests total 112 across seven files, including evaluator rejection tests. Own metadata is 1.39.0; generator identity separately becomes 1.1.0/grounded-draft-v2. No dependencies or migrations change. [Quality reference](GROUNDED_DRAFT_QUALITY.md) explains independent expected values, exact failures, mutation checks and why passing synthetic cases is not a real-model quality certificate.

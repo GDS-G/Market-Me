@@ -18,7 +18,7 @@ export default async function ContentPackagesPage() {
     <section className="resource-panel"><div className="resource-panel-head"><div><h2>Packages</h2><p>{packages.length} normalized package{packages.length === 1 ? "" : "s"}</p></div></div>
       {packages.length === 0 ? <div className="empty-state"><span><FileStack size={22} /></span><h3>No Content Packages yet</h3><p>Synchronize an enabled Smart Source. Stable file events become evidence-backed packages in the worker.</p></div> : <div className="resource-table">{packages.map((item) => <article className="resource-row" key={item.id}>
         <span className="resource-icon"><FileStack size={18} /></span><div className="resource-primary"><strong>{item.title}</strong><p>{item.assets.map((asset) => asset.fileName).join(", ")}</p></div>
-        <div><span className="resource-label">Evidence</span><strong>{item.evidence.length}</strong></div><div><span className="resource-label">Confidence</span><strong>{item.confidence === undefined ? "—" : `${Math.round(item.confidence * 100)}%`}</strong></div>
+        <div><span className="resource-label">Evidence</span><strong>{item.evidence.length}</strong></div><div><span className="resource-label">Confidence</span><strong>{item.confidence == null ? "Unavailable" : `${Math.round(item.confidence * 100)}%`}</strong></div>
         <span className={`status-pill ${item.status === "ready" || item.status === "approved" ? "status-green" : item.status === "needs_review" ? "status-amber" : "status-neutral"}`}>{item.status.replaceAll("_", " ")}</span>
         <Link className="icon-link" href={`/content-packages/${item.id}`} aria-label={`Open ${item.title}`}><ArrowUpRight size={16} /></Link>
       </article>)}</div>}

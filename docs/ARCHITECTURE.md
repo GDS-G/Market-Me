@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.40 source-evidence admission
+
+ContentPackageService assesses the original extraction through the pure internal assessSourceTextEvidence helper. It retains full capture and attaches versioned sourceEvidence metadata, admitting one exact whole-text observed claim or an unresolved instruction. Transport identity stays asset provenance. Existing effective-evidence evaluation, explicit correction, exact approval and grounded preparation remain separate authority boundaries. Context cannot bypass unresolved source review. [Design reference](SOURCE_EVIDENCE_INTEGRITY.md) documents the data flow and original/derivative distinction; no semantic summarizer or mutable global is introduced.
+
 ## Release 1.39 shared grounded-copy rendering
 
 A pure shared presentation module now serves generation, manual revision and accepted AI-proposal application. It preserves reviewed terminal punctuation and uses one body/CTA UTF-16 measurement with two-newline separation. New batches use generator 1.1.0/grounded-draft-v2; new presentation snapshots use grounded-copy-v2. Existing records are never rewritten. Offline fixtures/evaluator are not exported by the runtime package. [Complete design](GROUNDED_DRAFT_QUALITY.md) distinguishes this regression gate from semantic/model/provider acceptance.

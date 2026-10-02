@@ -1,6 +1,6 @@
 # Source-evidence integrity
 
-Status: independently underway after verified release 1.39. Six pre-fix baseline tests reproduce five failures/one pass. The first implementation and focused ingestion/database tests pass; full acceptance and documentation remain outstanding. These changes are not included in 1.39 runtime evidence.
+Status: release 1.40 is locally accepted after verified release 1.39. Six pre-fix baseline tests reproduced five failures/one pass; final regression passes 3,109 tests/169 files plus 44/44 quality evaluations. Native/unsigned packaging and isolated browser/mobile/production checks pass. [Implementation and variable reference](SOURCE_EVIDENCE_INTEGRITY.md) records the completed contract; exact-source cloud publication and final Google synchronization remain pending in [Releases](RELEASES.md). These changes are not part of 1.39 runtime evidence.
 
 ## Observed problem
 

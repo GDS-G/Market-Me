@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.40 incomplete-source boundary
+
+Unresolved source text cannot become effective evidence or receive exact package approval merely because other context exists. New ingestion never treats a path/file label as a marketing fact or a cut prefix as complete evidence. Owner/admin/approver correction remains explicit, current-role and fingerprint guarded; editors are denied, and correction does not approve. Preserved source capture/review proofs are not a source-truth guarantee. No historical approvals, rights/scans, provider execution or financial authority are changed. [Full boundary reference](SOURCE_EVIDENCE_INTEGRITY.md) distinguishes reported completeness from parser fidelity.
+
 ## Release 1.39 evidence-preserving copy boundary
 
 The shared renderer never creates evidence, grants approval or publishes. Existing exact source-review receipts, writer locks, immutable claim references and AI artifact/source-version guards remain. Manual/AI changes create a new working successor; old bodies/claims/generation identities remain untouched. Offline evaluation uses synthetic data without network, credentials or database writes; it is not an untrusted-output parser or authority gate. Final provider preview counting, rights, approval and execution controls stay separate. [Contracts](GROUNDED_DRAFT_QUALITY.md) state what is and is not proved.

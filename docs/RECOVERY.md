@@ -1,5 +1,9 @@
 # Backup and Recovery Runbook
 
+## Release 1.40 source-evidence recovery
+
+Do not erase unresolved evidence or relabel old prefixes to make approval succeed. Review the original source and complete captured text, record a supported successor through the existing correction operation, then separately approve the new exact review. Preserve old claims, supersession pointers, assets and immutable receipts. An uncertain action requires checking its existing recovery/history, not a fresh automatic retry. Code rollback changes future ingestion only and may restore unsafe prefix behavior; this release performs no historical backfill. [Source-evidence reference](SOURCE_EVIDENCE_INTEGRITY.md) documents fixture ownership and operator limits.
+
 ## Release 1.39 rendering and evaluation recovery
 
 Never rewrite historical copy or delete approval/evidence records to repair punctuation or metadata. New generation records use a new identity; a deliberate revision creates a new working successor with grounded-copy-v2 while preserving the original generation identity. Rollback changes future rendering only and may restore old defects. A failed exact evaluation blocks acceptance; inspect fixture expectations and implementation independently rather than loosening assertions. [Quality reference](GROUNDED_DRAFT_QUALITY.md) documents version/count scopes and historical preservation.

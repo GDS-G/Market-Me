@@ -19,6 +19,7 @@ describe("captured package review display", () => {
   it("preserves complete captured text, raw JSON keys, bigint decimal bytes and UTC microseconds", () => {
     const html = renderToStaticMarkup(createElement(PackageReviewSnapshot, { snapshot: reviewTestSnapshot, effectiveEvidenceIds: [] }));
     expect(html).toContain("END OF COMPLETE CAPTURE"); expect(html).toContain("expandable, not truncated"); expect(html).toContain("9007199254740993");
+    expect(html).toContain("not a guarantee that extraction captured the entire source");
     expect(html).toContain("2026-09-15T15:30:42.654321Z"); expect(html).toContain("raw_key"); expect(html).toContain("&lt;script&gt;never execute&lt;/script&gt;"); expect(html).not.toContain("<script>");
   });
   it("uses the captured original's approved alt text for its derivative preview", () => {

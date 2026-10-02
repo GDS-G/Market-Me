@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.39: Evidence-preserving copy and quality checks
+## Release 1.40 candidate: Source-evidence integrity
+
+New ingestion admits the whole available text only when it passes explicit completeness checks and the 500 UTF-16-unit automatic bound. Oversized, partial, failed or empty extraction requires a supported human correction and separate approval; file names/paths are no longer marketing facts. Captured text and original review history remain intact. [Programmer reference](docs/SOURCE_EVIDENCE_INTEGRITY.md) documents contracts, variables and limits.
+
+Local acceptance passes 3,109 tests/169 files, 44/44 quality evaluations, native/unsigned packaging and synthetic desktop/mobile/production checks. Cloud publication and final documentation synchronization are pending; [Releases](docs/RELEASES.md) separates verified evidence. This is not semantic understanding, historical-data remediation or whole-product completion.
+
+## Previous release 1.39: Evidence-preserving copy and quality checks
 
 Generated and revised drafts now preserve approved question/exclamation punctuation, share a clearly scoped copy-length measurement and report the actual selected format in errors. New output is versioned; historical drafts remain unchanged. A 44-case synthetic corpus covers all format/depth/promotion choices and exact boundaries, with evaluator self-tests that reject altered facts and citations. [Programmer reference](docs/GROUNDED_DRAFT_QUALITY.md) explains the contracts and limits.
 

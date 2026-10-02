@@ -72,7 +72,7 @@ export function PackageReviewSnapshot({ snapshot, effectiveEvidenceIds, excluded
             <dt>Permission window</dt><dd>{asset.rights.validFromUtcMicros ?? "No lower bound"} → {asset.rights.expiresAtUtcMicros ?? "No expiry"}</dd>
             <dt>Rights source / proof</dt><dd>{asset.rights.sourceReference ?? "None"}<br />{asset.rights.proofReference ?? "None"}</dd></dl>
           {asset.extraction.error && <p className="form-error">Captured extraction error: {asset.extraction.error}</p>}
-          {asset.extraction.text !== null && <details><summary>Complete captured extracted text ({asset.extraction.text.length} characters; expandable, not truncated)</summary><pre className={styles.raw}>{asset.extraction.text}</pre></details>}
+          {asset.extraction.text !== null && <details><summary>Complete captured extracted text ({asset.extraction.text.length} characters; expandable, not truncated)</summary><p>This shows all stored text, not a guarantee that extraction captured the entire source. Review extraction warnings and the original source before asserting a fact.</p><pre className={styles.raw}>{asset.extraction.text}</pre></details>}
           <details><summary>All captured asset fields, including raw rights, scopes, recipe, and metadata</summary><pre className={styles.raw}>{JSON.stringify(asset, null, 2)}</pre></details>
         </article>;
       })}
