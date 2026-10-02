@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.47 catalog development
+
+Read [Content Package catalog](CONTENT_CATALOG.md) before changing selection normalization, SQL scope, pagination, counts or returned fields. Never round cursor times through Date or infer permission from its hash. Own metadata is 1.47.0/schema121; no dependency/environment/migration addition. Isolated QA147 initializes once with 65 synthetic packages and disabled intake, then uses read-only post-login 141-table/two-projection comparisons. The full local gate passes 3,733 tests/194 files plus 44 quality cases; cloud and Google acceptance remain separately recorded in [Releases](RELEASES.md). User pnpm files remain unchanged/excluded.
+
 ## Release 1.46 export development
 
 Read [Analytics snapshot downloads](ANALYTICS_EXPORTS.md) before changing DTO projection,CSV columns,numeric guards,formula-prefix treatment or attachment headers. Never export a repository object directly or silently change a version1 column meaning. Own metadata1.46.0/schema121;no dependency/environment/migration addition. QA reuses the existing isolated145 fixture read-only and verifies actual Chrome files with the ignored146 helper; never repeat145 --init. The exact existing dev-login flag is MARKET_ME_DEV_LOGIN_ENABLED;production rejects it even when true. Existing user pnpm files remain untouched/excluded. [Releases](RELEASES.md) distinguishes passed tests/browser files from the Chrome-blocked optional diagnostic.

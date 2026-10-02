@@ -1,5 +1,11 @@
 # Market Me implementation status
 
+## Release 1.47 Content Package catalog: local acceptance passed
+
+The package listing now searches literal titles/filenames, filters recorded status and renders at most 30 minimized records with exact complete counts and explicit next/newest navigation. Current membership, scoped lineage, filter-bound cursor validation and exact microsecond ordering are covered. [Full reference](CONTENT_CATALOG.md) inventories every new contract and variable.
+
+Local acceptance passes 3,733 tests/194 files, 44 quality cases, frontend/static/native checks and unsigned packaging. Actual browser 30/30/5 pagination, Unicode/filename/status/reset/empty-workspace and mobile/production checks pass; all 141 measured tables and both catalog projections remain unchanged. Cloud publication and Google documentation readback are pending. Draft/variant/body search, broader product work and live deployment remain separate; no user input is needed merely to continue.
+
 ## Release 1.46 Analytics downloads: verified and published
 
 Explicit JSON/CSV links obtain fresh current-member workspace/optional-Campaign snapshots. Versioned allowlisted formats retain exact values, separate clocks, source/currency labels, null/zero and bounded coverage; CSV marks risky text and explains spreadsheet import precision. Fixed private errors and ID-only attachment filenames prevent scope/header/data leakage. [Full reference](ANALYTICS_EXPORTS.md) inventories all contracts and variables.

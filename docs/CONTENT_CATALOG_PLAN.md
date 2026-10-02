@@ -1,6 +1,6 @@
 # Searchable, bounded Content Package catalog
 
-Status: planned as the next independent increment after 1.46. Specification section 01 explicitly calls for searchable content and a nontechnical review-first experience. The current package page loads every package plus full asset/evidence details before rendering a list, has no search/status filter and reports the loaded array size as its catalog total.
+Status: implemented as release 1.47; local/browser/native acceptance passes, with cloud and Google documentation verification pending. Specification section 01 explicitly calls for searchable content and a nontechnical review-first experience. The previous package page loaded every package plus full asset/evidence details before rendering a list, had no search/status filter and reported the loaded array size as its catalog total. [Implementation reference](CONTENT_CATALOG.md) records the delivered contract and exact-microsecond regression fix.
 
 ## User experience
 

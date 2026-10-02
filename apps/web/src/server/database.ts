@@ -24,6 +24,7 @@ import {
   WorkspaceStartRepository,
   PackageWorkRepository,
   WorkspaceAnalyticsRepository,
+  ContentCatalogRepository,
 } from "@market-me/database";
 import { getServerConfiguration } from "./config";
 
@@ -52,6 +53,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
     workspaceStart: WorkspaceStartRepository;
     packageWork: PackageWorkRepository;
     workspaceAnalytics: WorkspaceAnalyticsRepository;
+    contentCatalog: ContentCatalogRepository;
   };
 };
 
@@ -156,6 +158,10 @@ export function getWorkspaceAnalyticsRepository(): WorkspaceAnalyticsRepository 
   return getRepositories().workspaceAnalytics;
 }
 
+export function getContentCatalogRepository(): ContentCatalogRepository {
+  return getRepositories().contentCatalog;
+}
+
 function getRepositories(): {
   core: MarketMeRepository;
   campaigns: CampaignRepository;
@@ -180,6 +186,7 @@ function getRepositories(): {
   workspaceStart: WorkspaceStartRepository;
   packageWork: PackageWorkRepository;
   workspaceAnalytics: WorkspaceAnalyticsRepository;
+  contentCatalog: ContentCatalogRepository;
 } {
   if (databaseGlobal.marketMeDatabase) return databaseGlobal.marketMeDatabase;
   const databaseUrl = getServerConfiguration().databaseUrl;
@@ -209,6 +216,7 @@ function getRepositories(): {
     workspaceStart: new WorkspaceStartRepository(sql),
     packageWork: new PackageWorkRepository(sql),
     workspaceAnalytics: new WorkspaceAnalyticsRepository(sql),
+    contentCatalog: new ContentCatalogRepository(sql),
   };
   // Share one lazily constructed pool per server runtime in every environment.
   // Only repositories/SQL are retained, never request data or authorization.

@@ -1,0 +1,27 @@
+.page { display: flex; flex-direction: column; gap: 26px; max-width: 1240px; }
+.page > header { margin-bottom: 0; }
+.page h2 { font-size: 21px; margin: 0 0 12px; }
+.page h3 { font-size: 17px; margin: 0; }
+.page, .page section, .page article, .page label, .page input, .page select { min-width: 0; overflow-wrap: anywhere; }
+.panel { background: #fff; border: 1px solid #e3dfed; border-radius: 13px; padding: 22px; }
+.filters { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto; gap: 16px; align-items: end; }
+.control { display: grid; gap: 8px; color: #4b435e; font-size: 13px; font-weight: 600; }
+.control input, .control select { width: 100%; min-height: 44px; border: 1px solid #cfc8de; border-radius: 7px; padding: 10px 12px; background: #fff; color: #30263f; font: inherit; font-size: 14px; box-sizing: border-box; }
+.note, .resultsHeading p { color: #625b72; font-size: 13px; line-height: 1.65; }
+.resultsHeading { display: flex; justify-content: space-between; gap: 18px; align-items: center; margin-top: 2px; }
+.resultsHeading p { margin: 0; }
+.resultsHeading > a, .openLink, .paging a { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; font-size: 14px; font-weight: 650; color: #604094; }
+.results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 20px; }
+.itemHeading { display: flex; align-items: baseline; gap: 9px; }
+.itemHeading svg { flex-shrink: 0; color: #7656a6; }
+.status { display: inline-block; margin-top: 14px; padding: 5px 9px; border-radius: 6px; background: #f1edf7; color: #55426f; font-size: 12px; font-weight: 650; }
+.files { margin: 16px 0; padding-left: 18px; color: #60576e; font-size: 13px; line-height: 1.6; }
+.facts { display: flex; flex-wrap: wrap; gap: 16px 24px; margin: 18px 0; }
+.facts dt { font-size: 11px; color: #6b637a; }
+.facts dd { margin: 5px 0 0; font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.empty { padding: 28px; margin-top: 18px; border-radius: 12px; border: 1px dashed #d6cce3; background: #faf8fd; }
+.empty svg { color: #8161a9; margin-bottom: 12px; }
+.empty p { color: #625b72; line-height: 1.65; }
+.paging { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.page a:focus-visible, .page input:focus-visible, .page select:focus-visible, .page button:focus-visible { outline: 3px solid #7450c3; outline-offset: 4px; border-radius: 4px; }
+@media(max-width: 800px) { .filters, .results { grid-template-columns: minmax(0, 1fr); } .resultsHeading { flex-direction: column; align-items: flex-start; } .panel { padding: 18px; } .filters button { justify-content: center; } }

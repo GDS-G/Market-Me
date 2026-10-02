@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.47 catalog fields and cursors
+
+ContentCatalogSnapshot/schemaVersion1 contains current workspace, observation time, normalized filters, complete exact-string totals, readonly bounded items and an optional encoded next cursor. Each item carries identity/title/stored status/confidence, exact updated time, string asset/evidence counts and three filenames. Frozen limits are 30/3/120 query units/512 cursor characters/1MiB; the exhaustive status-label dictionary and workspace/filter-context tuple are documented in [the full reference](CONTENT_CATALOG.md). Cursor hashes are correlation, never authorization. Request-local validators, URL/count helpers, SQL aliases and UI variables are inventoried; no new persistence fields exist.
+
 ## Release 1.46 download formats and variables
 
 AnalyticsExportFormat is json/csv; the export envelope has fixed format/version1,notes,limits and an allowlisted schema1 reporting snapshot. Frozen ANALYTICS_EXPORT_LIMITS bounds512 encoded query characters/2MiB UTF-8 output. ANALYTICS_EXPORT_NOTES is an eight-note tuple; ANALYTICS_CSV_COLUMNS is the ordered26-column tuple, CsvColumn its union, CsvRow a partial typed dictionary and numericColumns a private readonly set. Query/path/primitive guards,privateHeaders,request-local rows/common/fields/selection/data/file and all row kinds are inventoried in [the full reference](ANALYTICS_EXPORTS.md). No persistence/global authorization/Number arithmetic is added.

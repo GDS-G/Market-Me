@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.47 scoped catalog search
+
+The authenticated actor and active workspace remain authoritative. SQL rechecks membership with each count/page observation and excludes inconsistent source/root/asset workspace lineage. Search filters and unsigned filter-bound cursors cannot grant access; controls, malformed/duplicate queries and stale context fail closed. Only title/filenames and minimized record metadata are returned, never extracted content or claims. Literal SQL parameters and React escaping preserve text safely. [Boundary reference](CONTENT_CATALOG.md) explains point-in-time revocation, observable URL search terms, limits and concurrent pagination. Search has no synchronization, mutation, approval or launch effects.
+
 ## Release 1.46 private report downloads
 
 Session actor/current selection and SQL membership remain authoritative; strict required workspace hints cannot select another workspace. Unknown/duplicate filters and foreign/revoked output fail closed. All exported nested fields are explicitly allowlisted; filenames contain validated IDs only, and responses are private/no-store/nosniff with no CORS grant or raw error logging. CSV marks formula/control-prefix text with literal `[text] ` before quoting; validated negative decimals remain exact. JSON preserves original labels. [Full security contract](ANALYTICS_EXPORTS.md) documents spreadsheet auto-conversion/re-save limits and the privacy/retention responsibilities of downloaded user labels.

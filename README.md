@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.46: CSV and JSON Analytics downloads
+## Release 1.47: Searchable Content Packages
+
+Content Packages now supports literal title/filename search, recorded-status filtering, exact matching/catalog counts and 30-result pages. Current workspace membership is checked on every read; filename previews are bounded and full evidence stays in the detail view. [Programmer reference](docs/CONTENT_CATALOG.md) documents contracts, variables, scope and microsecond-safe pagination.
+
+Local acceptance passes 3,733 tests/194 files, 44 quality cases, static/frontend/native checks, unsigned packaging and isolated desktop/mobile/production browser checks. All 141 measured tables and both catalog projections remain unchanged. Cloud publication and native Google documentation verification are pending; this is not whole-application completion. [Release evidence](docs/RELEASES.md).
+
+## Previous release 1.46: CSV and JSON Analytics downloads
 
 Analytics now offers explicit workspace/Campaign snapshot downloads with exact numeric strings, original JSON labels, guarded CSV text, source/time separation and embedded coverage notes. Downloads are current-member-only, private/no-store and read-only. [Programmer reference](docs/ANALYTICS_EXPORTS.md) documents every format field, helper, variable and limit.
 

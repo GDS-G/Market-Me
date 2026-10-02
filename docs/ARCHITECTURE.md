@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.47 catalog read projection
+
+The Content Packages server page uses a focused one-statement current-member projection instead of hydrating every package and its evidence. Complete exact counts are independent of a 30-item keyset page and three-name preview. Timestamp/UUID boundaries retain PostgreSQL microseconds through text-first parameter binding; every page rechecks scope. The existing detail/worker loader remains unchanged. [Full design](CONTENT_CATALOG.md) describes all CTEs, lifetimes, concurrent-edit limits and scan-cost caveats. Shared-pool getters now total 24; no migration, global result cache or provider work is added.
+
 ## Release 1.46 snapshot-download transport
 
 Explicit authenticated GET attachments reuse the existing coherent Analytics SQL observation without writes or a new repository. A strict current-selection hint and returned-scope check fence the route; a request-local field allowlist builds versioned JSON or rectangular long-form CSV. Exact values, distinct clocks, bounded coverage, private response headers and safe ID-only filenames remain explicit. [Complete design](ANALYTICS_EXPORTS.md) explains format/version boundaries, serialization and no-prefetch native links. No job, cache, provider call or client store is added.

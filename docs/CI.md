@@ -1,5 +1,9 @@
 # Cloud continuous integration
 
+## Release 1.47 local checkpoint
+
+Full local gate passes **3,733 tests/194 files without skips**: web1559/82, workflow-worker68/5, companion protocol4/1, connectors166/10, database1512/68, domain157/7, generation121/8, ingestion79/8, media24/2, workflows43/3. All 44 quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests pass. Next compile5.1s/TypeScript8.8s/109-page generation448ms; companion141ms/201.34kB JavaScript64.02kB gzip; native check3.17s/test build15.96s. New coverage adds54 database/model and44 net web cases. Cloud verification is pending; [Releases](RELEASES.md) separates browser and unsigned packaging evidence.
+
 ## Release 1.46 verified checkpoint
 
 Full local gate passes **3,635 tests/191 files without skips**: web1515/81,workflow-worker68/5,companion protocol4/1,connectors166/10,database1458/66,domain157/7,generation121/8,ingestion79/8,media24/2,workflows43/3. All44 quality cases,twelve typechecks,lint,both frontends,cargo check and three Rust tests pass. Next compile4.5s/TypeScript12.6s/109-page generation430ms;companion137ms/201.34kB JavaScript64.02kB gzip;native check2.99s/test build15.22s. New export coverage adds72 cases/two files; existing page cases gain link/scope/warning assertions. [Releases](RELEASES.md) separates actual downloads/browser, unsigned packaging and the blocked optional diagnostic.
