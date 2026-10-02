@@ -2,11 +2,14 @@ import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ user: vi.fn(), workspace: vi.fn(), packages: vi.fn(), brands: vi.fn(), audiences: vi.fn(), destinations: vi.fn(), get: vi.fn(), draft: vi.fn(), campaigns: vi.fn(), runs: vi.fn(), receipts: vi.fn(), drafts: vi.fn(), presetGet: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: vi.fn(), workspace: vi.fn(), packages: vi.fn(), brands: vi.fn(), audiences: vi.fn(), destinations: vi.fn(), get: vi.fn(), draft: vi.fn(), campaigns: vi.fn(), runs: vi.fn(), receipts: vi.fn(), drafts: vi.fn(), presetGet: vi.fn(), catalog: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error("redirect:" + path); }, notFound: () => { throw new Error("not-found"); } }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/server/preparation-preset-pages", () => import("./preparation-preset-pages"));
 vi.mock("@/server/workspace-analytics-view", () => import("./workspace-analytics-view"));
+vi.mock("@/server/draft-catalog-view", () => import("./draft-catalog-view"));
+vi.mock("@/server/content-catalog-view", () => import("./content-catalog-view"));
+vi.mock("@/server/dashboard-data", () => import("./dashboard-data"));
 vi.mock("./auth", () => ({ getAuthenticatedUser: mocks.user }));
 vi.mock("./active-workspace", () => ({ getActiveWorkspace: mocks.workspace }));
 vi.mock("./database", () => ({ getCampaignRepository: () => ({ listDestinations: mocks.destinations }), getProfileRepository: () => ({ listBrandProfiles: mocks.brands, listAudienceProfiles: mocks.audiences }) }));
@@ -18,6 +21,7 @@ vi.mock("@/server/database", () => ({
   getCampaignRepository: () => ({ listDestinations: mocks.destinations, listCampaigns: mocks.campaigns, listCampaignInstances: mocks.runs }),
   getCampaignPreparationRepository: () => ({ get: mocks.get, listForWorkspace: mocks.receipts }),
   getDraftRepository: () => ({ get: mocks.draft, list: mocks.drafts }),
+  getDraftCatalogRepository: () => ({ getPage: mocks.catalog }),
   getPreparationPresetRepository: () => ({ get: mocks.presetGet }),
 }));
 vi.mock("@/components/workspace-shell", () => ({ WorkspaceShell: ({ children }: { children: ReactNode }) => createElement("main", {}, children) }));
@@ -30,6 +34,7 @@ import PreparePage from "../app/campaigns/prepare/page";
 import ResultPage from "../app/campaigns/preparations/[id]/page";
 import CampaignsPage from "../app/campaigns/page";
 import DraftsPage from "../app/drafts/page";
+const draftsPage = () => DraftsPage({ searchParams: Promise.resolve({}) });
 
 const workspaceId = "11111111-1111-4111-8111-111111111111", userId = "22222222-2222-4222-8222-222222222222";
 const packageId = "33333333-3333-4333-8333-333333333333", receiptId = "44444444-4444-4444-8444-444444444444";
@@ -43,6 +48,7 @@ beforeEach(() => {
   mocks.brands.mockResolvedValue([]); mocks.audiences.mockResolvedValue([]); mocks.destinations.mockResolvedValue([]);
   mocks.get.mockResolvedValue(receipt); mocks.draft.mockImplementation(async (_workspace: string, id: string) => id === "draft-1" ? { id } : undefined);
   mocks.campaigns.mockResolvedValue([]); mocks.runs.mockResolvedValue([]); mocks.receipts.mockResolvedValue([]); mocks.drafts.mockResolvedValue([]);
+  mocks.catalog.mockResolvedValue({ schemaVersion: 1, workspaceId, observedAt: "2026-10-02T05:00:00Z", filters: { query: "", status: null }, totalDrafts: "0", totalMatches: "0", items: [], nextCursor: null });
 });
 
 describe("preparation entry authorization", () => {
@@ -71,7 +77,7 @@ describe("preparation entry authorization", () => {
     const html = renderToStaticMarkup(await PreparePage({ searchParams: Promise.resolve({}) }));
     expect(html).toContain("Writer access required"); expect(html).not.toContain("<form");
     expect(renderToStaticMarkup(await CampaignsPage())).not.toContain('href="/campaigns/prepare"');
-    expect(renderToStaticMarkup(await DraftsPage())).not.toContain('href="/campaigns/prepare"');
+    expect(renderToStaticMarkup(await draftsPage())).not.toContain('href="/campaigns/prepare"');
   });
   it("requires an authenticated current workspace", async () => {
     mocks.user.mockResolvedValue(undefined);
@@ -86,7 +92,7 @@ describe("preparation entry authorization", () => {
     await expect(PreparePage({ searchParams: Promise.resolve({ contentPackageId: receiptId }) })).rejects.toThrow("not-found");
   });
   it("shows one primary prepare entry in each writer empty state", async () => {
-    for (const page of [CampaignsPage, DraftsPage]) {
+    for (const page of [CampaignsPage, draftsPage]) {
       const html = renderToStaticMarkup(await page());
       expect(html.match(/href="\/campaigns\/prepare"/g)).toHaveLength(1);
     }

@@ -1,0 +1,76 @@
+# Searchable draft variants
+
+## Scope and workflow
+
+Release1.48 replaces the Drafts listing's unbounded current-version/claim/generation hydration with a current-member read projection. Search covers the current headline/body and stored Campaign, package and named Audience labels, using literal case-insensitive substrings under PostgreSQL's existing collation. Percent, underscore, quote and backslash characters are data, not query syntax. Outer whitespace is trimmed; there is no fuzzy/accent-insensitive/semantic ranking. Historical versions, evidence, call to action, hashtags, alt text, rationale and presentation choices are not searched. The displayed General fallback means a null Audience reference, not an Audience record and not a searchable stored name.
+
+Each generated variant remains one draft. The page shows at most30 records, exact complete catalog/matching totals, stored status, current version number, Campaign/package/Audience labels and at most320 Unicode code points of current body copy. A shortened-preview notice gives the full exact body character count and links to complete detail. PostgreSQL UTF-8 `left`/`char_length` preserve code points, including emoji surrogate-pair characters; they do not promise grapheme-cluster boundaries. Existing draft detail still owns full copy, evidence, revision, preview and approval actions. Stored status is not proof of current exact approval, channel eligibility or delivery.
+
+Generation is an explicit separate `/drafts/generate` page. Only owner/admin/editor users see its link; its server page checks the same writer predicate before loading candidate Campaigns/packages or rendering the existing DraftGenerationForm. Readers see Writer access required and load no candidates. The form's exact approved-package picker, POST protocol, synchronous duplicate guard and uncertain-response/no-automatic-retry behavior are unchanged. The original server mutation remains authoritative. Opening either page generates nothing. Empty writer catalogs retain one Prepare campaign entry; readers can inspect packages. The generation page preserves the existing candidate-selection breadth rather than claiming newly bounded generation options.
+
+GET terms remain in URLs and can appear in browser history, copied links and access logs. Do not search for credentials or sensitive document contents; configure production log redaction/retention. Links require the recipient's own current membership and matching active workspace. No provider, spending, approval, scheduling or publication action is added.
+
+## Source map and lifetime
+
+- `packages/database/src/draft-catalog-models.ts`: DTOs, frozen limits, strict selection and draft-domain-separated cursor contract.
+- `packages/database/src/draft-catalog-repository.ts`: `DraftCatalogRepository.getPage(workspaceId, actorUserId, input={})`, one membership/lineage-scoped SELECT with complete counts, bounded preview and exact timestamp ordering.
+- `apps/web/src/server/draft-catalog-view.ts`: URL/query helpers, request shape and stored-status dictionary. Existing `catalogCount` from content-catalog-view formats exact strings without Number conversion.
+- `apps/web/src/app/drafts/page.tsx` and `catalog.module.css`: authenticated server page, native GET form, responsive cards, count/clock/preview caveats and explicit paging links.
+- `apps/web/src/app/drafts/generate/page.tsx`: separate writer-only candidate loading and unchanged generator component. The old `DraftRepository.list` and GET API consumers remain unchanged; generation's post-save lookup still uses its existing loader.
+- `apps/web/src/server/database.ts`:25th shared-pool getter and repository bundle entry. The repository retains only the SQL client. Updated lifecycle unit/live tests cover identity reuse; no authorization, user, query or response is cached globally.
+
+Limits and the label dictionary are immutable module constants. All input objects, cursor bytes, decoded fields, row arrays, page data and UI decisions are request-local. There is no browser storage, new API, mutable application setting or new environment key.
+
+## Contracts and important values
+
+| Contract | Fields and intent |
+| --- | --- |
+| `DRAFT_CATALOG_LIMITS` | Frozen pageSize30,bodyCharacters320 PostgreSQL/Unicode code points,queryLength120 UTF-16 units before trimming,cursorLength512 base64url characters,responseBytes1048576 UTF-8 bytes. No caller overrides. |
+| `DraftCatalogFilters` | Trimmed literal query:string; status:DraftStatus or null for all. |
+| `DraftCatalogCursor` | Exact UTC six-fractional-digit at:string and canonical lowercase draft id:string; together an exclusive ordering boundary. |
+| `DraftCatalogItem` | id,currentVersionId,integer versionNumber,original headline,bodyPreview,exact bodyCharacters:string,bodyTruncated:boolean,stored status,exact updatedAt,campaignId/campaignName,packageId/packageTitle,nullable audienceName. No current-version body outside the bounded preview or evidence payload. |
+| `DraftCatalogSnapshot` | schemaVersion1,workspaceId,statement observedAt,normalized filters,totalDrafts:string,totalMatches:string,readonly items and nullable nextCursor. Complete totals are independent of page length. |
+| `DraftCatalogSelection` | Web request shape: query plus optional status and original validated encoded cursor. Normalized DTO status is nullable; web paths omit all-status. |
+| `DRAFT_CATALOG_STATUS_LABELS` | Frozen exhaustive dictionary: working→Working copy,pending_review→Awaiting review,approved→Approved record,rejected→Rejected record,changes_requested→Changes requested,archived→Archived record. |
+
+`draftCatalogUuid` aliases the existing canonical UUID guard; it lowercases valid hyphenated version1–8/RFC-variant IDs and rejects nil IDs, spaces and arrays. `cursorTime` checks valid calendar/year1000–9999,UTC Z and exactly six fractional digits. Date validates only the calendar; its rounded value never replaces the original string.
+
+`context` hashes the JSON tuple `["market-me.draft-catalog",1,normalizedWorkspaceId,normalizedQuery,normalizedStatus]` with SHA-256. `encodeDraftCatalogCursor` emits UTF-8 base64url JSON with exactly v1,at,id,context. Decode checks canonical base64url round trip, exact keys/version/context and timestamp/UUID. Draft cursors cannot accidentally reuse package cursors, even where the statuses overlap. This is an unkeyed context check, not authentication: callers can construct a cursor, and every read independently authorizes scope.
+
+`normalizeDraftCatalogQuery` admits only object keys query/status/cursor. Missing query is empty; supplied query must be a string no longer than120 UTF-16 units and contain no Unicode Cc/Cf controls, then outside whitespace is trimmed. Missing/empty/all/null status normalizes to null; otherwise use the six existing DRAFT_STATUSES. Missing cursor means newest; supplied empty/oversized/noncanonical/corrupt/stale-context cursor throws before SQL. Unknown keys, arrays and invalid IDs are rejected.
+
+`draftCatalogSelection` permits only browser workspaceId/q/status/cursor; duplicate parameters become arrays and fail. Optional workspaceId must match independently selected active scope. The result keeps normalized query/status and validated encoded cursor. `draftCatalogPath` validates again and uses URLSearchParams, always including workspaceId. Existing `catalogCount` accepts only canonical nonnegative decimal strings up to128 digits, inserts grouping commas and does no floating-point conversion.
+
+Repository locals workspace/actor/filters are validated once; at/id are null or cursor boundary. row.snapshot is JSONB serialized as text, byte-checked before JSON.parse. Internal hasMore is removed from data; last creates nextCursor only when31 rows were found, and final serialized result is byte-checked again. Missing scope returns undefined; invalid input/infrastructure/size failures throw. Counts cross SQL/JSON as text; versionNumber is an existing bounded PostgreSQL integer. Oversize output fails without silent count/label truncation. Body preview truncation is intentional, separately flagged and never presented as full copy.
+
+Page locals user/workspace/selection/data/canWrite/firstPage remain request-local. Returned scope and normalized filters must match before rendering. Invalid scope/query yields notFound; absent session/workspace redirects to login; infrastructure/size failures use the existing error boundary. Empty draft set, no matches and exhausted cursor have distinct messages. Empty headline falls back to Untitled draft; empty body says No body copy recorded; null Audience is General. Original text is React-escaped. Exact timestamps stay in datetime attributes while visible time uses the shared UTC millisecond formatter.
+
+Generation page locals campaigns/packages are empty arrays for nonwriters. Writers use the existing loaders; eligible maps each current Campaign version's contentPackageIds to same-workspace returned packages marked approved and filters empty choices. This is only candidate discovery, never evidence of current exact approval. DraftGenerationForm independently retrieves the exact reviewed package and the generation mutation rechecks current authority. No existing generator state fields or API contract changed.
+
+## SQL, authorization and pagination
+
+| CTE | Purpose |
+| --- | --- |
+| scope | Current workspace membership for the authenticated actor; organization-only membership is insufficient. All six reader roles can search. |
+| drafts | Join each draft to its own current version, same-workspace generation, that generation's Campaign version/same-workspace Campaign and same-workspace Content Package. Optional Audience version must resolve to a same-workspace Audience; null is valid General. |
+| matched | Apply optional stored draft status and literal case-insensitive current headline/body/Campaign/package/named-Audience search. Do not inspect or return historical versions or generation evidence. |
+| page | Exclusive `(updated_at,id)<(at,id)` when present, newest timestamp/UUID descending,31 rows maximum. Bind at as text before timestamptz to prevent postgres.js Date rounding. |
+| visible | First30 in the same order; row31 determines hasMore. Complete counts remain over drafts/matched, not page/visible. |
+
+CurrentVersionId must belong to that same draft; a foreign/mismatched pointer is excluded instead of following it. Generation/Campaign/package/Audience workspace lineage prevents linked-label leaks. This is discovery, not renewed validation of historical generation evidence or exact approval; source changes do not pretend historical drafts were freshly generated. Campaign/package/Audience labels are current root labels, while headline/body comes from the exact current draft-version pointer.
+
+Each request is a coherent statement-time observation of membership, count and items. Later revocation takes effect on later reads; earlier rendered copy cannot be retracted. Pages are independent snapshots: concurrent edits can cause movement, repetitions or omissions across pages. UI discloses that limitation and offers Refresh/newest. On unchanged data, microsecond timestamp plus UUID gives deterministic non-overlapping pages, including ties and sub-millisecond boundaries. Cursor hashes confer no ownership or frozen-transaction lease.
+
+GET form changes omit cursor; Clear resets all filters; newest/refresh retains query/status; next carries the validated cursor and selection. Detail/paging/reset/generator links disable prefetch; refresh is a normal anchor. No read sends generation requests. Schema remains121: existing draft workspace/status/update index and foreign-key identities are reused. Complete totals and literal substring matching may scan all eligible records and body text. The1MiB response cap is not a database-memory/scan-cost limit or load-test guarantee.
+
+## Acceptance, operations and exclusions
+
+New model/live-database coverage is51 cases; new web coverage is48 cases, with existing preparation-entry and pool tests adapted without dropping their authority assertions. Checks include all current roles/revocation, empty/foreign scope, current versus historical copy, every status, Unicode/literal query syntax, matching beyond the excerpt,320 emoji code-point bounds, null/named Audiences, exact counts,65 tied records,adjacent microseconds,invalid shape/domain/context,read-only SQL and minimized private fields. Web cases prove query validation,escaping,exact large counts,empty states,scoped URLs/cursor clearing,writer-only generation links/candidate loading and unchanged preparation access.
+
+Actual browser workspace switching exposed React retaining an uncontrolled status selector's previous value while server results correctly reset. Both Drafts and Content Packages now key their native GET form by the collision-free JSON tuple [workspaceId, normalized query, normalized status or null]. Applied selection or workspace changes remount the controls; ordinary same-selection paging keeps the same form identity. There is no mutable global or extra client state. Two regression tests inspect all three key dimensions; real Chrome Clear and workspace-switch checks verify empty query/all-status controls in both listings. This is a1.48 correction to the1.47 package view, not a retroactive claim that1.47 covered this control-state defect.
+
+The first live fixture attempted multiple General variants under one generation and correctly hit the existing uniqueness constraint in four tests. The fixture now creates a distinct genuine proof-bearing generation for each synthetic variant, honoring current exact package approval and preserving production constraints. The corrected51-case focused run passes; no constraint is removed or bypassed. Fixture cleanup is limited to its freshly created synthetic organization/user. Never run live fixture tests against user/production databases.
+
+Browser acceptance uses the separate loopback market_me_qa_148_drafts_v1, initialized exactly once. It holds65 synthetic variants with all statuses,General/named Audiences,long Unicode copy,adjacent microsecond groups,current exact source approval,a published draft-only manual plan,disabled intake and populated-viewer/empty-editor workspaces. Capture the baseline after development login,then compare all141 domain tables and both minimized projections; session/OIDC bookkeeping and per-read observedAt are excluded. Never reseed/delete/update data to hide changes. Do not generate/approve/activate/send during read-only acceptance.
+
+Own metadata1.48.0; no migration/dependency/environment additions. Preserve user-owned pnpm files. Deploy web/database code together and retain the existing exact approval and uncertain-generation boundaries. The new generator route can be rolled back with matching pages; no schema undo is needed. [Releases](RELEASES.md) and [CI](CI.md) distinguish pending/passed local,cloud,native,browser and Google documentation evidence. This does not complete global cross-object search,historical/body evidence discovery,semantic understanding,bulk operations,generation-option scalability,real-provider acceptance,production hosting or the whole application.

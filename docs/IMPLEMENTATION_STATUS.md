@@ -1,5 +1,11 @@
 # Market Me implementation status
 
+## Release 1.48 draft catalog: local acceptance passed, cloud verification pending
+
+Drafts now uses a minimized current-member/current-version read projection with literal copy/label search, status filters, exact totals,30-result pages,320-code-point previews and exact microsecond cursors. Generation has a separate writer-only page; ordinary reads load no generation candidates or evidence. Browser-discovered native-filter reset behavior is corrected for both Drafts and Content Packages. [Full reference](DRAFT_CATALOG.md) inventories all new contracts and variable lifetimes.
+
+Corrected full local gate passes3832 tests/198 files and44 quality cases. Native/unsigned packaging,actual30/30/5 pagination,literal body/status/reset,reader/writer,mobile/production checks pass,preserving all141 domain tables and both projections. Independent exact-source feature/main cloud verification remains pending. The unsigned1.48 installer is built,not installed or distributed. No new user input is needed to continue,and none of this implies hosted or whole-product acceptance.
+
 ## Release 1.47 Content Package catalog: verified and published
 
 The package listing now searches literal titles/filenames, filters recorded status and renders at most 30 minimized records with exact complete counts and explicit next/newest navigation. Current membership, scoped lineage, filter-bound cursor validation and exact microsecond ordering are covered. [Full reference](CONTENT_CATALOG.md) inventories every new contract and variable.

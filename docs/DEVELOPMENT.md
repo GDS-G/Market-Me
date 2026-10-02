@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.48 draft-search development
+
+Read [Draft catalog](DRAFT_CATALOG.md) before changing search fields, current-version/workspace lineage, exact cursor bytes, body previews or the separate generation page. Own metadata1.48.0/schema121; no dependency, environment or migration addition. The shared pool has25 getters. Native GET forms use a JSON tuple key of workspace/query/status to reset uncontrolled inputs on applied navigation. QA148 initializes once with65 synthetic variants, disabled intake and populated-viewer/empty-editor workspaces; capture the baseline after login and use read-only141-table/two-projection comparisons. Never generate, approve, activate or send during this inspection. User pnpm files remain unchanged/excluded. [Releases](RELEASES.md) is the verification authority.
+
 ## Release 1.47 catalog development
 
 Read [Content Package catalog](CONTENT_CATALOG.md) before changing selection normalization,SQL scope,pagination,counts or returned fields. Never round cursor times through Date or infer permission from its hash. Own metadata is1.47.0/schema121;no dependency/environment/migration addition. Isolated QA147 initializes once with65 synthetic packages and disabled intake,then uses read-only post-login141-table/two-projection comparisons. Local and both exact-source cloud gates pass3733 tests/194 files plus44 quality cases; final Google readback passes. [Releases](RELEASES.md) separates all evidence. User pnpm files remain unchanged/excluded.

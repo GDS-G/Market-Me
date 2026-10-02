@@ -22,7 +22,7 @@ export default async function ContentPackagesPage({ searchParams }: { searchPara
   return <WorkspaceShell activePath="/content-packages" workspaceName={workspace.workspaceName} userName={user.displayName}><div className={"resource-page " + styles.page}>
     <header className="resource-header"><div><p className="eyebrow">Find material to review</p><h1>Content Packages</h1><p>Search package titles and attached filenames in {workspace.workspaceName}, then open the exact package to review its evidence.</p></div></header>
     <section className={styles.panel} aria-labelledby="catalog-search-heading"><h2 id="catalog-search-heading">Search and filter</h2>
-      <form method="get" action="/content-packages" className={styles.filters} aria-label="Search Content Packages">
+      <form key={JSON.stringify([workspace.workspaceId, selection.query, selection.status ?? null])} method="get" action="/content-packages" className={styles.filters} aria-label="Search Content Packages">
         <input type="hidden" name="workspaceId" value={workspace.workspaceId} />
         <label className={styles.control}><span>Title or filename</span><input type="search" name="q" defaultValue={selection.query} maxLength={CONTENT_CATALOG_LIMITS.queryLength} placeholder="For example, café or brochure.pdf" autoComplete="off" /></label>
         <label className={styles.control}><span>Recorded status</span><select name="status" defaultValue={selection.status ?? "all"}><option value="all">All recorded statuses</option>{PACKAGE_STATUSES.map(status => <option key={status} value={status}>{CONTENT_CATALOG_STATUS_LABELS[status]}</option>)}</select></label>

@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import { createElement, isValidElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeContentCatalogCursor, type ContentCatalogSnapshot } from "@market-me/database";
@@ -18,6 +18,21 @@ function snapshot(): ContentCatalogSnapshot { return { schemaVersion: 1, workspa
 const page = (query: Record<string, string | string[] | undefined> = {}) => ContentPackagesPage({ searchParams: Promise.resolve(query) });
 beforeEach(() => { vi.resetAllMocks(); mocks.user.mockResolvedValue({ id: userId, displayName: "Synthetic" }); mocks.workspace.mockResolvedValue({ workspaceId, workspaceName: "Synthetic workspace", role: "viewer" }); mocks.getPage.mockResolvedValue(snapshot()); });
 describe("current-member searchable Content Package catalog", () => {
+  it("remounts native filter controls when applied query, status or workspace changes", async () => {
+    function formKey(node: ReactNode): string | null {
+      if (Array.isArray(node)) return node.map(formKey).find(key => key !== null) ?? null;
+      if (!isValidElement<{ children?: ReactNode }>(node)) return null;
+      return node.type === "form" ? node.key : formKey(node.props.children);
+    }
+    expect(formKey(await page())).toBe(JSON.stringify([workspaceId, "", null]));
+    mocks.getPage.mockResolvedValue({ ...snapshot(), filters: { query: "café", status: null } });
+    expect(formKey(await page({ q: "café" }))).toBe(JSON.stringify([workspaceId, "café", null]));
+    mocks.getPage.mockResolvedValue({ ...snapshot(), filters: { query: "", status: "approved" } });
+    expect(formKey(await page({ status: "approved" }))).toBe(JSON.stringify([workspaceId, "", "approved"]));
+    mocks.workspace.mockResolvedValue({ workspaceId: packageId, workspaceName: "Other", role: "viewer" });
+    mocks.getPage.mockResolvedValue({ ...snapshot(), workspaceId: packageId });
+    expect(formKey(await page())).toBe(JSON.stringify([packageId, "", null]));
+  });
   it.each([{ value: null, expected: "Unavailable" }, { value: undefined, expected: "Unavailable" }, { value: 0, expected: "0%" }, { value: 0.54, expected: "54%" }, { value: 1, expected: "100%" }])("distinguishes recorded confidence $value from missing confidence", async ({ value, expected }) => {
     const data = snapshot(); Object.assign(data.items[0], { confidence: value }); mocks.getPage.mockResolvedValue(data);
     const html = renderToStaticMarkup(await page()); expect(html).toContain("<strong>" + expected + "</strong>"); if (value == null) expect(html).not.toContain("0%");

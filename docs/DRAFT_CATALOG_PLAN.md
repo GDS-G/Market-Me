@@ -1,6 +1,6 @@
 # Searchable draft variants
 
-Status: next independent increment after 1.47. Specification section01 explicitly calls for searchable drafts and generated variants. The current Drafts page hydrates every draft's current version, claims and generation evidence, renders complete bodies and loads every Campaign/Content Package to construct a generation form, even for readers. It has no search, status filter or paging.
+Status: implemented as1.48; corrected local/native/browser/mobile/production acceptance passes and exact-source cloud verification is pending. Specification section01 explicitly calls for searchable drafts and generated variants. The former Drafts page hydrated every draft's current version,claims and generation evidence,rendered complete bodies and loaded every Campaign/Content Package to construct a generation form,even for readers. It had no search,status filter or paging. [Implemented contract](DRAFT_CATALOG.md) records limits and the browser-discovered form-reset correction; [Releases](RELEASES.md) is the acceptance authority.
 
 ## Intended experience
 

@@ -42,3 +42,5 @@ export * from "./workspace-analytics-models";
 export * from "./workspace-analytics-repository";
 export * from "./content-catalog-models";
 export * from "./content-catalog-repository";
+export * from "./draft-catalog-models";
+export * from "./draft-catalog-repository";

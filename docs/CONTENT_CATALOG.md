@@ -1,5 +1,7 @@
 # Content Package catalog
 
+Release1.48 follow-up: actual Drafts workspace switching revealed that React could preserve an uncontrolled status control while server results reset. Both catalog forms now use a request-local JSON [workspaceId,normalized query,normalized status or null] React key. Applied selection/workspace changes remount native controls;same-selection paging preserves identity. Dedicated key regression and actual Chrome Clear/workspace-switch checks pass for Content Packages. This changes view identity only,not catalog SQL,authorization,DTOs or schema. See [1.48 evidence](RELEASES.md).
+
 ## Scope and user contract
 
 Release 1.47 replaces the unbounded Content Packages listing with a current-workspace, read-only catalog. A native GET form searches package titles and attached filenames, optionally filters the recorded package status, and shows at most 30 packages. Counts describe the complete eligible catalog and complete matching set, not merely the rendered page. The existing detail/review route, mutation permissions, ingestion, generation and worker loaders are unchanged.
