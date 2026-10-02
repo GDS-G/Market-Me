@@ -1,6 +1,6 @@
 # Architecture
 
-## Release 1.53 workspace execution pause candidate
+## Release 1.53 verified workspace execution pause
 
 A durable workspace control row is the shared publication/AI/companion admission fence; current administrators change it through exclusive-lock, revision/grant-bound transactions with immutable receipts and atomic audit. Early router reads avoid unnecessary preflight, but do not replace the transaction fence. Distinct held workflow results preserve prior outcomes, pause individual campaigns and require explicit resume. Actual frozen 1.19 and 1.52 histories replay on the additive compatibility paths. [Full design](WORKSPACE_EXECUTION_PAUSE.md) documents lock order, adapter coverage, excluded operational traffic, variables and rollout. The shared pool has30 repository getters. Acceptance remains separate from implementation.
 

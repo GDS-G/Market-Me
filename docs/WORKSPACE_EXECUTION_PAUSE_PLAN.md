@@ -1,6 +1,6 @@
 # Workspace-wide outbound execution hold
 
-Status: 1.53 candidate after the fully accepted and published 1.52 member-lifecycle release. Contracts, durable receipts/audits, admission locks/SQL guards, workflow holds/replay compatibility and HTTP/UI are implemented on unpublished `codex/workspace-execution-pause`. Full regression passes4643 tests/226 files,44 quality cases,lint and twelve typechecks; build/native,production acceptance,cloud/publication and final documentation verification remain in progress. Development-browser pause/reopen,stale review,old receipt/newer state and viewer separation pass. [Implemented programmer contracts](WORKSPACE_EXECUTION_PAUSE.md) supersede the design questions below. Separate AI/worker controls remain; this is not a deployment-wide operator kill switch.
+Status: accepted 1.53 implementation, reviewed runtime `1dbb15a723ce9a484d15ef192ede71f0429a3126` public on main. Full local and independent feature/main gates each pass 4,643 tests/226 files and 44 quality cases; native/unsigned packaging, actual desktop/mobile/production checks, 143/147-table preservation and final Google readback pass separately. [Implemented programmer contracts](WORKSPACE_EXECUTION_PAUSE.md) supersede the design questions below; [release evidence](RELEASES.md) records exact runs and limits. Separate AI/worker controls remain; this is not a deployment-wide operator kill switch or whole-product completion.
 
 ## Requirement and scope
 

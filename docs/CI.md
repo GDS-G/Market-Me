@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.53 verified checkpoint
+
+Reviewed runtime `1dbb15a723ce9a484d15ef192ede71f0429a3126` passes [feature CI 36998870459](https://github.com/GDS-G/Market-Me/actions/runs/36998870459) in 5:07 and [main CI 36999434420](https://github.com/GDS-G/Market-Me/actions/runs/36999434420) in 4:09. Each clean locked install adds 609/audits 622 packages, applies all 129 migrations, reproduces 4,643 tests/226 files and 44 quality cases, and passes static/frontend/native-dependency checks plus both zero-vulnerability audits. Next compile 15.8/12.1 seconds, 116-page generation 495/486 milliseconds and companion build 181/136 milliseconds respectively.
+
+Local verification separately includes cargo check, three Rust tests, unsigned Windows packaging and actual desktop/mobile/production pause/reopen with 143/147 measured tables unchanged. Final Google readback verifies 32 section paragraphs while preserving all 30 tabs and earlier content/styles/lists. Production readiness remains intentionally closed for missing hosted deployment prerequisites. [Releases](RELEASES.md) and [programmer contracts](WORKSPACE_EXECUTION_PAUSE.md) separate implementation, evidence and operational limits.
+
 ## Release 1.52 verified checkpoint
 
 Reviewed runtime `d2219aaa65f3a0ec2cf340a4b29f383095e58c04` passes [feature CI36991697866](https://github.com/GDS-G/Market-Me/actions/runs/36991697866) in4:44 and [main CI36992296811](https://github.com/GDS-G/Market-Me/actions/runs/36992296811) in3:49. Each locked install adds609/audits622 packages,applies126 migrations,reproduces4418 tests/218 files and44 quality cases,and passes static/frontend/native-dependency checks and both zero-vulnerability audits. Next compile14.8/11.4s,114-page generation554/503ms,companion181/151ms respectively. Final Google readback verifies61 paragraphs with all30 tabs,prior bodies/styles/list definitions intact. Developing execution-control code is excluded from this exact source and totals.
