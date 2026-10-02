@@ -7,6 +7,7 @@ vi.mock("@/server/auth", () => ({ getAuthenticatedUser: mocks.user }));
 vi.mock("@/server/active-workspace", () => ({ getActiveWorkspace: mocks.workspace }));
 vi.mock("@/server/database", () => ({ getWorkspaceManagementRepository: () => mocks, getAccountProfileRepository: () => mocks }));
 vi.mock("@/components/account-profile-form", () => ({ AccountProfileForm: (props: unknown) => createElement("form", { "data-profile": JSON.stringify(props) }, "Account profile editor") }));
+vi.mock("@/components/account-sessions-section", () => ({ AccountSessionsSection: (props: unknown) => createElement("section", { "data-sessions": JSON.stringify(props) }, "Account session controls") }));
 vi.mock("@/components/workspace-shell", () => ({ WorkspaceShell: ({ children }: { children: ReactNode }) => createElement("main", {}, children) }));
 vi.mock("@/components/workspace-management-form", () => ({ WorkspaceManagementForm: (props: unknown) => createElement("form", { "data-workspace": JSON.stringify(props) }, "Workspace editor") }));
 vi.mock("@/components/workspace-management.module.css", () => ({ default: {} }));
@@ -22,11 +23,19 @@ beforeEach(() => {
   mocks.getProfile.mockResolvedValue({ accountId: userId, displayName: "Chosen profile", revision: 2 });
 });
 describe("workspace settings and explicit organization creation pages", () => {
+  it("passes only its own account and bounded session cursor to the server session section", async () => {
+    const html = renderToStaticMarkup(await Settings({ searchParams: Promise.resolve({ sessionCursor: "opaque_cursor" }) }));
+    expect(html).toContain("opaque_cursor"); expect(html).toContain("Account session controls"); expect(html).not.toContain("tokenHash");
+  });
+  it.each([{ sessionCursor: ["a", "b"] }, { sessionCursor: "" }, { sessionCursor: "x".repeat(513) }, { sessionCursor: "bad!" }, { accountId: workspaceId }, { tokenHash: "private" }])("rejects ambiguous/private Settings query %j", async query => {
+    await expect(Settings({ searchParams: Promise.resolve(query) })).rejects.toThrow("not-found"); expect(mocks.getProfile).not.toHaveBeenCalled();
+  });
   it.each(["owner", "admin", "editor", "approver", "analyst", "viewer"])("shows the own account editor for workspace %s without granting workspace management", async role => {
     mocks.workspace.mockResolvedValue({ workspaceId, workspaceName: "QA workspace", role });
     mocks.getSettings.mockResolvedValue({ ...settings, canRename: role === "owner" || role === "admin", canCreateWorkspace: false });
     const html = renderToStaticMarkup(await Settings());
     expect(mocks.getProfile).toHaveBeenCalledWith(userId, userId); expect(html).toContain("Account profile editor");
+    expect(html).toContain("Account session controls"); expect(html).not.toContain("tokenHash");
     expect(html).toContain("Chosen profile"); expect(html).toContain("Sign-in email: qa@market-me.local");
     expect(html).not.toContain("Account profile editing is not available"); expect(html).not.toContain("Existing member role changes are not available");
     if (role === "owner" || role === "admin") expect(html).toContain("reviewed non-owner member-role changes");

@@ -1,6 +1,6 @@
 # Self-service sign-in session controls
 
-Status: independent development after 1.50; its code, migration and focused tests are excluded from the accepted1.50 runtime and totals. The implementation matrix leaves session/device controls open, and the specification's account isolation, least-privilege and security-audit principles require user-understandable control over application access. Start with the signed-in user's own Market Me sessions, not organization-wide administration or identity-provider management.
+Status: implemented as the 1.51 candidate, with final local, native, unsigned packaging and isolated browser/production acceptance complete. Publication, exact-source cloud gates and Google readback are tracked in [Releases](RELEASES.md); they remain separate acceptance steps. [Implementation reference](ACCOUNT_SESSIONS.md) records the actual design and every important variable. The original plan below explains the bounded scope: the signed-in user's own Market Me sessions, not organization-wide administration or identity-provider management. All 1.51 work remains excluded from the accepted 1.50 runtime and totals.
 
 ## Intended experience
 

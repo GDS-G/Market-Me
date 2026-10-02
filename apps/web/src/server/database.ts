@@ -28,6 +28,7 @@ import {
   DraftCatalogRepository,
   AssetCatalogRepository,
   AccountProfileRepository,
+  AccountSessionRepository,
 } from "@market-me/database";
 import { getServerConfiguration } from "./config";
 
@@ -60,6 +61,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
     draftCatalog: DraftCatalogRepository;
     assetCatalog: AssetCatalogRepository;
     accountProfile: AccountProfileRepository;
+    accountSession: AccountSessionRepository;
   };
 };
 
@@ -180,6 +182,10 @@ export function getAccountProfileRepository(): AccountProfileRepository {
   return getRepositories().accountProfile;
 }
 
+export function getAccountSessionRepository(): AccountSessionRepository {
+  return getRepositories().accountSession;
+}
+
 function getRepositories(): {
   core: MarketMeRepository;
   campaigns: CampaignRepository;
@@ -208,6 +214,7 @@ function getRepositories(): {
   draftCatalog: DraftCatalogRepository;
   assetCatalog: AssetCatalogRepository;
   accountProfile: AccountProfileRepository;
+  accountSession: AccountSessionRepository;
 } {
   if (databaseGlobal.marketMeDatabase) return databaseGlobal.marketMeDatabase;
   const databaseUrl = getServerConfiguration().databaseUrl;
@@ -241,6 +248,7 @@ function getRepositories(): {
     draftCatalog: new DraftCatalogRepository(sql),
     assetCatalog: new AssetCatalogRepository(sql),
     accountProfile: new AccountProfileRepository(sql),
+    accountSession: new AccountSessionRepository(sql),
   };
   // Share one lazily constructed pool per server runtime in every environment.
   // Only repositories/SQL are retained, never request data or authorization.

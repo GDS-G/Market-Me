@@ -6,13 +6,17 @@ import { getActiveWorkspace } from "@/server/active-workspace";
 import { getAccountProfileRepository, getWorkspaceManagementRepository } from "@/server/database";
 import { WorkspaceManagementForm } from "@/components/workspace-management-form";
 import { AccountProfileForm } from "@/components/account-profile-form";
+import { AccountSessionsSection } from "@/components/account-sessions-section";
 import styles from "@/components/workspace-management.module.css";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> } = {}) {
   const user = await getAuthenticatedUser();
   if (!user) redirect("/login");
   const workspace = await getActiveWorkspace(user.id);
   if (!workspace) redirect("/login");
+  const query = await searchParams ?? {};
+  if (Object.keys(query).some(key => key !== "sessionCursor") || query.sessionCursor !== undefined
+    && (typeof query.sessionCursor !== "string" || !query.sessionCursor || query.sessionCursor.length > 512 || !/^[A-Za-z0-9_-]+$/.test(query.sessionCursor))) notFound();
   const settings = await getWorkspaceManagementRepository().getSettings(workspace.workspaceId, user.id);
   if (!settings) notFound();
   const profile = await getAccountProfileRepository().getProfile(user.id, user.id);
@@ -41,6 +45,9 @@ export default async function SettingsPage() {
           <h2>Signed-in account</h2><p>Your sign-in identity and your Market Me display name are separate.</p>
           <div className={styles.summary}><div><strong>{profile.displayName}</strong><p>Sign-in email: {user.email}</p></div></div>
           <AccountProfileForm profile={profile} />
+        </section>
+        <section className={`resource-panel ${styles.panel}`}><h2>Sign-in sessions</h2>
+          <AccountSessionsSection accountId={user.id} cursor={query.sessionCursor as string | undefined} />
         </section>
       </div>
     </WorkspaceShell>

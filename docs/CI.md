@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.51 candidate checkpoint
+
+The final corrected local gate passes **4,205 tests/212 files without skips**, 44/44 quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web 1812/92, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1731/76, domain 157/7, generation 121/8, ingestion 79/8, media 24/2 and workflows 43/3. Net new coverage is 51 database/model and 89 web cases. Readiness requires 124 migrations ending 0124; no third-party dependency changes.
+
+Next compile 3.1s, TypeScript 12.3s, 113-page generation 465ms; companion 140ms/201.34kB JavaScript/64.02kB gzip; native check 0.78s/test build 4.70s. This gate includes the corrected microsecond parameter binding and keyboard review-focus behavior. The initial JSX-inside-try lint failure and earlier pre-correction passing gate are not relabeled as final evidence. Unsigned packaging and actual browser/production acceptance pass separately; [Releases](RELEASES.md) records those checks. Independent exact-source feature/main cloud gates and Google documentation readback remain pending.
+
 ## Release 1.50 verified checkpoint
 
 Exact runtime `5bc08b685da7809549de1ea0beffd590d3f8ae11` passes [feature CI36981860343](https://github.com/GDS-G/Market-Me/actions/runs/36981860343) in4:45 and [main CI36982391440](https://github.com/GDS-G/Market-Me/actions/runs/36982391440) in3:42. Each locked install adds609/audits622 packages,applies123 migrations,reproduces4065 tests/206 files and44 quality cases,and passes static/frontend/native-dependency smoke and both zero-vulnerability audits. Next compile14.8/11.3s,112-page generation590/426ms,companion181/133ms respectively. Final Google readback verifies45 paragraphs and preserves all30 tabs,prior bodies/styles and list definitions. Developing session-control source is excluded from this checkpoint.

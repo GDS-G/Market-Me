@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.51 personal-session development
+
+Read [Personal session controls](ACCOUNT_SESSIONS.md) before changing public session IDs, private cookie context, session expiry/locking, cursor scope, receipts, confirmation or recovery. Own metadata1.51.0/schema124 requires additive0124 and28 shared-pool getters. Never serialize tokenHash or pass the actor context to client props. Restart web processes after migration for prepared statements and the shared bundle; preserve existing tokens and identity-provider behavior.
+
+QA151 uses initialization-once market_me_qa_151_sessions_v1 and only synthetic accounts/sessions. Its144 measured-table snapshot includes app_session; migration/OIDC bookkeeping is excluded. Record exact selected deletions and receipts/audits separately from normal sign-in/last-seen writes, preserve unrelated tables/other accounts and never print/store tokens or hashes. [Releases](RELEASES.md) separates focused tests from pending broad/browser/cloud acceptance. User pnpm files remain untouched.
+
 ## Release 1.50 account-profile development
 
 Read [Self-service display names](ACCOUNT_PROFILE.md) before changing account hints, Unicode/name limits, row locks, revisions, receipts, error mapping, form-local recovery or authentication reuse. Own metadata1.50.0/schema123 requires forward migrations0122/0123; do not change their applied checksums. The shared repository pool now has27 getters. Development reauthentication must preserve chosen names; do not restore the old display_name overwrite when rolling back UI. No identity/email/permission/provider profile changes are included.
