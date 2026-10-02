@@ -1,6 +1,6 @@
 # Package work journey
 
-Status: proposed next increment after the locally accepted 1.34 guide; no runtime implementation is included in this plan. This follows specification sections 01/23: a person should be able to trace one package through actual prepared work, not infer a journey from unrelated workspace totals.
+Status: implemented in the 1.35 candidate, with local acceptance in progress. [Programmer reference](PACKAGE_WORK_JOURNEY.md) records the delivered contract; [release evidence](RELEASES.md) distinguishes local, cloud and publication gates. This follows specification sections 01/23: a person should be able to trace one package through actual prepared work, not infer a journey from unrelated workspace totals.
 
 ## User outcome
 

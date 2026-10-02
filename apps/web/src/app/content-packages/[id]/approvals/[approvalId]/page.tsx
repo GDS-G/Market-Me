@@ -41,6 +41,7 @@ export default async function PackageApprovalPage({ params, searchParams }: {
         <div className="form-actions"><Link href={resultPath}>Refresh preparation status</Link>
           <Link href={`/smart-sources/${approval.reviewSnapshot.package.smartSourceId}/edit`}>View Smart Source setup</Link></div>
       </section>
+      <p><Link prefetch={false} href={`/content-packages/${packageId.data}/work`}>Inspect related preparations, drafts and runs for this package</Link></p>
       <PackageReviewSnapshot snapshot={approval.reviewSnapshot} effectiveEvidenceIds={approval.effectiveEvidenceIds}
         excludedEvidenceIds={approval.reviewSnapshot.evidence.filter((item) => !approval.effectiveEvidenceIds.includes(item.id)).map((item) => item.id)} />
     </div>

@@ -1,5 +1,11 @@
 # Backup and Recovery Runbook
 
+## Release 1.35 package-history recovery
+
+Refresh saved state or reload the current package's Related work page after ordinary changes. History/current draft snapshots and offset pages can change between reads; they are not a stable export, readiness check or durable recovery token. Missing draft lineage is shown as unavailable without guessing a replacement. A snapshot/query failure requires inspection of membership, service/database diagnostics and exact receipt integrity, not automatic preparation or execution.
+
+No new recovery storage or backup set is introduced. Preserve existing immutable approvals/preparations/finalizations and all 120 migrations. Deploy/revert matching page/navigation/database code and restart processes; never erase receipts, reset approvals or replay sends to repair a read-only view. Existing mutation recovery remains separate. [Full reference](PACKAGE_WORK_JOURNEY.md) documents the consistency and rollout limits.
+
 ## Release 1.34 display recovery
 
 Use Refresh saved state or a full reload after source/content/member changes. Guidance is transient observation, not durable completion or authorization. Query failures must remain errors; inspect normal service/database diagnostics and current membership. Never enable sources, change approvals, erase receipts or replay execution to repair a display issue.

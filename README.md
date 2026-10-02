@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.34: Start here workflow guide
+## Release 1.35 candidate: Package-specific Related work
+
+Each Content Package now links to its recorded preparations, captured/current draft versions, exact finalization and recent runs of that finalized plan. The page is read-only, workspace-scoped and explicit about historical revisions and missing records. It does not approve, activate, retry or send. [Design and variable reference](docs/PACKAGE_WORK_JOURNEY.md) documents the complete contract.
+
+Final local acceptance passes 2,892 tests/156 files, static/build/native checks, unsigned Windows packaging, synthetic desktop/mobile/keyboard/navigation/refresh and production authentication. No migration is added; all 120 remain unchanged. Cloud verification, publication and Google documentation synchronization are pending for this candidate. This is not production deployment or whole-product completion; see [Releases](docs/RELEASES.md).
+
+## Previous release 1.34: Start here workflow guide
 
 The authenticated Start here guide explains six stages from folder intake to monitoring, suggests a next action from current workspace evidence and respects the collaborator's current role. Overview now favors review-first preparation. The guide only reads saved state and navigates: it never creates, approves, activates or sends work. Counts are not a completion percentage or launch permission. [Guide design and variables](docs/WORKSPACE_START_GUIDE.md) documents the contract.
 

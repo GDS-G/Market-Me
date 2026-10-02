@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.35 Related work development
+
+Read [Package work journey](PACKAGE_WORK_JOURNEY.md) before changing lineage, current/historical state or display limits. Own metadata is 1.35.0; no third-party upgrade, new secret/environment variable, worker or migration. Retain all 120 frozen migrations ending in 0120 and deploy matching database exports/factory/web/navigation code. Restart development after repository class/factory changes; preserve user pnpm files.
+
+Focused new coverage is 59 model, 16 live database and 37 web page/query cases. Full integration requires isolated `market_me_ci`; the new focused integration also accepts only `market_me_qa_135_*`. Real approval/preparation/finalization fixtures preserve runtime guards. Check exact role/scope/lineage, readonly execution, unavailable/archived/current drafts, package revisions, lookahead/max pages, errors, receipt navigation, refresh, keyboard/mobile and production login restrictions. Do not treat skipped database tests or synthetic run state as provider acceptance. [Releases](RELEASES.md) separates local/cloud/native/browser evidence.
+
 ## Release 1.34 Start here development
 
 Read [Start guide](WORKSPACE_START_GUIDE.md) before changing counts, precedence or role navigation. Own metadata is 1.34.0 without dependency upgrades. No migration, environment variable, secret or worker is added; preserve the 120-file ledger ending in frozen 0120 and deploy matching web/database code. Restart development after repository factory/class changes. Preserve user pnpm files.

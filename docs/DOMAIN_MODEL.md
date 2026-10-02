@@ -1,5 +1,11 @@
 # Domain Model and Important Variables
 
+## Release 1.35 package work projection
+
+`PackageWorkSnapshot` contains exact workspace/package, current title/version/status, current membership role, statement observation time, page/hasMore and at most ten `PackageWorkPreparation` records. Each preserves receipt/Campaign identity, captured package version/time and 1–20 ordered `PackageWorkDraft` records with initial version and nullable exact current version/status. Nullable `PackageWorkFinalization` retains exact final plan and selected draft/version plus at most five `PackageWorkRun` records and hasMoreRuns. All objects/arrays are frozen and explicit-field projected.
+
+Constants are page size 10, maximum page 1000, drafts 20, runs 5 and raw nested JSON 524288 UTF-8 bytes. Closed status/role tuples and frozen label Records validate/display state without granting authority. Query/path validators reject extra authority, repeated or noncanonical paging; UUIDs normalize before SQL. No new persisted schema, mutable global, browser state or result cache exists. [Complete reference](PACKAGE_WORK_JOURNEY.md) inventories every field/helper/collection, SQL alias, request local and existing development repository lifetime.
+
 ## Release 1.34 snapshot and guidance models
 
 `WorkspaceStartSnapshot` contains workspace ID, current membership role, observation time and 18 nonnegative safe-integer counts enumerated by frozen `WORKSPACE_START_COUNT_KEYS`. Sources, package lifecycle, unarchived drafts/current Campaign plans, runs and pending queues have independent filters. Paused runs overlap open/attention; pending queues are workspace-wide, not assigned-to-me. Counts expose neither content nor private request identity and cannot prove connected progress.

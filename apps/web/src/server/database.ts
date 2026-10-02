@@ -22,6 +22,7 @@ import {
   WorkspaceManagementRepository,
   WorkspaceMemberRoleRepository,
   WorkspaceStartRepository,
+  PackageWorkRepository,
 } from "@market-me/database";
 import { getServerConfiguration } from "./config";
 
@@ -48,6 +49,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
     workspaceManagement: WorkspaceManagementRepository;
     workspaceMemberRoles: WorkspaceMemberRoleRepository;
     workspaceStart: WorkspaceStartRepository;
+    packageWork: PackageWorkRepository;
   };
 };
 
@@ -144,6 +146,10 @@ export function getWorkspaceStartRepository(): WorkspaceStartRepository {
   return getRepositories().workspaceStart;
 }
 
+export function getPackageWorkRepository(): PackageWorkRepository {
+  return getRepositories().packageWork;
+}
+
 function getRepositories(): {
   core: MarketMeRepository;
   campaigns: CampaignRepository;
@@ -166,6 +172,7 @@ function getRepositories(): {
   workspaceManagement: WorkspaceManagementRepository;
   workspaceMemberRoles: WorkspaceMemberRoleRepository;
   workspaceStart: WorkspaceStartRepository;
+  packageWork: PackageWorkRepository;
 } {
   if (databaseGlobal.marketMeDatabase) return databaseGlobal.marketMeDatabase;
   const databaseUrl = getServerConfiguration().databaseUrl;
@@ -193,6 +200,7 @@ function getRepositories(): {
     workspaceManagement: new WorkspaceManagementRepository(sql),
     workspaceMemberRoles: new WorkspaceMemberRoleRepository(sql),
     workspaceStart: new WorkspaceStartRepository(sql),
+    packageWork: new PackageWorkRepository(sql),
   };
   if (process.env.NODE_ENV !== "production")
     databaseGlobal.marketMeDatabase = repositories;

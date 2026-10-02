@@ -1,6 +1,12 @@
 # Market Me implementation status
 
-## Current verified source: Release 1.34 read-only Start here guide
+## Current candidate: Release 1.35 package-specific Related work
+
+Exact saved preparation lineage now connects one package to captured/current drafts, exact finalization and recent finalized-version runs. This is a read-only navigation improvement with current membership checks, bounded history, explicit historical/unavailable/empty states and no new action authority. [Programmer reference](PACKAGE_WORK_JOURNEY.md) inventories every DTO, helper, collection, join and lifetime.
+
+Final local acceptance passes 2,892 tests/156 files, all static/frontend/native checks, unsigned packaging, synthetic desktop/mobile/keyboard/refresh and production authentication. All 120 migrations are unchanged. Exact cloud CI, publication and Google development-tab synchronization are pending; the broader product is not complete or deployed. Production repository-pool lifecycle is an identified follow-up, not silently changed in this increment. No user input is needed merely to continue development.
+
+## Previous verified source: Release 1.34 read-only Start here guide
 
 The selected workspace now has a role-aware six-stage map, saved-state next-action guidance, collaborator handoffs and optional supporting tools. Overview favors review-first preparation; safe workspace switching preserves only the section root. One membership-scoped statement supplies current role and 18 aggregate counts without writes or inferred per-item lineage. [Programmer reference](WORKSPACE_START_GUIDE.md) inventories fields, filters, collections, priorities, cache lifetime and boundaries.
 

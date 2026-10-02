@@ -23,7 +23,8 @@ export default async function ContentPackagePage({ params }: { params: Promise<{
     if (error.code === "access_denied" || error.code === "package_unavailable") notFound();
     return <WorkspaceShell activePath="/content-packages" workspaceName={workspace.workspaceName} userName={user.displayName}>
       <div className="resource-page form-page"><Link href="/content-packages">Content Packages</Link><h1>Exact review unavailable</h1><p role="alert">{error.message}</p>
-        <p>No partial snapshot or approval token is being shown. This package needs a supported complete review before new approval, generation, or preparation.</p><code>{error.code}</code></div>
+        <p>No partial snapshot or approval token is being shown. This package needs a supported complete review before new approval, generation, or preparation.</p><code>{error.code}</code>
+        <p><Link prefetch={false} href={`/content-packages/${id}/work`}>Inspect previously recorded work for this package</Link></p></div>
     </WorkspaceShell>;
   }
   if (!review || review.snapshot.package.id !== id || review.snapshot.package.workspaceId !== workspace.workspaceId) notFound();
@@ -38,6 +39,7 @@ export default async function ContentPackagePage({ params }: { params: Promise<{
   });
   return <WorkspaceShell activePath="/content-packages" workspaceName={workspace.workspaceName} userName={user.displayName}>
     <div className="resource-page form-page"><Link className="back-link" href="/content-packages"><ArrowLeft size={14} />Content Packages</Link>
+      <p><Link prefetch={false} href={`/content-packages/${id}/work`}>View this package&apos;s related drafts, preparations and runs</Link></p>
       <ContentPackageReviewActions userId={user.id} workspaceId={workspace.workspaceId} packageId={id} role={workspace.role} initialReview={review} approvals={approvals} assetPreviews={assetPreviews}
         sourcePreparationEnabled={Boolean(sourcePreparationBinding?.enabled)}
         channelConnections={channelConnections.filter((item) => ["discord_webhook", "mastodon_account"].includes(item.provider)).map(({ id, name, status, provider }) => ({ id, name, status, provider }))}

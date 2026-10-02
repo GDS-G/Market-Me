@@ -52,6 +52,7 @@ export function CampaignPreparationResult({ preparation, userId, canWrite, avail
       <dt>Prepared by</dt><dd>{preparation.createdBy}</dd>
     </dl></details>
     <div className={styles.actions}><Link href="/drafts">All drafts</Link><Link href="/campaigns">Campaigns</Link>
+      <Link prefetch={false} href={`/content-packages/${preparation.contentPackageId}/work`}>Related work for this package</Link>
       {canWrite && <><Link className="button-primary" href={finalizationFormPath(preparation.id, preparation.workspaceId)}>Review or finalize an exact preview</Link><Link href={`/campaigns/${preparation.campaignId}/edit`}>Campaign plan and controls</Link><PrepareAnotherCampaign userId={userId} workspaceId={preparation.workspaceId} completedAttemptKey={preparation.idempotencyKey} /></>}
     </div>
   </div>;

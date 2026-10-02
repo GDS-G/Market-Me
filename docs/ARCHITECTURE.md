@@ -1,5 +1,11 @@
 # Architecture
 
+## Release 1.35 exact package work journey
+
+The authenticated `/content-packages/[id]/work` server page obtains server-owned active workspace/actor scope, accepts only canonical bounded paging and calls `PackageWorkRepository.getSnapshot`. One membership-scoped SELECT links saved preparation identities to same-workspace Campaign/planning/generation lineage, captured/current drafts, exact finalization and recent exact-finalized-version runs. Root lineage corruption fails; unavailable draft lineage is explicitly null. No inferred sibling/title relationship, current-approval claim or mutation is added.
+
+The minimized deeply frozen projection feeds semantic cards and a keyboard-accessible native guidance disclosure. Current/captured revisions remain distinct; ten preparations and five runs use validated lookahead. Plain-anchor refresh reloads observations; existing destination pages independently authorize links. Package/approval/preparation entry points connect the journey without performing actions. [Full architecture and variable reference](PACKAGE_WORK_JOURNEY.md) documents every join, limit, lifetime and exclusion.
+
 ## Release 1.34 read-only workspace guidance
 
 The authenticated `/getting-started` server page resolves active membership, rejects query overrides and calls `WorkspaceStartRepository.getSnapshot` with server-owned actor/workspace IDs. One parameterized SELECT combines current membership with seven same-workspace lateral aggregate groups and statement time. A strict frozen DTO feeds a pure guidance mapper; no mutation API, worker, provider call or browser persistence is added. Missing scope fails closed; database failures are not empty-success states.

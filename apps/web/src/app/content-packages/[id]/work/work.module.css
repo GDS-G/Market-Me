@@ -1,0 +1,35 @@
+.page { max-width: 1180px; }
+.page p, .page small, .page a, .page time, .page strong { overflow-wrap: anywhere; }
+.page p { font-size: 14px; line-height: 1.65; color: #62596f; }
+.page a { color: var(--violet-dark); text-underline-offset: 3px; }
+.page a:focus-visible, .page summary:focus-visible { outline: 3px solid var(--violet); outline-offset: 4px; }
+.notice, .empty { border: 1px solid #ded4f3; background: #f6f2fc; border-radius: 14px; padding: 18px 24px; margin-bottom: 26px; }
+.notice summary { cursor: pointer; font-size: 14px; line-height: 1.6; color: #4f4264; }
+.cards { display: grid; gap: 22px; list-style: none; padding: 0; margin: 0; }
+.card { background: white; border: 1px solid var(--line); border-radius: 14px; padding: 24px; min-width: 0; }
+.cardHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.cardHeader > div { min-width: 0; }
+.cardHeader > a { flex-shrink: 0; max-width: 220px; font-size: 14px; }
+.card h3 { margin: 0; font-size: 19px; }
+.card h4 { margin: 20px 0 8px; font-size: 16px; }
+.card h5 { font-size: 14px; margin: 21px 0 10px; }
+.card .warning { color: #805311; background: #fff6e7; padding: 10px 12px; border-radius: 7px; }
+.drafts { list-style: none; padding: 0; display: grid; gap: 10px; }
+.drafts li { padding: 13px 15px; border: 1px solid var(--line); border-radius: 8px; }
+.drafts li > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.drafts a { margin-left: auto; }
+.drafts small { display: block; margin-top: 9px; color: #716778; line-height: 1.5; }
+.state { font-size: 12px; color: #5b5069; background: #f1edf7; border-radius: 5px; padding: 5px 8px; }
+.finalization { border-top: 1px solid var(--line); margin-top: 21px; }
+.runs { padding-left: 20px; }
+.runs li { padding: 7px 0; }
+.runs span, .runs time { margin-left: 14px; font-size: 13px; }
+.pagination { display: flex; gap: 20px; justify-content: center; margin-top: 28px; flex-wrap: wrap; }
+.footer { text-align: center; }
+@media (max-width: 640px) {
+  .card, .notice, .empty { padding: 17px; }
+  .cardHeader { flex-direction: column; gap: 6px; }
+  .drafts li > div { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .drafts a { margin-left: 0; }
+  .runs span, .runs time { display: block; margin: 5px 0 0; }
+}

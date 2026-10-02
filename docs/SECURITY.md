@@ -1,5 +1,11 @@
 # Security and Integration Controls
 
+## Release 1.35 package-history boundary
+
+Current actor membership and exact workspace/package scope are re-read with history in one statement; organization ownership alone grants nothing. Only canonical page input is accepted. Same-workspace owning Campaign/planning/generation and exact receipt identities prevent sibling/tenant substitution. Draft live pointers must belong to that recorded generation/draft; runs must match exact finalized version. DTOs omit payloads, fingerprints, private actor keys, original provider data and credentials, but retained history labels/IDs remain tenant-confidential.
+
+Bounded response/strict projection is not a scan-cost guarantee. Corruption and query failures are not healthy empty states. Deep freezing is a programming invariant, not an authorization mechanism. Refresh and every destination request recheck access; no saved status establishes future permission, eligibility or external delivery. No provider/model call, mutation, secret selection, new grant or dependency is added. [Package journey reference](PACKAGE_WORK_JOURNEY.md) records all boundaries; exact-source audit results belong in [Releases](RELEASES.md).
+
 ## Release 1.34 guidance boundary
 
 The server owns actor/workspace scope; the guide accepts no query authority. Current membership, role and counts share one SELECT snapshot, without organization-owner fallback, result cache, secret selection or provider access. Malformed projections/storage failures never invent an empty healthy workspace. SQL read-only execution and foreign/revoked membership are tested. Counts omit content/private identifiers but remain tenant-confidential.

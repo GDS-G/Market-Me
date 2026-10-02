@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.35 candidate checkpoint
+
+Final local gate: **2,892 tests/156 files, no skips**. Split: web 1072/60; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 29/4; ingestion 33/5; media 24/2; workflows 43/3. All 12 typechecks, lint, web/companion builds, cargo check and three Rust tests pass. The full gate was repeated after mobile progressive-disclosure refinement: Next compile 2.5 s, TypeScript 11.6 s, 104/104 generation 422 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms.
+
+Fresh QA applies 120 migrations; replay applies none/skips all 120. Final local CI has zero organizations/120 migration entries. Browser/production/unsigned-package evidence is separate and recorded in [Releases](RELEASES.md). Exact-source cloud feature/main jobs and audits are pending for this candidate. Prior documentation-only ac3e086 runs 36944607195/36944607171 pass but do not verify 1.35 runtime.
+
 ## Verified Release 1.34 checkpoint
 
 Final local gate: 2,780 TypeScript tests/153 files, no skips. Split: web 1035/59, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1250/58, domain 128/6, generation 29/4, ingestion 33/5, media 24/2, workflows 43/3. All 12 typechecks, lint, both frontend builds, cargo check and three Rust tests pass. Full regression was repeated after accessibility/plural refinements: Next compile 2.5 s, TypeScript 3.0 s, 104/104 generation 411 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms.
