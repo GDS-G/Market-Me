@@ -1,6 +1,6 @@
 # Searchable, bounded Content Package catalog
 
-Status: implemented as release 1.47; local/browser/native acceptance passes, with cloud and Google documentation verification pending. Specification section 01 explicitly calls for searchable content and a nontechnical review-first experience. The previous package page loaded every package plus full asset/evidence details before rendering a list, had no search/status filter and reported the loaded array size as its catalog total. [Implementation reference](CONTENT_CATALOG.md) records the delivered contract and exact-microsecond regression fix.
+Status: implemented, verified and published as release 1.47. Local/browser/native,independent exact-source feature/main cloud,both clean audits and final Google documentation readback pass; [Releases](RELEASES.md) records exact evidence. Specification section01 explicitly calls for searchable content and a nontechnical review-first experience. The previous package page loaded every package plus full asset/evidence details before rendering a list, had no search/status filter and reported the loaded array size as its catalog total. [Implementation reference](CONTENT_CATALOG.md) records the delivered contract and exact-microsecond regression fix.
 
 ## User experience
 

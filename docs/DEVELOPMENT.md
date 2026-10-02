@@ -2,7 +2,7 @@
 
 ## Release 1.47 catalog development
 
-Read [Content Package catalog](CONTENT_CATALOG.md) before changing selection normalization, SQL scope, pagination, counts or returned fields. Never round cursor times through Date or infer permission from its hash. Own metadata is 1.47.0/schema121; no dependency/environment/migration addition. Isolated QA147 initializes once with 65 synthetic packages and disabled intake, then uses read-only post-login 141-table/two-projection comparisons. The full local gate passes 3,733 tests/194 files plus 44 quality cases; cloud and Google acceptance remain separately recorded in [Releases](RELEASES.md). User pnpm files remain unchanged/excluded.
+Read [Content Package catalog](CONTENT_CATALOG.md) before changing selection normalization,SQL scope,pagination,counts or returned fields. Never round cursor times through Date or infer permission from its hash. Own metadata is1.47.0/schema121;no dependency/environment/migration addition. Isolated QA147 initializes once with65 synthetic packages and disabled intake,then uses read-only post-login141-table/two-projection comparisons. Local and both exact-source cloud gates pass3733 tests/194 files plus44 quality cases; final Google readback passes. [Releases](RELEASES.md) separates all evidence. User pnpm files remain unchanged/excluded.
 
 ## Release 1.46 export development
 

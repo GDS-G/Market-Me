@@ -1,8 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.47 local checkpoint
+## Release 1.47 verified checkpoint
 
-Full local gate passes **3,733 tests/194 files without skips**: web1559/82, workflow-worker68/5, companion protocol4/1, connectors166/10, database1512/68, domain157/7, generation121/8, ingestion79/8, media24/2, workflows43/3. All 44 quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests pass. Next compile5.1s/TypeScript8.8s/109-page generation448ms; companion141ms/201.34kB JavaScript64.02kB gzip; native check3.17s/test build15.96s. New coverage adds54 database/model and44 net web cases. Cloud verification is pending; [Releases](RELEASES.md) separates browser and unsigned packaging evidence.
+Full local gate passes **3,733 tests/194 files without skips**: web1559/82, workflow-worker68/5, companion protocol4/1, connectors166/10, database1512/68, domain157/7, generation121/8, ingestion79/8, media24/2, workflows43/3. All44 quality cases,twelve typechecks,lint,both frontends,cargo check and three Rust tests pass. Next compile5.1s/TypeScript8.8s/109-page generation448ms;companion141ms/201.34kB JavaScript64.02kB gzip;native check3.17s/test build15.96s. New coverage adds54 database/model and44 net web cases. [Releases](RELEASES.md) separates browser and unsigned packaging evidence.
+
+Exact runtime `add806e3a361a3db4a1684063c117a1a23d10afd` passes [feature CI36973129907](https://github.com/GDS-G/Market-Me/actions/runs/36973129907) in4:42 and [main CI36973609166](https://github.com/GDS-G/Market-Me/actions/runs/36973609166) in4:30. Each locked install adds609/audits622 packages,applies121 migrations,reproduces the entire test/quality split,and passes static/frontend/native-dependency smoke/cleanup and both zero-vulnerability audits. Next compile15.4/14.4s,109-page generation638/578ms,companion183/182ms respectively. Final Google readback verifies42 paragraphs and preserves prior bodies/styles/list definitions and30 tabs. Developing draft search is excluded from this checkpoint.
 
 ## Release 1.46 verified checkpoint
 

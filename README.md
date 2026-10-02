@@ -6,7 +6,7 @@ Market Me is a universal content-to-campaign operating system. It monitors custo
 
 Content Packages now supports literal title/filename search, recorded-status filtering, exact matching/catalog counts and 30-result pages. Current workspace membership is checked on every read; filename previews are bounded and full evidence stays in the detail view. [Programmer reference](docs/CONTENT_CATALOG.md) documents contracts, variables, scope and microsecond-safe pagination.
 
-Local acceptance passes 3,733 tests/194 files, 44 quality cases, static/frontend/native checks, unsigned packaging and isolated desktop/mobile/production browser checks. All 141 measured tables and both catalog projections remain unchanged. Cloud publication and native Google documentation verification are pending; this is not whole-application completion. [Release evidence](docs/RELEASES.md).
+Reviewed runtime `add806e3a361a3db4a1684063c117a1a23d10afd` is public on main. Local and independent exact-source feature/main cloud gates pass 3,733 tests/194 files and44 quality cases; both cloud audits are clean. Static/frontend/native,unsigned packaging,browser/mobile/production and final Google readback pass separately. All141 measured tables and both catalog projections remain unchanged. [Release evidence](docs/RELEASES.md) records the exact checks. [Searchable draft variants](docs/DRAFT_CATALOG_PLAN.md) are underway independently; this is not whole-application completion.
 
 ## Previous release 1.46: CSV and JSON Analytics downloads
 
