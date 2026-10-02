@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.38 candidate: Responsive workspace navigation
+## Release 1.38: Responsive workspace navigation
 
 Small screens now retain all 17 section links, workspace switching and sign-out in a native keyboard-accessible menu. Short desktop sidebars scroll, skip-to-main focus works, and long names wrap without loss. Existing membership/action authority is unchanged. [Programmer reference](docs/RESPONSIVE_WORKSPACE_NAVIGATION.md) explains props, tuples, state lifetime and layout.
 
-Local acceptance passes 2,972 tests/162 files, static/frontend/native checks, unsigned packaging and production-browser checks. Both isolated QA fixtures retain measured domain counts/fingerprints. Cloud publication and final Google synchronization are pending; [Releases](docs/RELEASES.md) separates evidence. This does not mean the broader application is complete.
+Reviewed runtime `799911b1d222712af0d6706ac2d7e02f0c6830c5` is public on main. Exact [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36951618908) and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36951992657) each pass 2,972 tests/162 files, 120 migrations, static/build checks and both clean audits in 4:13. Local native/unsigned packaging and production-browser checks pass separately; both isolated QA fixtures retain measured domain fingerprints. All six Google development tabs are finalized with prior content/styles and the 30-tab structure preserved. [Releases](docs/RELEASES.md) separates evidence. [Grounded draft quality](docs/GROUNDED_DRAFT_QUALITY_PLAN.md) is the next independent increment; the broader application remains unfinished.
 
 ## Previous release 1.37: Practical AI controls
 

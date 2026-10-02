@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Current local candidate: Release 1.38 responsive navigation
+## Current verified source: Release 1.38 responsive navigation
 
 Mobile navigation, workspace switching, exact active links, native keyboard menu, skip focus and short-height desktop scrolling are implemented. The maximum-length workspace-name test also corrected Start here text wrapping. Existing scoped actions and all 120 migrations are unchanged. [Programmer reference](RESPONSIVE_WORKSPACE_NAVIGATION.md) records variables and boundaries.
 
-Local acceptance passes 2,972 tests/162 files plus all static/frontend/native checks, unsigned packaging and production-browser acceptance. Synthetic domain fingerprints remain unchanged. Feature/main cloud publication and final Google readback are pending; [Releases](RELEASES.md) records each gate separately. No input is needed for continuing independent product work.
+Reviewed runtime `799911b1d222712af0d6706ac2d7e02f0c6830c5` is public on main. Local and independent exact-source feature/main cloud gates each pass 2,972 tests/162 files, static/frontend checks and 120 migrations; both cloud audits are clean in both runs. Local native/unsigned packaging and production-browser acceptance pass separately. Synthetic domain fingerprints remain unchanged. Final Google readback verifies 35 authored paragraphs, prior bodies/styles and all 30 tabs. [Releases](RELEASES.md) records each gate separately. [Grounded draft quality](GROUNDED_DRAFT_QUALITY_PLAN.md) is underway independently; its tests/fixes are excluded from 1.38 evidence. No input is needed merely to continue.
 
 ## Previous verified source: Release 1.37 AI controls usability
 

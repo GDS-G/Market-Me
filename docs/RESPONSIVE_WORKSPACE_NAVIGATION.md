@@ -1,6 +1,6 @@
 # Responsive workspace navigation
 
-Implemented for 1.38 from the [scoped plan](RESPONSIVE_WORKSPACE_NAVIGATION_PLAN.md). [Releases](RELEASES.md) separates local acceptance from cloud/publication status. This repairs missing narrow-screen navigation and inaccessible lower desktop links; it adds no product authority or persistent state.
+Implemented and public on main in verified 1.38 from the [scoped plan](RESPONSIVE_WORKSPACE_NAVIGATION_PLAN.md). [Releases](RELEASES.md) separates final local, native/browser, cloud and documentation evidence. This repairs missing narrow-screen navigation and inaccessible lower desktop links; it adds no product authority or persistent state.
 
 ## Topology and authority
 
