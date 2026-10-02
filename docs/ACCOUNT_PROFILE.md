@@ -1,6 +1,6 @@
 # Self-service account display names
 
-Release 1.50 candidate. This closes the narrow Settings display-name gap in specification 01–02. It does not complete the broader user-profile, identity-management or product requirements. Local full-gate, native packaging, actual browser/production acceptance and exact-source cloud verification are tracked separately in [Releases](RELEASES.md); do not infer them from focused tests.
+Release 1.50 verified and published. This closes the narrow Settings display-name gap in specification 01–02. It does not complete the broader user-profile, identity-management or product requirements. Local full-gate, native packaging, actual browser/production acceptance, final Google readback and independent exact-source feature/main cloud verification pass and are tracked separately in [Releases](RELEASES.md); do not infer them from focused tests.
 
 ## Scope and source map
 

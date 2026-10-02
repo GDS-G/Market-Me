@@ -6,7 +6,7 @@ Market Me is a universal content-to-campaign operating system. It monitors custo
 
 Settings now lets each signed-in person change their own Market Me display name without changing email, provider identity or permissions. Revision checks prevent stale edits, immutable receipts preserve original outcomes, and explicit read-only recovery never resends a save. [Programmer reference](docs/ACCOUNT_PROFILE.md) documents the complete contract and variable lifetimes.
 
-Final local verification passes **4,065 tests/206 files** and44 quality cases, static/frontend/native checks, unsigned packaging and isolated desktop/mobile/production acceptance. The mobile recheck confirms3px keyboard focus and44px-minimum controls. All139 unrelated tables and other accounts remain unchanged. Exact-source feature/main cloud checks and Google documentation readback are pending; [Release evidence](docs/RELEASES.md) distinguishes each gate. This is not identity-management or whole-application completion.
+Reviewed runtime `5bc08b685da7809549de1ea0beffd590d3f8ae11` is public on main. Final local and independent exact-source feature/main cloud gates pass **4,065 tests/206 files** and44 quality cases; both audits are clean. Static/frontend/native,unsigned packaging,isolated desktop/mobile/production and final Google readback pass. All139 unrelated tables and other accounts remain unchanged. [Release evidence](docs/RELEASES.md) distinguishes each gate; [personal session controls](docs/ACCOUNT_SESSIONS_PLAN.md) are underway independently. This is not identity-management or whole-application completion.
 
 ## Previous release 1.49: Searchable asset inventory
 

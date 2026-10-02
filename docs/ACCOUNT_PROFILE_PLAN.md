@@ -1,6 +1,6 @@
 # Self-service account display name
 
-Status: implemented as1.50 with final local4065-test gate and isolated desktop/mobile/production acceptance passing. Exact-source feature/main cloud verification and Google readback remain pending. The design below records the original bounded scope; [ACCOUNT_PROFILE.md](ACCOUNT_PROFILE.md) is the implemented contract and [RELEASES.md](RELEASES.md) the evidence authority. This is a narrow self-service Market Me display-name editor without provider identity,verified email,password,role or account-link changes; broader user-profile requirements remain incomplete.
+Status: implemented,verified and published as1.50. Final local and independent exact-source feature/main cloud4065-test gates,isolated desktop/mobile/production,unsigned packaging and final Google readback pass. The design below records the original bounded scope; [ACCOUNT_PROFILE.md](ACCOUNT_PROFILE.md) is the implemented contract and [RELEASES.md](RELEASES.md) the evidence authority. This is a narrow self-service Market Me display-name editor without provider identity,verified email,password,role or account-link changes; broader user-profile requirements remain incomplete.
 
 ## Intended experience
 

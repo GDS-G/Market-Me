@@ -1,10 +1,12 @@
 # Cloud continuous integration
 
-## Release 1.50 local checkpoint; exact-source cloud pending
+## Release 1.50 verified checkpoint
+
+Exact runtime `5bc08b685da7809549de1ea0beffd590d3f8ae11` passes [feature CI36981860343](https://github.com/GDS-G/Market-Me/actions/runs/36981860343) in4:45 and [main CI36982391440](https://github.com/GDS-G/Market-Me/actions/runs/36982391440) in3:42. Each locked install adds609/audits622 packages,applies123 migrations,reproduces4065 tests/206 files and44 quality cases,and passes static/frontend/native-dependency smoke and both zero-vulnerability audits. Next compile14.8/11.3s,112-page generation590/426ms,companion181/133ms respectively. Final Google readback verifies45 paragraphs and preserves all30 tabs,prior bodies/styles and list definitions. Developing session-control source is excluded from this checkpoint.
 
 Final local gate passes **4,065 tests/206 files without skips**,44/44 quality cases,twelve typechecks,lint,both frontends,cargo check and three Rust tests. Split:web1723/88,workflow-worker68/5,protocol4/1,connectors166/10,database1680/74,domain157/7,generation121/8,ingestion79/8,media24/2,workflows43/3. New coverage adds66 database/model and79 net web cases. Schema123 includes additive migrations0122/0123; no dependency is added.
 
-Next compile3.3s/TypeScript8.6s/112-page generation472ms;companion135ms/201.34kB JavaScript64.02kB gzip;native check0.35s/test build0.31s. This final-source gate supersedes the earlier4059 and4060 gates, which preceded focus/Unicode hardening. Native packaging and actual desktop/mobile/production acceptance pass separately; [Releases](RELEASES.md) records the exact evidence. Independent feature/main cloud gates and Google readback remain pending, not inferred from local success.
+Next compile3.3s/TypeScript8.6s/112-page generation472ms;companion135ms/201.34kB JavaScript64.02kB gzip;native check0.35s/test build0.31s. This final-source gate supersedes the earlier4059 and4060 gates, which preceded focus/Unicode hardening. Native packaging and actual desktop/mobile/production acceptance pass separately; [Releases](RELEASES.md) records the exact evidence. Both independent exact-source cloud gates and final Google readback pass as recorded above.
 
 ## Release 1.49 verified checkpoint
 
