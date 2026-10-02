@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Release 1.42 budget-action recovery: locally accepted
+## Release 1.42 budget-action recovery: verified and published
 
 The three budget-action kinds retain scope-bound intent before sending, block duplicate submissions and recover current entity state through an explicit read-only check. Original actor/payload and expiry are displayed honestly; no immutable receipt or automatic retry is invented. Current membership is locked through each mutation/lookup. [Implementation reference](AI_BUDGET_ACTION_RECOVERY.md) covers all fields, functions and operational limits.
 
-Final local gate passes 3,323 tests/178 files without skips, 44/44 quality cases and all static/frontend/native checks. Unsigned packaging and isolated browser/mobile/production checks pass separately; expected actions change only two entity tables and three audits, preserve all six synthetic reservations, and production checks preserve all 141 measured tables. Public exact-source cloud gates and Google readback are pending. The application remains incomplete; no user input is needed merely to continue.
+Reviewed runtime `6a35407ba605b96db2317ab06f115c2eb2c424b4` is public on main. Final local and independent exact-source feature/main cloud gates pass 3,323 tests/178 files without skips and 44/44 quality cases; both cloud audits are clean. Static/frontend/native checks, unsigned packaging, isolated browser/mobile/production checks and final Google readback pass separately. Expected actions change only two entity tables and three audits, preserve all six synthetic reservations, and production recovery preserves all 141 measured tables. [Monetary-unit correction](AI_BUDGET_UNIT_BOUNDARY_PLAN.md) is underway independently and excluded from these totals. The application remains incomplete; no user input is needed merely to continue.
 
 ## Release 1.41 exact policy-save recovery: verified and published
 

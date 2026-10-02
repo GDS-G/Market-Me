@@ -1,6 +1,6 @@
 # Budget-action recovery plan
 
-Status: implemented in release 1.42, with the full local gate passing 3,323 tests/178 files and 44/44 quality cases. Browser/mobile/production and unsigned native packaging pass; cloud publication and final documentation acceptance are tracked separately in [Releases](RELEASES.md). [Programmer reference](AI_BUDGET_ACTION_RECOVERY.md) inventories all contracts and variables. Six pre-fix regressions against 1.41 reproduced lost responses, malformed-success refresh and duplicate acknowledgement/approval submission; 1.42 evidence does not alter the frozen 1.41 totals.
+Status: implemented and published in verified release1.42, runtime6a35407ba605b96db2317ab06f115c2eb2c424b4. Full local and independent exact-source feature/main cloud gates pass3,323 tests/178files and44/44 quality cases; both cloud audits are clean. Browser/mobile/production, unsigned native packaging and final Google readback pass separately in [Releases](RELEASES.md). [Programmer reference](AI_BUDGET_ACTION_RECOVERY.md) inventories all contracts and variables. Six pre-fix regressions against1.41 reproduced lost responses, malformed-success refresh and duplicate acknowledgement/approval submission;1.42 evidence does not alter the frozen1.41 totals.
 
 ## Scope and intent
 

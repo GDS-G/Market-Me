@@ -6,7 +6,7 @@ Market Me is a universal content-to-campaign operating system. It monitors custo
 
 Alert acknowledgement, exception requests and decisions now retain the original action across uncertain responses and reloads. Explicit checks report current saved state without retrying, replacing the original explanation or implying that spending was approved. [Programmer reference](docs/AI_BUDGET_ACTION_RECOVERY.md) documents the contracts, permissions, API compatibility and recovery limits.
 
-Final local checks pass 3,323 tests/178 files and 44/44 quality cases, all static/frontend/native checks and unsigned packaging. Synthetic browser/mobile/production acceptance preserves all six reservations; production lookup leaves all 141 measured tables unchanged. Cloud publication and Google documentation acceptance remain pending in [Releases](docs/RELEASES.md). No provider execution, hosted deployment or whole-product completion is implied.
+Reviewed runtime `6a35407ba605b96db2317ab06f115c2eb2c424b4` is public on main. Final local and independent exact-source feature/main cloud gates pass 3,323 tests/178 files and 44/44 quality cases; both cloud audits are clean. Static/frontend/native checks, unsigned packaging, synthetic browser/mobile/production acceptance and final Google readback pass separately. All six reservations remain unchanged; production lookup preserves all 141 measured tables. [Releases](docs/RELEASES.md) separates evidence. [Monetary-unit correction](docs/AI_BUDGET_UNIT_BOUNDARY_PLAN.md) is underway independently. No provider execution, hosted deployment or whole-product completion is implied.
 
 ## Previous release 1.41: Recoverable AI-policy saves
 

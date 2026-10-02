@@ -1,10 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.42 local checkpoint
+## Release 1.42 verified checkpoint
 
 Final local gate passes **3,323 tests/178 files without skips**, 44/44 standalone quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web1315/73; workflow-worker68/5; companion protocol4/1; connectors166/10; database1384/63; domain128/6; generation112/7; ingestion79/8; media24/2; workflows43/3. Final rerun follows scoped spacing/focus improvements: Next compile2.5s, TypeScript12.7s,106/106 generation600ms; companion18 modules,201.34kB/64.02kB gzip,141ms; cargo check0.81s, Rust test build4.70s.
 
-New coverage is 27 browser-contract,15 handler,26 route and eight live database cases, including lock-evidenced role-demotion races for all three mutation paths. Schema stays121; no dependency upgrades. Native packaging and browser/mobile/production checks pass separately. Exact-source cloud gates/audits and final Google acceptance are pending; [Releases](RELEASES.md) is authoritative.
+New coverage is 27 browser-contract,15 handler,26 route and eight live database cases, including lock-evidenced role-demotion races for all three mutation paths. Schema stays121; no dependency upgrades. Native packaging and browser/mobile/production checks pass separately. Exact runtime `6a35407ba605b96db2317ab06f115c2eb2c424b4` passes [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36961698879) in4:34 and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36962092708) in3:10. Each locked install adds609 packages/audits622, applies121 migrations with no skips, reproduces every test/quality/static/frontend gate and passes both zero-vulnerability audits. Cloud Next compile14.4/9.5s,106/106 generation635/344ms respectively. Final Google readback passes. Independent monetary-unit development is excluded; [Releases](RELEASES.md) is authoritative.
 
 ## Release 1.41 verified checkpoint
 
