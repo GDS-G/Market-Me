@@ -1,5 +1,11 @@
 # Market Me implementation status
 
+## Release 1.46 Analytics downloads: local acceptance passed
+
+Explicit JSON/CSV links obtain fresh current-member workspace/optional-Campaign snapshots. Versioned allowlisted formats retain exact values, separate clocks, source/currency labels, null/zero and bounded coverage; CSV marks risky text and explains spreadsheet import precision. Fixed private errors and ID-only attachment filenames prevent scope/header/data leakage. [Full reference](ANALYTICS_EXPORTS.md) inventories all contracts and variables.
+
+Full local3635 tests/191 files,44 quality cases,static/frontend/native checks and unsigned packaging pass. All six actual production-browser downloads match the unchanged isolated data, including narrow-screen keyboard access and switch-cleared Campaign scope. An extra direct stale-link browser navigation was blocked by Chrome and not retried; automated stale-scope tests pass. Cloud/publication and Google documentation gates remain pending. No new user input is needed to continue broader work.
+
 ## Release 1.45 workspace Analytics: verified and published
 
 The new read-only Analytics destination separates run/publication activity from event observations and current provider totals. Current-membership/optional-Campaign scoping shares one SQL snapshot, amounts stay exact strings, currencies and sources remain separate, and missing/partial coverage is labeled. All18 navigation destinations and23 shared-pool repository accessors are verified. [Programmer reference](WORKSPACE_ANALYTICS.md) documents the complete contract.

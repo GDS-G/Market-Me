@@ -6,6 +6,7 @@ import { getAuthenticatedUser } from "@/server/auth";
 import { getActiveWorkspace } from "@/server/active-workspace";
 import { getWorkspaceAnalyticsRepository } from "@/server/database";
 import { formatDashboardTime } from "@/server/dashboard-data";
+import { analyticsExportPath } from "@/server/workspace-analytics-export";
 import { ANALYTICS_EVENT_SECTIONS, analyticsCount, analyticsDecimal, analyticsEventSection, analyticsLabel, workspaceAnalyticsPath, workspaceAnalyticsQuery } from "@/server/workspace-analytics-view";
 import styles from "./analytics.module.css";
 
@@ -30,6 +31,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         <p>{data.campaign ? "Only explicitly linked or consistently run-linked events are included. Unattributed or contradictory links are excluded." : "Includes workspace events without a Campaign link. No attribution is inferred from visits, timing or destination links."}</p>
         <div className={styles.links}>{data.campaign && <Link prefetch={false} href={workspaceAnalyticsPath(workspace.workspaceId)}>All workspace data</Link>}<Link prefetch={false} href="/campaigns">Choose a Campaign from Campaigns</Link></div>
       </aside>
+
+      <section className={styles.panel} aria-labelledby="download-heading"><h2 id="download-heading">Download this report</h2>
+        <p className={styles.intro}>Each download reads a fresh snapshot in this scope, without contacting providers. It includes the same limits: up to 200 event groups and 20 recent runs, with complete headline counts and coverage flags. It is not a full-history export.</p>
+        <div className={styles.links}><a href={analyticsExportPath(workspace.workspaceId, "json", campaignId)} download>Download JSON</a><a href={analyticsExportPath(workspace.workspaceId, "csv", campaignId)} download>Download CSV</a></div>
+        <p className={styles.note}>Use JSON to preserve exact values and original labels. When importing CSV into a spreadsheet, set all columns to text to prevent rounding and automatic conversion. Potential formula labels are marked [text]. Files may contain user-supplied information; share them only with intended recipients.</p>
+      </section>
 
       <section aria-labelledby="activity-heading"><h2 id="activity-heading">Recorded campaign activity</h2><p className={styles.intro}>Operational records, not conversions or delivery guarantees. A completed run is not proof of a business outcome.</p>
         <dl className={styles.totals}><div><dt>Campaign runs</dt><dd>{analyticsCount(data.totals.campaignRuns)}</dd></div><div><dt>Publication actions</dt><dd>{analyticsCount(data.totals.publicationActions)}</dd></div><div><dt>Recorded events</dt><dd>{analyticsCount(data.totals.measurementEvents)}</dd></div></dl>

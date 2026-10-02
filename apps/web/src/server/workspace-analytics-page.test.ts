@@ -11,6 +11,7 @@ vi.mock("@/server/active-workspace", () => ({ getActiveWorkspace: mocks.workspac
 vi.mock("@/server/database", () => ({ getWorkspaceAnalyticsRepository: () => mocks }));
 vi.mock("@/server/dashboard-data", async () => await import("./dashboard-data"));
 vi.mock("@/server/workspace-analytics-view", async () => await import("./workspace-analytics-view"));
+vi.mock("@/server/workspace-analytics-export", async () => await import("./workspace-analytics-export"));
 vi.mock("@/components/workspace-shell", () => ({ WorkspaceShell: ({ children, activePath }: { children: ReactNode; activePath: string }) => createElement("main", { "data-active-path": activePath }, children) }));
 vi.mock("../app/analytics/analytics.module.css", () => ({ default: {} }));
 import Analytics from "../app/analytics/page";
@@ -32,7 +33,9 @@ describe("authenticated read-only Analytics page", () => {
     expect(html).toContain('data-active-path="/analytics"'); expect(html).toContain("No event observations yet"); expect(html).toContain("No provider totals observed"); expect(html).toContain("not zero engagement");
     expect(html).toContain("All-time recorded data"); expect(html).toContain("No inferred attribution"); expect(html).toContain("does not contact providers");
     expect(html).toContain(`href="/analytics?workspaceId=${workspaceId}"`); expect(html).toContain("Refresh recorded data");
-    expect(html).not.toMatch(/<form|<input|<button|href="\/api\//); expect(html).not.toContain("ROI:");
+    expect(html).not.toMatch(/<form|<input|<button/); expect(html).not.toContain("ROI:");
+    for (const format of ["json", "csv"]) expect(html).toContain(`href="/api/v1/analytics/export?workspaceId=${workspaceId}&amp;format=${format}" download=""`);
+    expect(html).toContain("not a full-history export"); expect(html).toContain("fresh snapshot"); expect(html).toContain("set all columns to text");
   });
   it.each(["owner", "admin", "editor", "approver", "analyst", "viewer"])("offers only read/navigation for %s", async role => {
     mocks.workspace.mockResolvedValue({ workspaceId, workspaceName: "Synthetic workspace", role });
@@ -46,6 +49,7 @@ describe("authenticated read-only Analytics page", () => {
     const html = renderToStaticMarkup(await page({ campaignId, workspaceId })); expect(mocks.getSnapshot).toHaveBeenCalledExactlyOnceWith(workspaceId, userId, campaignId);
     expect(html).toContain("Campaign: Synthetic café"); expect(html).toContain("contradictory links are excluded"); expect(html).toContain("All workspace data");
     expect(html).toContain(`href="/analytics?workspaceId=${workspaceId}&amp;campaignId=${campaignId}"`);
+    for (const format of ["json", "csv"]) expect(html).toContain(`href="/api/v1/analytics/export?workspaceId=${workspaceId}&amp;format=${format}&amp;campaignId=${campaignId}" download=""`);
   });
   it("rejects revoked, foreign and wrong-filter snapshots", async () => {
     for (const data of [undefined, { ...snapshot(), workspaceId: campaignId }, { ...snapshot(), campaign: { id: campaignId, name: "Foreign selection" } }]) {

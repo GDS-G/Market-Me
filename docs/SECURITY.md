@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.46 private report downloads
+
+Session actor/current selection and SQL membership remain authoritative; strict required workspace hints cannot select another workspace. Unknown/duplicate filters and foreign/revoked output fail closed. All exported nested fields are explicitly allowlisted; filenames contain validated IDs only, and responses are private/no-store/nosniff with no CORS grant or raw error logging. CSV marks formula/control-prefix text with literal `[text] ` before quoting; validated negative decimals remain exact. JSON preserves original labels. [Full security contract](ANALYTICS_EXPORTS.md) documents spreadsheet auto-conversion/re-save limits and the privacy/retention responsibilities of downloaded user labels.
+
 ## Release 1.45 read-only reporting
 
 Analytics requires current workspace membership and optional Campaign ownership in the same SQL snapshot as its aggregates. All current roles may read; filters grant no authority. Cross-workspace/inconsistent provider lineage is excluded. Output omits event keys/identities/properties and raw provider credentials/payloads; collector source labels remain unverified escaped text. Bounded detail lists and a1MiB exact-response ceiling fail safely without silent value truncation. No writes, provider synchronization or inferred permission occurs. [Boundary reference](WORKSPACE_ANALYTICS.md) explains point-in-time revocation semantics and privacy/coverage limits.

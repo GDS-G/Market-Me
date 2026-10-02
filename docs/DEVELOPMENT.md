@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.46 export development
+
+Read [Analytics snapshot downloads](ANALYTICS_EXPORTS.md) before changing DTO projection,CSV columns,numeric guards,formula-prefix treatment or attachment headers. Never export a repository object directly or silently change a version1 column meaning. Own metadata1.46.0/schema121;no dependency/environment/migration addition. QA reuses the existing isolated145 fixture read-only and verifies actual Chrome files with the ignored146 helper; never repeat145 --init. The exact existing dev-login flag is MARKET_ME_DEV_LOGIN_ENABLED;production rejects it even when true. Existing user pnpm files remain untouched/excluded. [Releases](RELEASES.md) distinguishes passed tests/browser files from the Chrome-blocked optional diagnostic.
+
 ## Release 1.45 Analytics development
 
 Read [Workspace Analytics](WORKSPACE_ANALYTICS.md) before changing grouping, numeric formatting, provenance or query scope. Never reuse the workflow-success summary or cast SQL amounts/counts to Number. Metadata1.45.0/schema121; no new dependency/environment key. Use the isolated one-time145 seed and post-login read-only141-table comparisons; existing MARKET_ME-prefixed development account settings are required. The shared server bundle now has23 getters and shared navigation18entries. User pnpm files remain excluded. [Releases](RELEASES.md) separates local/cloud/native/browser verification.

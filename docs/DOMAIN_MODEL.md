@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.46 download formats and variables
+
+AnalyticsExportFormat is json/csv; the export envelope has fixed format/version1,notes,limits and an allowlisted schema1 reporting snapshot. Frozen ANALYTICS_EXPORT_LIMITS bounds512 encoded query characters/2MiB UTF-8 output. ANALYTICS_EXPORT_NOTES is an eight-note tuple; ANALYTICS_CSV_COLUMNS is the ordered26-column tuple, CsvColumn its union, CsvRow a partial typed dictionary and numericColumns a private readonly set. Query/path/primitive guards,privateHeaders,request-local rows/common/fields/selection/data/file and all row kinds are inventoried in [the full reference](ANALYTICS_EXPORTS.md). No persistence/global authorization/Number arithmetic is added.
+
 ## Release 1.45 Analytics projection
 
 WorkspaceAnalyticsSnapshot/schemaVersion1 carries current workspace/optional Campaign, observedAt, exact-string headline/status counts, bounded event groups and recent runs, and current provider totals with per-metric publication coverage/observation ranges. Frozen limits are200 groups/20runs/1MiB. Strict UUID/query helpers, decimal-string rendering, outcome/engagement/feedback/custom tuples/sets and provider/status dictionary are inventoried in [the full reference](WORKSPACE_ANALYTICS.md). No schema change, currency conversion, inferred attribution, cached authorization or mutable reporting global is added.

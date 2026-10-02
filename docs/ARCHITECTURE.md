@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.46 snapshot-download transport
+
+Explicit authenticated GET attachments reuse the existing coherent Analytics SQL observation without writes or a new repository. A strict current-selection hint and returned-scope check fence the route; a request-local field allowlist builds versioned JSON or rectangular long-form CSV. Exact values, distinct clocks, bounded coverage, private response headers and safe ID-only filenames remain explicit. [Complete design](ANALYTICS_EXPORTS.md) explains format/version boundaries, serialization and no-prefetch native links. No job, cache, provider call or client store is added.
+
 ## Release 1.45 workspace Analytics
 
 A server-only current-membership SELECT creates one coherent snapshot of run/publication activity, source/currency-separated events and correction-aware provider aggregates. Exact SQL numeric strings, bounded detail coverage and explicit provenance prevent rounded values or mixed measurement semantics. No mutation/provider path is invoked. The shared server bundle retains one new repository, never user/report data. [Complete design](WORKSPACE_ANALYTICS.md) documents every CTE, field, helper, clock and authorization boundary.
