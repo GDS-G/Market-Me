@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Release 1.40 source-evidence integrity: locally accepted candidate
+## Release 1.40 source-evidence integrity: verified and published
 
 Whole-text admission replaces observed 500-unit prefixes and transport-only facts. Missing, oversized or reported incomplete extraction creates unresolved evidence that the existing exact-review evaluator blocks, regardless of context facts. Captured text, source references and superseded review history remain intact; correction and approval are separate current-role/fingerprint-guarded operations. [Contracts and variables](SOURCE_EVIDENCE_INTEGRITY.md) explain the boundary without implying semantic understanding or source truth.
 
-Local gate passes 3,109 tests/169 files, 44/44 evaluations, static/build/native checks and unsigned Windows packaging. Synthetic browser correction/approval, mobile and production read-only verification pass with expected records only, no runs/publications/AI spending. Cloud publication and final Google synchronization remain pending; [Releases](RELEASES.md) is authoritative. Development may continue independently; the full product remains unfinished.
+Reviewed runtime `af80a2849e67909327678617d08b4e1a38c524d7` is public on main. Local and independent exact-source cloud gates pass 3,109 tests/169 files and 44/44 evaluations; cloud installs apply 120 migrations and pass both clean audits. Local static/build/native checks, unsigned Windows packaging, synthetic correction/approval, mobile and production read-only verification pass with expected records only, no runs/publications/AI spending. Final Google readback verifies 37 authored paragraphs and preserves prior bodies/styles and all 30 tabs. [Releases](RELEASES.md) is authoritative. [Policy-save recovery](AI_POLICY_SAVE_RECOVERY_PLAN.md) is underway independently; its new migration and tests are excluded from 1.40 acceptance. The full product remains unfinished.
 
 ## Previous verified source: Release 1.39 grounded-draft quality
 

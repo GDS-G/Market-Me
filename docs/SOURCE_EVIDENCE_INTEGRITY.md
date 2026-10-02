@@ -1,6 +1,6 @@
 # Source-evidence integrity
 
-Release 1.40 locally accepted candidate implements the [bounded plan](SOURCE_EVIDENCE_INTEGRITY_PLAN.md). Exact-source cloud acceptance/publication is tracked separately in [Releases](RELEASES.md). This is whole-text admission with explicit review, not semantic extraction, source-truth assessment, OCR or automatic summarization.
+Release 1.40 implements the [bounded plan](SOURCE_EVIDENCE_INTEGRITY_PLAN.md). Runtime `af80a2849e67909327678617d08b4e1a38c524d7` is public on main and passes both exact-source cloud gates, including 3,109 tests/169 files, 44/44 quality cases and both clean audits. Final Google development-tab readback passes; [Releases](RELEASES.md) separates cloud, local, native and browser evidence. This is whole-text admission with explicit review, not semantic extraction, source-truth assessment, OCR or automatic summarization.
 
 ## Why the behavior changes
 

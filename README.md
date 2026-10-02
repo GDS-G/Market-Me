@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.40 candidate: Source-evidence integrity
+## Release 1.40: Source-evidence integrity
 
 New ingestion admits the whole available text only when it passes explicit completeness checks and the 500 UTF-16-unit automatic bound. Oversized, partial, failed or empty extraction requires a supported human correction and separate approval; file names/paths are no longer marketing facts. Captured text and original review history remain intact. [Programmer reference](docs/SOURCE_EVIDENCE_INTEGRITY.md) documents contracts, variables and limits.
 
-Local acceptance passes 3,109 tests/169 files, 44/44 quality evaluations, native/unsigned packaging and synthetic desktop/mobile/production checks. Cloud publication and final documentation synchronization are pending; [Releases](docs/RELEASES.md) separates verified evidence. This is not semantic understanding, historical-data remediation or whole-product completion.
+Reviewed runtime `af80a2849e67909327678617d08b4e1a38c524d7` is public on main. Local and independent exact-source feature/main cloud gates pass 3,109 tests/169 files and 44/44 quality evaluations; both cloud audits are clean. Native/unsigned packaging, synthetic desktop/mobile/production checks and final Google development-tab readback pass separately. [Releases](docs/RELEASES.md) separates verified evidence. [Exact AI-policy save recovery](docs/AI_POLICY_SAVE_RECOVERY_PLAN.md) is underway independently. This is not semantic understanding, historical-data remediation or whole-product completion.
 
 ## Previous release 1.39: Evidence-preserving copy and quality checks
 

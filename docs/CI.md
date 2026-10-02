@@ -1,10 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.40 locally accepted candidate
+## Release 1.40 verified checkpoint
 
 Final full local gate passes **3,109 tests/169 files without skips**, 44/44 standalone draft-quality evaluations, all twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web 1160/67; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 112/7; ingestion 79/8; media 24/2; workflows 43/3. Next compile 2.4 s, TypeScript 4.4 s, 104/104 generation 428 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms; cargo check 0.76 s, Rust test build 4.67 s.
 
-New ingestion suites add 41 unit and five live cases; eight web page cases cover nullable confidence and authentication/workspace scoping. Live fixtures require market_me_ci or an isolated market_me_qa_140_ database and no preexisting ingestion events because the real claim operation is global. Cleanup removes only exact fixture organizations/users; the CI database ends with zero organizations. Fresh QA applies 120 migrations and replay skips all 120. Local browser/mobile/production and unsigned packaging pass separately; exact-source cloud gates remain pending. [Releases](RELEASES.md) separates each gate.
+New ingestion suites add 41 unit and five live cases; eight web page cases cover nullable confidence and authentication/workspace scoping. Live fixtures require market_me_ci or an isolated market_me_qa_140_ database and no preexisting ingestion events because the real claim operation is global. Cleanup removes only exact fixture organizations/users; the CI database ends with zero organizations. Fresh QA applies 120 migrations and replay skips all 120. Local browser/mobile/production and unsigned packaging pass separately. Exact runtime `af80a2849e67909327678617d08b4e1a38c524d7` passes [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36956089226) in 4:20 and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36956551440) in 4:14. Both locked installs add 609 packages/audit 622, apply 120 migrations, reproduce the complete test split and 44/44 quality cases, pass static/frontend/native dependency smoke/cleanup and both zero-vulnerability audits. Next compile is 13.9/14.4 s; 104/104 generation is 557/539 ms respectively. Final Google readback passes. [Releases](RELEASES.md) separates each gate.
 
 ## Release 1.39 verified checkpoint
 

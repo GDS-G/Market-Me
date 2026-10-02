@@ -1,6 +1,6 @@
 # Source-evidence integrity
 
-Status: release 1.40 is locally accepted after verified release 1.39. Six pre-fix baseline tests reproduced five failures/one pass; final regression passes 3,109 tests/169 files plus 44/44 quality evaluations. Native/unsigned packaging and isolated browser/mobile/production checks pass. [Implementation and variable reference](SOURCE_EVIDENCE_INTEGRITY.md) records the completed contract; exact-source cloud publication and final Google synchronization remain pending in [Releases](RELEASES.md). These changes are not part of 1.39 runtime evidence.
+Status: release 1.40 is verified and published after release 1.39. Six pre-fix baseline tests reproduced five failures/one pass; final local and exact-source feature/main cloud gates pass 3,109 tests/169 files plus 44/44 quality evaluations. Both cloud dependency audits, native/unsigned packaging, isolated browser/mobile/production checks and final Google synchronization pass. [Implementation and variable reference](SOURCE_EVIDENCE_INTEGRITY.md) records the completed contract; [Releases](RELEASES.md) records exact source and separate evidence. These changes are not part of 1.39 runtime evidence.
 
 ## Observed problem
 
