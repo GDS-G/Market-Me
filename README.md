@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.51 candidate: Personal sign-in session controls
+## Release 1.51: Personal sign-in session controls
 
 Settings now shows your current Market Me session separately from other active sign-ins. Review and explicitly confirm one selected session to sign it out; a read-only original-result check recovers its receipt without sending another request. No token, token hash or invented device/location metadata is exposed. [Programmer reference](docs/ACCOUNT_SESSIONS.md) documents the complete contract, concurrency rules and variable lifetimes.
 
-The final local gate passes **4,205 tests/212 files** and 44 quality cases, with static, frontend and native checks passing. Unsigned packaging and isolated desktop/mobile/production acceptance pass separately; two selected removals preserve all 141 unrelated tables and other accounts. Google documentation readback and independent exact-source cloud checks are pending. [Release evidence](docs/RELEASES.md) distinguishes executed checks from pending acceptance. This is not administrator session management, hosted deployment or whole-application completion.
+Reviewed runtime `bbf84bf893c521b9cabc4f1fc58cf9247da674bf` is public on main. Final local and independent exact-source feature/main cloud gates pass **4,205 tests/212 files** and 44 quality cases; both audits are clean. Static/frontend/native, unsigned packaging, isolated desktop/mobile/production and final Google readback pass separately. Two selected removals preserve all 141 unrelated tables and other accounts. [Release evidence](docs/RELEASES.md) distinguishes every gate; [safe member lifecycle](docs/WORKSPACE_MEMBER_LIFECYCLE_PLAN.md) is underway independently. This is not administrator session management, hosted deployment or whole-application completion.
 
 ## Previous release 1.50: Self-service account display names
 

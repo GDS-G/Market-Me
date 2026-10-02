@@ -1,10 +1,12 @@
 # Cloud continuous integration
 
-## Release 1.51 candidate checkpoint
+## Release 1.51 verified checkpoint
+
+Exact runtime `bbf84bf893c521b9cabc4f1fc58cf9247da674bf` passes [feature CI36985552830](https://github.com/GDS-G/Market-Me/actions/runs/36985552830) in 4:11 and [main CI36986121507](https://github.com/GDS-G/Market-Me/actions/runs/36986121507) in 4:41. Each locked install adds609/audits622 packages, applies124 migrations, reproduces4205 tests/212 files and44 quality cases, and passes static/frontend/native-dependency smoke and both zero-vulnerability audits. Next compile12.6/14.1s,113-page generation485/669ms,companion146/172ms respectively. Final Google readback verifies52 paragraphs and preserves all30 tabs,prior bodies/styles and list definitions. Developing member-lifecycle source and focused tests are excluded from this checkpoint.
 
 The final corrected local gate passes **4,205 tests/212 files without skips**, 44/44 quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web 1812/92, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1731/76, domain 157/7, generation 121/8, ingestion 79/8, media 24/2 and workflows 43/3. Net new coverage is 51 database/model and 89 web cases. Readiness requires 124 migrations ending 0124; no third-party dependency changes.
 
-Next compile 3.1s, TypeScript 12.3s, 113-page generation 465ms; companion 140ms/201.34kB JavaScript/64.02kB gzip; native check 0.78s/test build 4.70s. This gate includes the corrected microsecond parameter binding and keyboard review-focus behavior. The initial JSX-inside-try lint failure and earlier pre-correction passing gate are not relabeled as final evidence. Unsigned packaging and actual browser/production acceptance pass separately; [Releases](RELEASES.md) records those checks. Independent exact-source feature/main cloud gates and Google documentation readback remain pending.
+Next compile 3.1s, TypeScript 12.3s, 113-page generation 465ms; companion 140ms/201.34kB JavaScript/64.02kB gzip; native check 0.78s/test build 4.70s. This gate includes the corrected microsecond parameter binding and keyboard review-focus behavior. The initial JSX-inside-try lint failure and earlier pre-correction passing gate are not relabeled as final evidence. Unsigned packaging and actual browser/production acceptance pass separately; [Releases](RELEASES.md) records those checks. Both independent exact-source cloud gates and final Google readback pass as recorded above.
 
 ## Release 1.50 verified checkpoint
 

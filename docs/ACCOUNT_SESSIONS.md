@@ -1,6 +1,6 @@
 # Personal Market Me sign-in session controls
 
-Release 1.51 has completed final local, native, unsigned packaging and isolated browser/production acceptance; Google readback, publication and exact-source cloud gates remain pending. See [Releases](RELEASES.md) for the current checkpoint. This implements only own-account application sessions from specification 02/18 and the open implementation-matrix session-control gap.
+Release 1.51 is verified and published: runtime `bbf84bf893c521b9cabc4f1fc58cf9247da674bf` passes final local/native, unsigned packaging, isolated browser/production, independent exact-source feature/main cloud gates and final Google readback. See [Releases](RELEASES.md) for separate evidence. This implements only own-account application sessions from specification 02/18 and the open implementation-matrix session-control gap; it does not complete the application.
 
 ## Scope and integration
 
