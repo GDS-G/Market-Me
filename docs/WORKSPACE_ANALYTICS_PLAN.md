@@ -1,6 +1,6 @@
 # Workspace analytics: measured activity and outcomes
 
-Status: 1.45.0 candidate implemented; full acceptance is in progress. [Programmer reference](WORKSPACE_ANALYTICS.md) inventories contracts, variables and limits. Specification sections01 and17 call for an Analytics destination that distinguishes activity from business outcomes, identifies metric sources/availability and avoids unnecessary personal tracking. Before this increment, measurements and correction-aware provider totals were visible only inside individual Campaign runs.
+Status: 1.45.0 verified and published with local/independent feature/main cloud, browser/native and Google documentation gates complete; [Releases](RELEASES.md) records exact evidence. [Programmer reference](WORKSPACE_ANALYTICS.md) inventories contracts, variables and limits. Specification sections01 and17 call for an Analytics destination that distinguishes activity from business outcomes, identifies metric sources/availability and avoids unnecessary personal tracking. Before this increment, measurements and correction-aware provider totals were visible only inside individual Campaign runs.
 
 ## First usable slice
 

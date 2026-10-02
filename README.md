@@ -6,7 +6,7 @@ Market Me is a universal content-to-campaign operating system. It monitors custo
 
 Analytics now shows recorded campaign activity, source/currency-separated events and current provider totals in a read-only workspace view. Campaign filtering, exact decimal strings, report observation times and honest missing-data states keep operational activity distinct from business outcomes. [Programmer reference](docs/WORKSPACE_ANALYTICS.md) covers every field, helper, query and reporting limit.
 
-Local acceptance passes 3,563 tests/189 files, 44 quality cases, twelve typechecks, lint, frontend/native checks, unsigned packaging and isolated browser/mobile/production inspection. All 141 measured tables and both reporting projections remain unchanged. Independent cloud/publication and Google synchronization are pending; [Releases](docs/RELEASES.md) records exact evidence. This does not complete all analytics requirements or the broader application.
+Reviewed runtime `438c57c1300921f9cbb8d9329e67f784f5f63431` is public on main. Local and independent exact-source feature/main cloud gates pass 3,563 tests/189 files and 44 quality cases; both cloud audits are clean. Static/frontend/native checks, unsigned packaging and isolated browser/mobile/production acceptance pass separately, preserving all 141 measured tables and both reporting projections. Final Google readback preserves all 30 tabs and prior content/styles. [Releases](docs/RELEASES.md) records exact evidence; [CSV/JSON snapshot exports](docs/ANALYTICS_EXPORT_PLAN.md) are the next separate increment. This does not complete all analytics requirements or the broader application.
 
 ## Previous release 1.44: Preview campaigns and draft copy before saving
 

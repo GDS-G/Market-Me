@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Release 1.45 workspace Analytics: local acceptance passed
+## Release 1.45 workspace Analytics: verified and published
 
 The new read-only Analytics destination separates run/publication activity from event observations and current provider totals. Current-membership/optional-Campaign scoping shares one SQL snapshot, amounts stay exact strings, currencies and sources remain separate, and missing/partial coverage is labeled. All18 navigation destinations and23 shared-pool repository accessors are verified. [Programmer reference](WORKSPACE_ANALYTICS.md) documents the complete contract.
 
-Local 3,563 tests/189 files and44 quality cases pass, with twelve typechecks, lint, both frontend/native checks and unsigned packaging. Isolated desktop/mobile/production inspection preserves all141 measured tables and both intended reporting projections. Cloud/publication and Google synchronization remain pending. Time-window/trend/export/experiment/attribution work and broader product requirements remain; no new input is needed merely to continue.
+Reviewed runtime `438c57c1300921f9cbb8d9329e67f784f5f63431` is public on main after exact feature/main cloud36969416381/36969984755 reproduce3,563 tests/189 files,44 quality cases,121 migrations,static/frontend checks and both clean audits. Local native/unsigned packaging and desktop/mobile/production inspection pass separately, preserving all141 measured tables and both intended projections. Final Google readback verifies48 added paragraphs with prior content/styles and all30 tabs intact. [CSV/JSON snapshot exports](ANALYTICS_EXPORT_PLAN.md) are underway separately; their new code/tests are excluded from this release evidence. Time-window/trend/experiment/attribution and broader product requirements remain; no new input is needed merely to continue.
 
 ## Release 1.44 campaign/draft preview: verified and published
 

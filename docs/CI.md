@@ -1,8 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.45 local checkpoint
+## Release 1.45 verified checkpoint
 
-Full local gate passes **3,563 tests/189 files without skips**: web1443/79, workflow-worker68/5, companion protocol4/1, connectors166/10, database1458/66, domain157/7, generation121/8, ingestion79/8, media24/2, workflows43/3. All44 standalone quality cases, twelve typechecks, lint, both frontend builds, cargo check and three Rust tests pass. Next compile5.9s/TypeScript17.8s/108-page generation544ms; companion144ms/201.34kB JavaScript64.02kB gzip; cargo check3.19s/test build27.07s. New coverage is34 database/model and47 web cases (including the additional navigation case). Independent exact-source cloud runs are pending. [Releases](RELEASES.md) separates unsigned packaging, synthetic browser acceptance and publication status.
+Full local gate passes **3,563 tests/189 files without skips**: web1443/79, workflow-worker68/5, companion protocol4/1, connectors166/10, database1458/66, domain157/7, generation121/8, ingestion79/8, media24/2, workflows43/3. All44 standalone quality cases, twelve typechecks, lint, both frontend builds, cargo check and three Rust tests pass. Next compile5.9s/TypeScript17.8s/108-page generation544ms; companion144ms/201.34kB JavaScript64.02kB gzip; cargo check3.19s/test build27.07s. New coverage is34 database/model and47 web cases (including the additional navigation case). [Releases](RELEASES.md) separates unsigned packaging and synthetic browser acceptance.
+
+Exact runtime `438c57c1300921f9cbb8d9329e67f784f5f63431` passes [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36969416381) in4:40 and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36969984755) in4:47. Each locked install adds609/audits622 packages, applies121 migrations, reproduces the full test/quality split, and passes static/frontend/native-dependency smoke/cleanup and both zero-vulnerability audits. Next compile15.2/15.6s and108-page generation604/603ms respectively; companion178/176ms. Google readback verifies48 authored paragraphs, prior bodies/styles/list definitions and30-tab topology. Developing snapshot exports are excluded from this checkpoint.
 
 ## Release 1.44 verified checkpoint
 

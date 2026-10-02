@@ -1,6 +1,6 @@
 # Workspace Analytics: reporting contracts and developer reference
 
-Release: 1.45.0 candidate. [Release evidence](RELEASES.md) records acceptance separately. [Scope plan](WORKSPACE_ANALYTICS_PLAN.md) derives this first reporting slice from specification sections 01 and 17; it does not complete the entire Analytics specification.
+Release: 1.45.0 verified and published. [Release evidence](RELEASES.md) records exact local/cloud/browser/native/Google acceptance separately. [Scope plan](WORKSPACE_ANALYTICS_PLAN.md) derives this first reporting slice from specification sections 01 and 17; it does not complete the entire Analytics specification.
 
 ## Product behavior
 
