@@ -1,10 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.41 locally accepted candidate
+## Release 1.41 verified checkpoint
 
 The corrected full local gate passes **3,247 tests/174 files without skips**, 44/44 standalone quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web1247/70; workflow-worker68/5; companion protocol4/1; connectors166/10; database1376/62; domain128/6; generation112/7; ingestion79/8; media24/2; workflows43/3. Next compile5.0s, TypeScript12.6s, 105/105 generation438ms; companion18 modules, 201.34kB/64.02kB gzip,131ms; cargo check3.10s, Rust test build14.27s.
 
-The first broad run failed only the obsolete schema120 expectation; the corrected successor is authoritative. Migration0121 is frozen; fresh QA applies121 and CI upgrade proof preserves all fields of three synthetic historical policies except additive revision1, then replays121 checksums. New database race tests wait for actual lock evidence before release. Browser/mobile/production and unsigned packaging pass separately. Exact-source cloud gates and final Google synchronization remain pending in [Releases](RELEASES.md).
+The first broad run failed only the obsolete schema120 expectation; the corrected successor is authoritative. Migration0121 is frozen; fresh QA applies121 and CI upgrade proof preserves all fields of three synthetic historical policies except additive revision1, then replays121 checksums. New database race tests wait for actual lock evidence before release. Browser/mobile/production and unsigned packaging pass separately. Exact runtime `4cb8681e5d08919b98ef7511b720761489e47f01` passes [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36959093863) in 3:57 and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36959453178) in 4:24. Both add 609 locked packages/audit 622, apply 121 migrations, reproduce every test split and all 44 quality cases, and pass both zero-vulnerability audits. Next cloud compile is 12.3/14.5 s; 105/105 page generation is 351/587 ms respectively. Final Google readback passes; developing budget-action changes are excluded. [Releases](RELEASES.md) separates the evidence.
 
 ## Release 1.40 verified checkpoint
 

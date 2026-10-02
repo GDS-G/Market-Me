@@ -1,6 +1,6 @@
 # Exact AI-policy save recovery
 
-Status: release 1.41 is locally accepted after verified 1.40; not included in 1.40 runtime or test totals. The three pre-fix handler failures are reproduced and fixed; the complete local gate passes 3,247 tests/174 files plus 44/44 quality cases. Browser/mobile/production recovery, historical-value preservation and unsigned packaging pass. [Implementation and variable reference](AI_POLICY_SAVE_RECOVERY.md) records the completed contract; exact-source cloud publication and Google synchronization remain pending in [Releases](RELEASES.md).
+Status: release 1.41 is verified and published after 1.40; not included in 1.40 runtime or test totals. The three pre-fix handler failures are reproduced and fixed. Reviewed runtime `4cb8681e5d08919b98ef7511b720761489e47f01` passes local and independent exact-source feature/main cloud gates with 3,247 tests/174 files, 44/44 quality cases, 121 migrations and both clean cloud audits. Browser/mobile/production recovery, historical-value preservation, unsigned packaging and final Google readback pass separately. [Implementation and variable reference](AI_POLICY_SAVE_RECOVERY.md) records the completed contract; [Releases](RELEASES.md) separates evidence. [Budget-action recovery](AI_BUDGET_ACTION_RECOVERY_PLAN.md) is the next independent increment.
 
 ## Observed problem
 

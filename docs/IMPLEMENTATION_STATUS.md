@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Release 1.41 exact policy-save recovery: locally accepted candidate
+## Release 1.41 exact policy-save recovery: verified and published
 
 The three reproduced response-loss/malformed-success/duplicate-submit failures are fixed. Policy values and loaded revision are bound to a retained account/workspace request before sending. Same-key replay returns the original actor-private receipt, never reapplies settings, and rechecks current authoring authority. Database revision guards include no-op/trusted writes and absent-row races; the legacy PUT cannot bypass the new protocol. [Implementation reference](AI_POLICY_SAVE_RECOVERY.md) covers every symbol and rollout boundary.
 
-Full local gate passes 3,247 tests/174 files without skips, 44/44 quality cases, twelve typechecks, lint, both frontends, native checks and three Rust tests. Fresh schema and replay total 121 migrations. Historical monetary fields remain exact; isolated browser/mobile/production recovery preserves all 141 measured domain tables after the intentional saves. Unsigned Windows packaging passes. Cloud gates and final Google synchronization remain pending; the application is not complete, and no new user input is needed merely to continue.
+Reviewed runtime `4cb8681e5d08919b98ef7511b720761489e47f01` is public on main. Full local and independent exact-source feature/main cloud gates pass 3,247 tests/174 files without skips and 44/44 quality cases; cloud applies 121 migrations and both audits are clean. Local static/frontend/native checks, unsigned packaging, historical-value upgrade/replay and browser/mobile/production recovery pass separately. All 141 measured domain tables remain unchanged during recovery; final Google readback preserves 43 authored paragraphs, prior bodies/styles and all 30 tabs. [Budget-action recovery](AI_BUDGET_ACTION_RECOVERY_PLAN.md) is underway independently and excluded from these totals. The application is not complete; no new user input is needed merely to continue.
 
 ## Release 1.40 source-evidence integrity: verified and published
 
