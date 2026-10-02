@@ -641,7 +641,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
           source_references, confidence
         ) VALUES (
           ${proposalEvidenceId}, ${proposalPackageId}, 'governed-proposal-fact',
-          'Existing evidence-backed copy', 'observed',
+          'Existing evidence-backed copy?', 'observed',
           ${['proposal.txt']}, 1
         )
       `;
@@ -661,7 +661,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
       `;
       await sql`UPDATE campaign SET current_version_id = ${proposalCampaignVersionId} WHERE id = ${proposalCampaignId}`;
       const proposalEvidenceSnapshot = [{
-        id: proposalEvidenceId, factKey: "governed-proposal-fact", claim: "Existing evidence-backed copy", provenance: "observed", sourceReferences: ["proposal.txt"], confidence: 1,
+        id: proposalEvidenceId, factKey: "governed-proposal-fact", claim: "Existing evidence-backed copy?", provenance: "observed", sourceReferences: ["proposal.txt"], confidence: 1,
       }];
       const proposalPackageApproval = await new MarketMeRepository(sql).approveContentPackage({
         ...await packageReviewPrecondition(sql, owner.workspace.workspaceId, proposalPackageId, owner.user.id),
@@ -699,7 +699,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
           id, content_draft_version_id, kind, claim_text, sort_order
         ) VALUES (
           ${proposalClaimId}, ${proposalDraftVersionId}, 'fact',
-          'Existing evidence-backed copy', 0
+          'Existing evidence-backed copy?', 0
         )
       `;
       await sql`
@@ -873,13 +873,25 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
       `)[0]).toMatchObject({
         versionNumber: 2,
         status: 'working',
-        body: 'For proposal reviewers: Existing evidence-backed copy.',
+        body: 'For proposal reviewers: Existing evidence-backed copy?',
         sourceVersionId: proposalDraftVersionId,
         changeNote: 'Applied author-selected presentation fields during QA.',
       });
       expect((await sql<{ status: string }[]>`
         SELECT status FROM content_draft_version WHERE id = ${proposalDraftVersionId}
       `)[0]?.status).toBe('superseded');
+      expect((await sql<{ body: string }[]>`
+        SELECT body FROM content_draft_version WHERE id = ${proposalDraftVersionId}
+      `)[0]?.body).toBe("Existing evidence-backed copy.");
+      expect((await sql<{ presentationChoices: Record<string, unknown> }[]>`
+        SELECT presentation_choices FROM content_draft_version WHERE id = ${appliedProposal.appliedVersionId!}
+      `)[0]?.presentationChoices).toMatchObject({
+        groundedCopyVersion: "grounded-copy-v2", characterCountUnit: "utf16_code_units", characterCountScope: "body_and_cta",
+        characterCount: "For proposal reviewers: Existing evidence-backed copy?\n\nReview the governed details.".length,
+      });
+      expect((await sql<{ generatorVersion: string; promptVersion: string }[]>`
+        SELECT generator_version, prompt_version FROM draft_generation WHERE id = ${proposalGenerationId}
+      `)[0]).toEqual({ generatorVersion: "fixture-v1", promptVersion: "fixture-v1" });
       expect(await sql`
         SELECT 1 FROM content_draft_version
         WHERE content_draft_id = ${proposalDraftId}
@@ -900,7 +912,7 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         ORDER BY min(claim.sort_order)
       `)[0]).toMatchObject({
         kind: 'fact',
-        text: 'Existing evidence-backed copy',
+        text: 'Existing evidence-backed copy?',
         evidenceItemIds: [proposalEvidenceId],
       });
       await expect(ai.getWorkspaceTextDraftProposalReadTarget(

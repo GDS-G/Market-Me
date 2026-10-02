@@ -1,5 +1,9 @@
 # Backup and Recovery Runbook
 
+## Release 1.39 rendering and evaluation recovery
+
+Never rewrite historical copy or delete approval/evidence records to repair punctuation or metadata. New generation records use a new identity; a deliberate revision creates a new working successor with grounded-copy-v2 while preserving the original generation identity. Rollback changes future rendering only and may restore old defects. A failed exact evaluation blocks acceptance; inspect fixture expectations and implementation independently rather than loosening assertions. [Quality reference](GROUNDED_DRAFT_QUALITY.md) documents version/count scopes and historical preservation.
+
 ## Release 1.38 navigation recovery
 
 Reload resets native menu state; workspace/section changes remount it closed. Failed selection/authentication must propagate rather than displaying a stale caller workspace name. The existing switcher handles current membership and safe section-root returns. No data migration or cleanup is needed for this layout change; never delete sessions, memberships, receipts or content to repair navigation. Keep desktop/mobile 760-pixel breakpoint rules aligned. [Navigation reference](RESPONSIVE_WORKSPACE_NAVIGATION.md) documents rollback and its old narrow/short-screen limitation.

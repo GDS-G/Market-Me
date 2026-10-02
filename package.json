@@ -1,6 +1,6 @@
 {
   "name": "market-me",
-  "version": "1.38.0",
+  "version": "1.39.0",
   "private": true,
   "description": "Universal content-to-campaign operating system",
   "workspaces": [
@@ -25,6 +25,7 @@
     "companion:bundle": "npm run bundle --workspace=@market-me/companion",
     "qa:local-ingestion": "tsx scripts/qa-local-ingestion.ts",
     "qa:governed-drafts": "tsx scripts/qa-governed-drafts.ts",
+    "qa:draft-quality": "tsx scripts/qa-draft-quality.ts",
     "qa:malware-scanner": "tsx scripts/qa-malware-scanner.ts",
     "qa:oidc-provider": "node scripts/qa-oidc-provider.mjs",
     "qa:s3-server": "node scripts/qa-s3-server.mjs",
@@ -45,7 +46,7 @@
     "lint": "npm run lint --workspace=@market-me/web",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "check": "npm run lint && npm run test && npm run typecheck && npm run build && npm run companion:native:check && npm run companion:native:test"
+    "check": "npm run lint && npm run test && npm run qa:draft-quality && npm run typecheck && npm run build && npm run companion:native:check && npm run companion:native:test"
   },
   "engines": {
     "node": ">=22.0.0",

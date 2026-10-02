@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.39 draft-quality development
+
+Run npm run qa:draft-quality for the versioned synthetic JSON report; npm run check and cloud CI require it. All 44 corpus cases pass, including every declared format/depth/promotion choice and whole-claim length boundaries. Generation tests total 112 across seven files, including evaluator rejection tests. Own metadata is 1.39.0; generator identity separately becomes 1.1.0/grounded-draft-v2. No dependencies or migrations change. [Quality reference](GROUNDED_DRAFT_QUALITY.md) explains independent expected values, exact failures, mutation checks and why passing synthetic cases is not a real-model quality certificate.
+
 ## Release 1.38 responsive shell development
 
 Read [navigation contracts](RESPONSIVE_WORKSPACE_NAVIGATION.md) before changing breakpoints, route tuples, menu keys or switcher IDs. Own metadata is 1.38.0; dependencies and all 120 migrations are unchanged. Twenty-eight new shell tests plus sixteen existing guide tests pass; the full local gate is 2,972 tests/162 files. Browser coverage includes 320/390/760/761 widths, short-height sidebar scrolling, keyboard and long labels. Isolated fixture setup is distinct from the no-domain-write measured interval. Do not submit logout, alter permissions or activate providers merely to test reachability. [Releases](RELEASES.md) tracks publication separately.

@@ -1,6 +1,6 @@
 # Grounded draft quality and representative evaluation
 
-Status: next independent increment after responsive navigation 1.38; implementation/evaluation has not yet been accepted. Specification sections 06, 19 and 23 require traceable output and representative quality gates, not just a count of passing infrastructure tests.
+Status: implemented for the 1.39 candidate. Full local, 44-case evaluation, native/package and browser/production checks pass; cloud publication and Google synchronization remain pending. [Programmer reference](GROUNDED_DRAFT_QUALITY.md) records the delivered contract. Specification sections 06, 19 and 23 require traceable output and representative quality gates, not just a count of passing infrastructure tests. The scope below preserves original intent and reproduced findings.
 
 ## Observed implementation and gaps
 

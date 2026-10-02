@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.39 grounded-copy variables and evaluation contracts
+
+No schema change. GROUNDED_COPY_VERSION, the format-limit dictionary, renderGroundedFact, draftCopyCharacterCount and draftCopyPresentation define new copy metadata; counts include body/CTA only, not provider-specific extras. DRAFT_QUALITY_CORPUS_VERSION, DraftQualityCase, DRAFT_QUALITY_CASES, independent limit/depth/promotion tuples, DraftGenerator, DraftQualityResult and evaluateDraftCase form the offline oracle. Per-case clones/results/failure arrays are not global state. [Full symbol reference](GROUNDED_DRAFT_QUALITY.md) records every field/check, input lifetime and historical-version boundary.
+
 ## Release 1.38 navigation presentation state
 
 No domain or schema change. Request-local user/workspace/workspaces remain authoritative; only ID/name pairs reach each existing switcher. navigation and manageNavigation are readonly href/label/icon tuples, activePath is compared exactly, and JSON.stringify([workspaceId,activePath]) scopes native menu lifetime. userName remains display-only; the compatibility workspaceName prop is ignored in favor of freshly selected workspace data. [Full symbol and lifecycle inventory](RESPONSIVE_WORKSPACE_NAVIGATION.md) describes the CSS dictionary and shared components.

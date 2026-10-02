@@ -1,6 +1,12 @@
 # Market Me implementation status
 
-## Current verified source: Release 1.38 responsive navigation
+## Current local candidate: Release 1.39 grounded-draft quality
+
+Shared generation/manual/AI-application rendering preserves approved punctuation and consistently counts body/CTA UTF-16 units. New batches and presentation snapshots carry distinct version identities; no history is rewritten. The independent 44-case synthetic oracle plus evaluator self-tests covers evidence/citation preservation, depth/promotion choices, audience parity and exact format boundaries. [Full reference](GROUNDED_DRAFT_QUALITY.md) separates deterministic evaluation from semantic understanding and real model/provider quality.
+
+Local acceptance passes 3,055 tests/165 files, 44/44 offline evaluations, all static/frontend/native checks, unsigned packaging, browser successor/mobile and production reload. Cloud publication and Google synchronization are pending. Broader product scope remains unfinished; no user input is needed for continuing independent work.
+
+## Previous verified source: Release 1.38 responsive navigation
 
 Mobile navigation, workspace switching, exact active links, native keyboard menu, skip focus and short-height desktop scrolling are implemented. The maximum-length workspace-name test also corrected Start here text wrapping. Existing scoped actions and all 120 migrations are unchanged. [Programmer reference](RESPONSIVE_WORKSPACE_NAVIGATION.md) records variables and boundaries.
 

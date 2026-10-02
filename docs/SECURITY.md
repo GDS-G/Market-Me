@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.39 evidence-preserving copy boundary
+
+The shared renderer never creates evidence, grants approval or publishes. Existing exact source-review receipts, writer locks, immutable claim references and AI artifact/source-version guards remain. Manual/AI changes create a new working successor; old bodies/claims/generation identities remain untouched. Offline evaluation uses synthetic data without network, credentials or database writes; it is not an untrusted-output parser or authority gate. Final provider preview counting, rights, approval and execution controls stay separate. [Contracts](GROUNDED_DRAFT_QUALITY.md) state what is and is not proved.
+
 ## Release 1.38 responsive navigation authority
 
 The shell still requires current identity and workspace selection; both responsive surfaces reuse that result without exposing additional membership fields. Existing server actions enforce membership and safe return paths. Visibility, active-link classes and native menu state grant no permission. Destination links suppress speculative prefetch; opening the menu has no custom request handler. No new secret, endpoint, schema, provider call or automatic logout exists. Synthetic browser checks preserve measured domain-table fingerprints. [Navigation reference](RESPONSIVE_WORKSPACE_NAVIGATION.md) records the boundaries.

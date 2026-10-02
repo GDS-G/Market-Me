@@ -82,7 +82,7 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
           {
             id: firstEvidenceId,
             factKey: "launch.price",
-            claim: "Admission is free",
+            claim: "Admission is free!",
             provenance: "authoritative_context",
             sourceReferences: [`source-item:${item!.id}`],
             confidence: 1,
@@ -90,7 +90,7 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
           {
             id: secondEvidenceId,
             factKey: "launch.time",
-            claim: "Doors open at nine",
+            claim: "Doors open at nine?",
             provenance: "observed",
             sourceReferences: [`source-item:${item!.id}`],
             confidence: 0.95,
@@ -333,6 +333,8 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
         generation: {
           contentPackageVersion: 1,
           generatorModel: "grounded-template",
+          generatorVersion: "1.1.0",
+          promptVersion: "grounded-draft-v2",
           draftFormat: "social_short",
         },
       });
@@ -342,6 +344,11 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
           .flatMap((claim) => claim.evidenceItemIds),
       ).toEqual([firstEvidenceId, secondEvidenceId]);
       const snapshot = generated[0]!.generation.evidenceSnapshot;
+      expect(generated[0]!.currentVersion.body).toBe("For New members: Admission is free! Doors open at nine?");
+      expect(generated[0]!.currentVersion.presentationChoices).toMatchObject({
+        groundedCopyVersion: "grounded-copy-v2", characterCountUnit: "utf16_code_units", characterCountScope: "body_and_cta",
+      });
+      const historicalPresentation = generated[0]!.currentVersion.presentationChoices;
       await sql`UPDATE evidence_item SET claim = 'Changed after generation' WHERE id = ${firstEvidenceId}`;
       expect(
         (await drafts.get(workspace.workspaceId, generated[0]!.id))!.generation
@@ -407,6 +414,14 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
             text,
             evidenceItemIds,
           }));
+      expect(revised!.currentVersion.body).toBe("For community partners: Admission is free! Doors open at nine?");
+      expect(revised!.currentVersion.presentationChoices).toMatchObject({
+        groundedCopyVersion: "grounded-copy-v2",
+        characterCount: "For community partners: Admission is free! Doors open at nine?\n\nExplore the details.".length,
+      });
+      expect((await sql<{ body: string; presentationChoices: Record<string, unknown> }[]>`
+        SELECT body, presentation_choices FROM content_draft_version WHERE id = ${generated[0]!.currentVersion.id}
+      `)[0]).toEqual({ body: generated[0]!.currentVersion.body, presentationChoices: historicalPresentation });
       expect(factShape(revised!.currentVersion.claims)).toEqual(
         factShape(generated[0]!.currentVersion.claims),
       );
@@ -470,7 +485,7 @@ describe.skipIf(!databaseUrl)("governed draft repository", () => {
         characterLimit: 2000,
         isStale: false,
       });
-      expect(preview!.renderedContent).toContain("Admission is free.");
+      expect(preview!.renderedContent).toContain("Admission is free!");
       expect(preview!.renderedContent).toContain(
         "https://example.com/community",
       );

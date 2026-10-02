@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.38: Responsive workspace navigation
+## Release 1.39 candidate: Evidence-preserving copy and quality checks
+
+Generated and revised drafts now preserve approved question/exclamation punctuation, share a clearly scoped copy-length measurement and report the actual selected format in errors. New output is versioned; historical drafts remain unchanged. A 44-case synthetic corpus covers all format/depth/promotion choices and exact boundaries, with evaluator self-tests that reject altered facts and citations. [Programmer reference](docs/GROUNDED_DRAFT_QUALITY.md) explains the contracts and limits.
+
+Local acceptance passes 3,055 tests/165 files, all static/frontend/native checks, unsigned packaging, browser successor/mobile and production reload checks. Cloud publication and Google synchronization are pending. This is a deterministic copy gate, not semantic understanding, real-model quality acceptance or whole-product completion; see [Releases](docs/RELEASES.md).
+
+## Previous release 1.38: Responsive workspace navigation
 
 Small screens now retain all 17 section links, workspace switching and sign-out in a native keyboard-accessible menu. Short desktop sidebars scroll, skip-to-main focus works, and long names wrap without loss. Existing membership/action authority is unchanged. [Programmer reference](docs/RESPONSIVE_WORKSPACE_NAVIGATION.md) explains props, tuples, state lifetime and layout.
 

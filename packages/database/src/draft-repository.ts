@@ -6,6 +6,9 @@ import {
   GENERATOR_VERSION,
   PROMPT_VERSION,
   generateGroundedDraft,
+  renderGroundedFact,
+  draftCopyCharacterCount,
+  draftCopyPresentation,
 } from "@market-me/generation";
 import { renderChannelPreview } from "@market-me/connectors";
 import type {
@@ -431,11 +434,11 @@ export class DraftRepository {
           },
         ]);
       const facts = factClaims
-        .map((claim) => claim.text.trim().replace(/[.!?]?$/, "."))
+        .map((claim) => renderGroundedFact(claim.text))
         .join(" ");
       const body = `${leadIn ? `${leadIn}: ` : ""}${facts}`;
       const limit = DRAFT_FORMAT_CHARACTER_LIMITS[rows[0].draftFormat];
-      if (limit && body.length + (input.callToAction?.length ?? 0) > limit)
+      if (limit && draftCopyCharacterCount(body, input.callToAction) > limit)
         throw new DraftValidationError([
           {
             code: "format_limit",
@@ -446,7 +449,7 @@ export class DraftRepository {
       await transaction`UPDATE content_draft_version SET status = 'superseded' WHERE id = ${rows[0].versionId}`;
       await transaction`
         INSERT INTO content_draft_version (id, content_draft_id, version_number, status, headline, body, call_to_action, hashtags, alt_text, rationale, presentation_choices, source_version_id, change_note, created_by)
-        VALUES (${versionId}, ${input.draftId}, ${rows[0].versionNumber + 1}, 'working', ${rows[0].headline}, ${body}, ${input.callToAction ?? null}, ${[...input.hashtags]}, ${input.altText ?? null}, ${rows[0].rationale}, ${transaction.json({ ...rows[0].presentationChoices, leadIn } as JSONValue)}, ${rows[0].versionId}, ${input.changeNote}, ${input.actorUserId})
+        VALUES (${versionId}, ${input.draftId}, ${rows[0].versionNumber + 1}, 'working', ${rows[0].headline}, ${body}, ${input.callToAction ?? null}, ${[...input.hashtags]}, ${input.altText ?? null}, ${rows[0].rationale}, ${transaction.json({ ...rows[0].presentationChoices, leadIn, ...draftCopyPresentation(body, input.callToAction, rows[0].draftFormat) } as JSONValue)}, ${rows[0].versionId}, ${input.changeNote}, ${input.actorUserId})
       `;
       await this.insertClaims(transaction, versionId, [
         ...factClaims,

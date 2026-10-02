@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.39 local candidate checkpoint
+
+Full local gate passes **3,055 tests/165 files without skips**, plus all twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web 1152/66; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 112/7; ingestion 33/5; media 24/2; workflows 43/3. The explicit offline quality report passes 44/44. Next compile and TypeScript each take 8.9 s; 104/104 generation 496 ms. Companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 285 ms; cargo check 25.11 s and Rust test build 21.07 s.
+
+Three real repository paths cover version capture and preserved historical facts; generation/preparation/manual/AI application keep existing authorization assertions. Local native/package, browser successor/mobile and production reload checks pass separately. Feature/main cloud publication and Google development-tab synchronization remain pending; [Releases](RELEASES.md) distinguishes each gate.
+
 ## Release 1.38 verified checkpoint
 
 Full local gate passes **2,972 tests/162 files, no skips**: web 1152/66; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 29/4; ingestion 33/5; media 24/2; workflows 43/3. All twelve typechecks, lint, both frontends, cargo check and three Rust tests pass. Next compile 3.0 s, TypeScript 5.3 s, 104/104 generation 405 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 131 ms; cargo check 2.99 s and Rust test build 15.21 s.

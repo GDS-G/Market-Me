@@ -38,6 +38,9 @@ import {
 } from "@market-me/domain";
 import {
   DRAFT_FORMAT_CHARACTER_LIMITS,
+  renderGroundedFact,
+  draftCopyCharacterCount,
+  draftCopyPresentation,
   isAiAssistantCompatible,
   isAiRoutingPreferenceCompatible,
   quoteAiCost,
@@ -2940,11 +2943,11 @@ export class AiRepository {
         }]);
 
       const facts = factClaims
-        .map((claim) => claim.text.trim().replace(/[.!?]?$/u, "."))
+        .map((claim) => renderGroundedFact(claim.text))
         .join(" ");
       const body = `${input.leadIn ? `${input.leadIn}: ` : ""}${facts}`;
       const limit = DRAFT_FORMAT_CHARACTER_LIMITS[current.draftFormat];
-      if (limit && body.length + (input.callToAction?.length ?? 0) > limit)
+      if (limit && draftCopyCharacterCount(body, input.callToAction) > limit)
         throw new AiPolicyValidationError([{
           field: "leadIn",
           message: `The applied copy exceeds the ${limit}-character ${current.draftFormat} limit.`,
@@ -2970,6 +2973,7 @@ export class AiRepository {
             ...current.presentationChoices,
             leadIn: input.leadIn,
             aiTextDraftProposalId: input.proposalId,
+            ...draftCopyPresentation(body, input.callToAction, current.draftFormat),
           } as JSONValue)},
           ${current.sourceDraftVersionId}, ${input.changeNote}, ${actorUserId}
         )

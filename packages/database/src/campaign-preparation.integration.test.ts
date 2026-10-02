@@ -165,7 +165,8 @@ describe.skipIf(!databaseUrl)("atomic review-first campaign preparation", () => 
     for (const [index, reference] of receipt.preparedDrafts.entries()) {
       const draft = (await f.drafts.get(f.workspace.workspaceId, reference.draftId))!;
       expect(draft).toMatchObject({ status: "working", audienceProfileVersionId: f.input.audienceProfileVersionIds![index],
-        generation: { id: receipt.generationId, campaignVersionId: receipt.planningVersionId, contentPackageVersion: 1 },
+        generation: { id: receipt.generationId, campaignVersionId: receipt.planningVersionId, contentPackageVersion: 1,
+          generatorVersion: "1.1.0", promptVersion: "grounded-draft-v2" },
         currentVersion: { id: reference.versionId, versionNumber: 1, status: "working" } });
     }
     expect(await f.preparation.get(f.workspace.workspaceId, receipt.id, f.user.id)).toEqual(receipt);

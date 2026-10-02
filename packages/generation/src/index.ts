@@ -17,11 +17,13 @@ import type {
 export * from "./gateway";
 export * from "./metering";
 export * from "./rate-card";
+export * from "./draft-presentation";
+import { DRAFT_FORMAT_CHARACTER_LIMITS, draftCopyCharacterCount, draftCopyPresentation, renderGroundedFact } from "./draft-presentation";
 
 export const GENERATOR_PROVIDER = "market-me";
 export const GENERATOR_MODEL = "grounded-template";
-export const GENERATOR_VERSION = "1.0.0";
-export const PROMPT_VERSION = "grounded-draft-v1";
+export const GENERATOR_VERSION = "1.1.0";
+export const PROMPT_VERSION = "grounded-draft-v2";
 export const CONVERSATION_ASSISTANT_PROVIDER = "market-me";
 export const CONVERSATION_ASSISTANT_MODEL = "grounded-conversation-template";
 export const CONVERSATION_ASSISTANT_VERSION = "1.0.0";
@@ -96,19 +98,10 @@ const callsToAction: Record<PromotionalStrength, string | undefined> = {
   custom: "Explore the next step.",
 };
 
-export const DRAFT_FORMAT_CHARACTER_LIMITS: Readonly<Record<DraftFormat, number | undefined>> = {
-  channel_neutral: undefined,
-  social_short: 280,
-  social_standard: 1000,
-  email: 4000,
-  article_intro: 5000,
-  community_reply: 2000,
-  direct_message: 1000,
-};
-
 /**
  * Creates a reproducible channel-neutral draft. Factual sentences are copied from
- * approved evidence verbatim; audience and brand data only affect presentation.
+ * approved evidence with outer whitespace removed and a terminal stop appended
+ * only when absent; existing punctuation is retained. Profiles affect presentation.
  */
 export function generateGroundedDraft(input: GroundedDraftInput): GeneratedDraft {
   const usable = input.evidence
@@ -116,10 +109,9 @@ export function generateGroundedDraft(input: GroundedDraftInput): GeneratedDraft
     .sort((left, right) => provenanceRank(left.provenance) - provenanceRank(right.provenance) || left.id.localeCompare(right.id));
   if (usable.length === 0) throw new Error("An approved evidence item is required to generate a draft.");
   const format = input.format ?? "channel_neutral";
-  const limit = DRAFT_FORMAT_CHARACTER_LIMITS[format];
-  const selected = selectClaimsForFormat(usable, depthClaimLimits[input.informationDepth], limit, input.characterBudgetAudienceName ?? input.audience?.name, callsToAction[input.promotionalStrength]);
+  const selected = selectClaimsForFormat(usable, depthClaimLimits[input.informationDepth], format, input.characterBudgetAudienceName ?? input.audience?.name, callsToAction[input.promotionalStrength]);
   const audienceLead = input.audience ? `For ${input.audience.name}: ` : "";
-  const facts = selected.map((item) => item.claim.trim().replace(/[.!?]?$/, "."));
+  const facts = selected.map((item) => renderGroundedFact(item.claim));
   const body = `${audienceLead}${facts.join(" ")}`.trim();
   const callToAction = callsToAction[input.promotionalStrength];
   const tone = input.brand?.profile.voice.tones?.[0] ?? "clear";
@@ -139,30 +131,25 @@ export function generateGroundedDraft(input: GroundedDraftInput): GeneratedDraft
       tone,
       knowledgeLevel,
       factOrder: selected.map((item) => item.id),
-      format,
-      ...(limit ? { characterLimit: limit, characterCount: body.length + (callToAction?.length ?? 0) } : {}),
+      ...draftCopyPresentation(body, callToAction, format),
     },
     claims,
   };
 }
 
-function selectClaimsForFormat(evidence: readonly EvidenceItem[], maximum: number, characterLimit: number | undefined, audienceName: string | undefined, callToAction: string | undefined): EvidenceItem[] {
+function selectClaimsForFormat(evidence: readonly EvidenceItem[], maximum: number, format: DraftFormat, audienceName: string | undefined, callToAction: string | undefined): EvidenceItem[] {
+  const characterLimit = DRAFT_FORMAT_CHARACTER_LIMITS[format];
   const bounded = evidence.slice(0, maximum);
   if (!characterLimit) return bounded;
   const prefix = audienceName ? `For ${audienceName}: ` : "";
-  const ctaLength = callToAction ? callToAction.length + 1 : 0;
   const selected: EvidenceItem[] = [];
   for (const item of bounded) {
-    const candidate = [...selected, item].map((entry) => entry.claim.trim().replace(/[.!?]?$/, ".")).join(" ");
-    if (prefix.length + candidate.length + ctaLength > characterLimit) break;
+    const candidate = [...selected, item].map((entry) => renderGroundedFact(entry.claim)).join(" ");
+    if (draftCopyCharacterCount(`${prefix}${candidate}`, callToAction) > characterLimit) break;
     selected.push(item);
   }
-  if (!selected.length) throw new Error(`Approved evidence cannot fit the ${characterLimit}-character ${inputFormatLabel(characterLimit)} format limit.`);
+  if (!selected.length) throw new Error(`Approved evidence cannot fit the ${characterLimit}-character ${format} format limit.`);
   return selected;
-}
-
-function inputFormatLabel(limit: number): string {
-  return Object.entries(DRAFT_FORMAT_CHARACTER_LIMITS).find(([, value]) => value === limit)?.[0] ?? "selected";
 }
 
 function provenanceRank(provenance: EvidenceItem["provenance"]): number {

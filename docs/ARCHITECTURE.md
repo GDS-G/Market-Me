@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.39 shared grounded-copy rendering
+
+A pure shared presentation module now serves generation, manual revision and accepted AI-proposal application. It preserves reviewed terminal punctuation and uses one body/CTA UTF-16 measurement with two-newline separation. New batches use generator 1.1.0/grounded-draft-v2; new presentation snapshots use grounded-copy-v2. Existing records are never rewritten. Offline fixtures/evaluator are not exported by the runtime package. [Complete design](GROUNDED_DRAFT_QUALITY.md) distinguishes this regression gate from semantic/model/provider acceptance.
+
 ## Release 1.38 responsive shell boundary
 
 One authenticated server selection supplies both CSS-alternate navigation presentations. Shared WorkspaceNavigation contains the existing 10/7 route tuples; native mobile details is keyed by current workspace/section, and existing switcher useId avoids duplicate labels. No additional query, client store, overlay or authority is introduced. Explicit destination prefetch=false prevents speculative page loads when revealing the menu. [Full design](RESPONSIVE_WORKSPACE_NAVIGATION.md) includes normal-flow layout and skip/scroll semantics.

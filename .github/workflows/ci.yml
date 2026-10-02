@@ -96,6 +96,10 @@ jobs:
         # Does not build, sign, or package the native desktop application.
         run: npm run build
 
+      - name: Evaluate the versioned synthetic grounded-draft corpus
+        # Offline deterministic copy gate; not real provider or semantic-quality acceptance.
+        run: npm run qa:draft-quality
+
       - name: Audit production dependencies
         if: ${{ !cancelled() }}
         run: npm audit --omit=dev
