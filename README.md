@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.49 candidate: Searchable asset inventory
+## Release 1.49: Searchable asset inventory
 
 Assets is now a shared desktop/mobile destination with literal filename,MIME and package-title search,recorded-role filters,exact totals and30-record pages. It preserves unknown/zero/large exact file sizes and labels scan/rights state without claiming safety or permission. It loads no thumbnails,downloads or private document bodies. [Programmer reference](docs/ASSET_CATALOG.md) documents all contracts and limits.
 
-Local gate passes3,920 tests/202 files plus44 quality cases. Native/unsigned packaging and actual desktop/mobile/production checks pass with all141 domain tables and both projections unchanged. Exact-source cloud and final Google verification are pending. [Release evidence](docs/RELEASES.md) distinguishes these checks; this is not whole-application completion.
+Reviewed runtime `c7bceea1b2ad98c4b8ff6d52d9eedafdf5f169cd` is public on main. Local and independent exact-source feature/main cloud gates pass3,920 tests/202 files plus44 quality cases; both audits are clean. Native/unsigned packaging,actual desktop/mobile/production,141-table/two-projection preservation and final Google readback pass. [Release evidence](docs/RELEASES.md) distinguishes these checks. [Account display-name editing](docs/ACCOUNT_PROFILE_PLAN.md) is underway independently; this is not whole-application completion.
 
 ## Previous release 1.48: Searchable draft variants
 

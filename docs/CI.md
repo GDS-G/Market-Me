@@ -1,8 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.49 candidate verification
+## Release 1.49 verified checkpoint
 
-Full local gate passes **3,920 tests/202 files without skips**,44 quality cases,twelve typechecks,lint,both frontends,cargo check and three Rust tests. Split:web1644/86,workflow-worker68/5,protocol4/1,connectors166/10,database1614/72,domain157/7,generation121/8,ingestion79/8,media24/2,workflows43/3. Next compile5.7s/TypeScript12.4s/111-page generation488ms;companion128ms/201.34kB JavaScript64.02kB gzip;native check3.11s/test build15.38s. New coverage51 database/model plus37 net web cases (including shared navigation),with existing safe-switch/lifecycle tests extended. Exact-source cloud verification is pending,not inferred from1.48. [Releases](RELEASES.md) records separate unsigned packaging and browser evidence.
+Exact runtime `c7bceea1b2ad98c4b8ff6d52d9eedafdf5f169cd` passes [feature CI36977652932](https://github.com/GDS-G/Market-Me/actions/runs/36977652932) in4:29 and [main CI36978320937](https://github.com/GDS-G/Market-Me/actions/runs/36978320937) in3:37. Each locked install adds609/audits622 packages,applies121 migrations,reproduces3920 tests/202 files and44 quality cases,and passes static/frontend/native-dependency smoke and both zero-vulnerability audits. Next compile13.7/11.2s,111-page generation477/385ms,companion169/134ms respectively. Final Google readback verifies43 paragraphs and preserves all30 tabs,prior bodies/styles and list definitions. Developing account profile code is excluded from this checkpoint.
+
+Full local gate passes **3,920 tests/202 files without skips**,44 quality cases,twelve typechecks,lint,both frontends,cargo check and three Rust tests. Split:web1644/86,workflow-worker68/5,protocol4/1,connectors166/10,database1614/72,domain157/7,generation121/8,ingestion79/8,media24/2,workflows43/3. Next compile5.7s/TypeScript12.4s/111-page generation488ms;companion128ms/201.34kB JavaScript64.02kB gzip;native check3.11s/test build15.38s. New coverage51 database/model plus37 net web cases (including shared navigation),with existing safe-switch/lifecycle tests extended. Both independent exact-source cloud gates pass as recorded above. [Releases](RELEASES.md) records separate unsigned packaging and browser evidence.
 
 ## Release 1.48 verified checkpoint
 

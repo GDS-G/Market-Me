@@ -1,6 +1,6 @@
 # Searchable asset inventory
 
-Status: implemented as1.49 with local/native/browser/mobile/production acceptance passed;exact-source cloud and final Google verification are pending. Specification01 explicitly includes searchable assets alongside packages,drafts and generated variants; section06 distinguishes primary/supporting/generated assets and their rights/readiness records. Package filename search finds packages but did not provide a bounded inventory of individual assets. Existing package review remains the authority for complete evidence and asset access. [Contract](ASSET_CATALOG.md) and [release evidence](RELEASES.md) describe the delivered boundary.
+Status: implemented,verified and published as1.49. Local/native/unsigned packaging/browser/mobile/production,independent exact-source feature/main cloud,both clean audits and final Google readback pass. Specification01 explicitly includes searchable assets alongside packages,drafts and generated variants; section06 distinguishes primary/supporting/generated assets and their rights/readiness records. Package filename search finds packages but did not provide a bounded inventory of individual assets. Existing package review remains the authority for complete evidence and asset access. [Contract](ASSET_CATALOG.md) and [release evidence](RELEASES.md) describe the delivered boundary.
 
 ## Intended experience
 
