@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.37: Practical AI controls
+## Release 1.38 candidate: Responsive workspace navigation
+
+Small screens now retain all 17 section links, workspace switching and sign-out in a native keyboard-accessible menu. Short desktop sidebars scroll, skip-to-main focus works, and long names wrap without loss. Existing membership/action authority is unchanged. [Programmer reference](docs/RESPONSIVE_WORKSPACE_NAVIGATION.md) explains props, tuples, state lifetime and layout.
+
+Local acceptance passes 2,972 tests/162 files, static/frontend/native checks, unsigned packaging and production-browser checks. Both isolated QA fixtures retain measured domain counts/fingerprints. Cloud publication and final Google synchronization are pending; [Releases](docs/RELEASES.md) separates evidence. This does not mean the broader application is complete.
+
+## Previous release 1.37: Practical AI controls
 
 AI & Cost now starts with outcome preferences, honest saved/default/unsaved labels and recorded budget boundaries. Technical configuration and diagnostics remain available in four native keyboard-accessible disclosures; safety opens automatically for active issues, stops or an execution window. Readers can inspect policy without writer controls, and editor state resets across workspace/role/policy changes. [Programmer reference](docs/AI_CONTROLS_USABILITY.md) records all props, collections and limits.
 

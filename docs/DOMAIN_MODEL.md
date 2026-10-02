@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.38 navigation presentation state
+
+No domain or schema change. Request-local user/workspace/workspaces remain authoritative; only ID/name pairs reach each existing switcher. navigation and manageNavigation are readonly href/label/icon tuples, activePath is compared exactly, and JSON.stringify([workspaceId,activePath]) scopes native menu lifetime. userName remains display-only; the compatibility workspaceName prop is ignored in favor of freshly selected workspace data. [Full symbol and lifecycle inventory](RESPONSIVE_WORKSPACE_NAVIGATION.md) describes the CSS dictionary and shared components.
+
 ## Release 1.37 AI presentation state
 
 No domain or schema change. savedPolicy distinguishes absent persistence from application defaults; hasSavedPolicy and canEditPolicy are required presentation props. aiPolicyValues maps the existing policy into nine editable fields, AiPolicyFormValues types them, frozen AI_POLICY_VALUE_KEYS enumerates them, and aiPolicyChoiceLabel compares every field against a fresh saved/default mapping. The component key scopes transient state to workspace/role/policy. Monthly progress uses the loaded budget snapshot, not edited form values. [Complete field/lifetime reference](AI_CONTROLS_USABILITY.md) includes all retained arrays, maps, pending fields and the pre-existing two-decimal monetary limitation.

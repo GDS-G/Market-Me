@@ -1,4 +1,6 @@
 .page { max-width: 1180px; }
+.page :global(.resource-header) > div { min-width: 0; max-width: 100%; }
+.page :global(.resource-header) p { overflow-wrap: anywhere; }
 .page a:focus-visible, .page summary:focus-visible, .entry a:focus-visible { outline: 3px solid var(--violet); outline-offset: 4px; }
 .next, .entry { display: flex; gap: 20px; align-items: flex-start; padding: 26px; border: 1px solid #ded4f3; border-radius: 16px; background: linear-gradient(115deg, #f0ebff, #fff); }
 .nextIcon { flex: 0 0 46px; width: 46px; height: 46px; display: grid; place-items: center; color: var(--violet-dark); background: white; border-radius: 13px; }

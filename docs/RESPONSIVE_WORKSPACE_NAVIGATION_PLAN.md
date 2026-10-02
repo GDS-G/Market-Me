@@ -1,6 +1,6 @@
 # Responsive workspace navigation
 
-Status: next independent increment after AI controls 1.37; no implementation is included in this plan.
+Status: implemented for 1.38; full local, native and production-browser acceptance pass. Cloud/publication evidence is tracked separately in [Releases](RELEASES.md). [Programmer reference](RESPONSIVE_WORKSPACE_NAVIGATION.md) records the delivered components, props, tuples, state lifetime and limits. The sections below preserve the original scope and acceptance intent.
 
 ## Observed gap
 

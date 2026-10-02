@@ -1,5 +1,9 @@
 # Backup and Recovery Runbook
 
+## Release 1.38 navigation recovery
+
+Reload resets native menu state; workspace/section changes remount it closed. Failed selection/authentication must propagate rather than displaying a stale caller workspace name. The existing switcher handles current membership and safe section-root returns. No data migration or cleanup is needed for this layout change; never delete sessions, memberships, receipts or content to repair navigation. Keep desktop/mobile 760-pixel breakpoint rules aligned. [Navigation reference](RESPONSIVE_WORKSPACE_NAVIGATION.md) documents rollback and its old narrow/short-screen limitation.
+
 ## Release 1.37 AI presentation recovery
 
 Temporary disclosure/input state is browser-local and resets on reload; editor scope changes remount from current policy. Failed database reads must not appear as healthy zero-spend state. Reload current workspace before investigating stale presentation, without resubmitting consequential actions. No migration or cleanup is needed for this UI change; never erase quotes, reservations, approvals, incidents or history to repair layout. Existing API conflict/retry/authority rules remain unchanged. [AI controls reference](AI_CONTROLS_USABILITY.md) separates UI state from persisted financial/provider evidence.

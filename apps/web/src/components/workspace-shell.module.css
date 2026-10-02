@@ -1,0 +1,21 @@
+.desktopSidebar { overflow-y: auto; overscroll-behavior: contain; }
+.desktopSidebar > * { flex-shrink: 0; }
+.desktopSidebar :global(.workspace-copy strong), .desktopSidebar :global(.session-person) { overflow-wrap: anywhere; }
+.mobileHeader { display: none; }
+.skipLink { position: fixed; top: 8px; left: 8px; z-index: 100; padding: 12px 18px; background: white; color: var(--violet-dark); border: 2px solid var(--violet); border-radius: 8px; transform: translateY(-160%); }
+.skipLink:focus { transform: translateY(0); }
+.desktopSidebar a:focus-visible, .desktopSidebar button:focus-visible, .desktopSidebar select:focus-visible { outline: 3px solid var(--violet); outline-offset: 2px; }
+@media (max-width: 760px) {
+  .shell { flex-direction: column; }
+  .mobileHeader { display: block; padding: 17px; min-width: 0; background: #fcfbfd; border-bottom: 1px solid var(--line); }
+  .mobileHeader :global(.brand) { width: fit-content; padding: 0; }
+  .workspaceName { margin: 12px 0; color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+  .menu { min-width: 0; border: 1px solid var(--line); background: white; border-radius: 10px; }
+  .menu > summary { min-height: 44px; padding: 12px; color: var(--violet-dark); cursor: pointer; font-weight: 600; }
+  .menuBody { border-top: 1px solid var(--line); padding: 12px; }
+  .menuBody :global(.nav-item), .menuBody button, .menuBody select { min-height: 44px; }
+  .menuBody :global(.nav-item) { font-size: 14px; }
+  .menuBody :global(.workspace-copy strong), .menuBody :global(.session-person) { overflow-wrap: anywhere; }
+  .menuBody :global(.session-footer) { margin-top: 18px; }
+  .mobileHeader a:focus-visible, .mobileHeader summary:focus-visible, .mobileHeader button:focus-visible, .mobileHeader select:focus-visible { outline: 3px solid var(--violet); outline-offset: 2px; }
+}

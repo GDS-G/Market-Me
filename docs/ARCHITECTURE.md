@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.38 responsive shell boundary
+
+One authenticated server selection supplies both CSS-alternate navigation presentations. Shared WorkspaceNavigation contains the existing 10/7 route tuples; native mobile details is keyed by current workspace/section, and existing switcher useId avoids duplicate labels. No additional query, client store, overlay or authority is introduced. Explicit destination prefetch=false prevents speculative page loads when revealing the menu. [Full design](RESPONSIVE_WORKSPACE_NAVIGATION.md) includes normal-flow layout and skip/scroll semantics.
+
 ## Release 1.37 AI page presentation boundary
 
 The authenticated Server Component retains all current actor/workspace reads and assembles the existing panels into four native disclosures. No query is deferred merely because its panel is closed. Execution/attention summary and practical policy/budget controls remain visible; active window/issues/circuits open safety. AiPolicyForm is keyed by current workspace, role and saved policy to reset browser-local state across scope changes. New pure mapping/label helpers contain no repository runtime imports. [AI controls reference](AI_CONTROLS_USABILITY.md) documents topology, props, arrays/maps and authority limits.

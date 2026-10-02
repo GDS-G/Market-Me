@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.38 responsive navigation authority
+
+The shell still requires current identity and workspace selection; both responsive surfaces reuse that result without exposing additional membership fields. Existing server actions enforce membership and safe return paths. Visibility, active-link classes and native menu state grant no permission. Destination links suppress speculative prefetch; opening the menu has no custom request handler. No new secret, endpoint, schema, provider call or automatic logout exists. Synthetic browser checks preserve measured domain-table fingerprints. [Navigation reference](RESPONSIVE_WORKSPACE_NAVIGATION.md) records the boundaries.
+
 ## Release 1.37 AI control affordances
 
 Reader policy/mode/alert controls are disabled or replaced by read-only values, while independent approver spend review and its error feedback remain. These are presentation checks; existing API current-member/role guards remain mandatory. All provider/recovery controls remain explicit behind native disclosures; opening them sends no provider request or approval. Workspace/role/policy key changes reset stale editor state. Static indicators, open execution windows and loaded incident counts are not permission, price, quality or complete readiness evidence. No secret, schema, external call, new authority or monetary reinterpretation is introduced. See [AI controls](AI_CONTROLS_USABILITY.md); exact-source feature/main production and full dependency audits each report zero vulnerabilities.

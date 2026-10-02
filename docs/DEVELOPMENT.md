@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.38 responsive shell development
+
+Read [navigation contracts](RESPONSIVE_WORKSPACE_NAVIGATION.md) before changing breakpoints, route tuples, menu keys or switcher IDs. Own metadata is 1.38.0; dependencies and all 120 migrations are unchanged. Twenty-eight new shell tests plus sixteen existing guide tests pass; the full local gate is 2,972 tests/162 files. Browser coverage includes 320/390/760/761 widths, short-height sidebar scrolling, keyboard and long labels. Isolated fixture setup is distinct from the no-domain-write measured interval. Do not submit logout, alter permissions or activate providers merely to test reachability. [Releases](RELEASES.md) tracks publication separately.
+
 ## Release 1.37 AI controls development
 
 Read [AI controls design/variables](AI_CONTROLS_USABILITY.md) before changing disclosure placement, role props or form remount identity. Own metadata is 1.37.0; dependencies, 120 migrations and user pnpm files are unchanged. Three focused suites add 39 cases; full local acceptance passes 2,944 tests/161 files, all static/frontend/native checks and unsigned packaging. Browser QA opens disclosures and changes only unsaved inputs/existing workspace selection; do not enable execution, connect providers or approve spending as a layout test. Legacy policy hundredths and exponent-bearing quote semantics are not unified by this UI work. [Releases](RELEASES.md) records final gates; mobile shell navigation is a separate next increment.

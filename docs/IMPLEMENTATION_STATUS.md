@@ -1,6 +1,12 @@
 # Market Me implementation status
 
-## Current verified source: Release 1.37 AI controls usability
+## Current local candidate: Release 1.38 responsive navigation
+
+Mobile navigation, workspace switching, exact active links, native keyboard menu, skip focus and short-height desktop scrolling are implemented. The maximum-length workspace-name test also corrected Start here text wrapping. Existing scoped actions and all 120 migrations are unchanged. [Programmer reference](RESPONSIVE_WORKSPACE_NAVIGATION.md) records variables and boundaries.
+
+Local acceptance passes 2,972 tests/162 files plus all static/frontend/native checks, unsigned packaging and production-browser acceptance. Synthetic domain fingerprints remain unchanged. Feature/main cloud publication and final Google readback are pending; [Releases](RELEASES.md) records each gate separately. No input is needed for continuing independent product work.
+
+## Previous verified source: Release 1.37 AI controls usability
 
 Outcome preferences, saved/default/dirty labeling, loaded-cap usage, role-honest read-only policy and four optional technical disclosures are implemented. Editor remount identity prevents unsaved values surviving workspace, role or saved-policy changes. No provider, spend or approval authority is added. [Full programmer reference](AI_CONTROLS_USABILITY.md) includes the legacy currency-formatting limit and unchanged query cost.
 

@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.38 local candidate checkpoint
+
+Full local gate passes **2,972 tests/162 files, no skips**: web 1152/66; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 29/4; ingestion 33/5; media 24/2; workflows 43/3. All twelve typechecks, lint, both frontends, cargo check and three Rust tests pass. Next compile 3.0 s, TypeScript 5.3 s, 104/104 generation 405 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 131 ms; cargo check 2.99 s and Rust test build 15.21 s.
+
+Native unsigned packaging and production/browser QA pass separately. Twenty-eight new shell cases cover route inventory/scope, auth/failure behavior, unique labels, menu lifetime and long text; focused shell/guide gate is 44 cases. No schema/dependency change. Feature/main cloud publication and final Google synchronization remain pending; [Releases](RELEASES.md) is the evidence ledger.
+
 ## Release 1.37 verified checkpoint
 
 Final local gate: **2,944 tests/161 files, no skips**. Split: web 1124/65; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 29/4; ingestion 33/5; media 24/2; workflows 43/3. All 12 typechecks, lint, both frontends, cargo check and three Rust tests pass. Next compile 2.7 s, TypeScript 3.2 s, 104/104 generation 466 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms. Schema remains 120/latest frozen 0120 with clean replay/fixture cleanup.
