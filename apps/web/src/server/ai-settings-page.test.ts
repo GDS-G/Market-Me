@@ -69,7 +69,7 @@ describe("AI settings disclosure and authority presentation", () => {
   it.each(["owner", "admin", "editor", "approver", "analyst", "viewer"])("keeps %s write, approval and execution capabilities independent", async role => {
     mocks.workspace.mockResolvedValue({ workspaceId, workspaceName: "Synthetic workspace", role }); await render();
     const write = ["owner", "admin", "editor"].includes(role), approve = ["owner", "admin", "approver"].includes(role), manage = ["owner", "admin"].includes(role);
-    expect(mocks.captures.policy).toMatchObject({ canEditPolicy: write, canRequestSpendException: write, canApproveSpendException: approve, hasSavedPolicy: false });
+    expect(mocks.captures.policy).toMatchObject({ userId, workspaceId, policyRevision: 0, canEditPolicy: write, canRequestSpendException: write, canApproveSpendException: approve, hasSavedPolicy: false });
     expect(mocks.captures.execution).toMatchObject({ canManage: manage });
     expect(mocks.captures.incidents).toMatchObject({ canAcknowledge: approve, canManagePolicy: manage, canManageAlert: manage });
     expect(mocks.captures.providers).toMatchObject({ canEdit: write });
@@ -104,6 +104,12 @@ describe("AI settings disclosure and authority presentation", () => {
     await render(); expect(mocks.captures.policy.hasSavedPolicy).toBe(false);
     repository.getPolicy.mockResolvedValue(defaultWorkspaceAiPolicy(workspaceId));
     await render(); expect(mocks.captures.policy.hasSavedPolicy).toBe(true);
+  });
+  it("passes policy values and revision from the same read and isolates account identity", async () => {
+    repository.getPolicy.mockResolvedValue({...defaultWorkspaceAiPolicy(workspaceId),revision:7,mode:"faster"});
+    await render();expect(mocks.captures.policy).toMatchObject({userId,policyRevision:7,policy:{mode:"faster",revision:7}});
+    expect(repository.getPolicy).toHaveBeenCalledOnce();const original=policyKey(await Page());
+    mocks.user.mockResolvedValue({id:workspaceId,displayName:"Other synthetic account"});expect(policyKey(await Page())).not.toBe(original);
   });
   it("resets editor identity on workspace, role, savedness or policy changes but not identical refresh", async () => {
     const original = policyKey(await Page()); expect(original).toBeTruthy(); expect(policyKey(await Page())).toBe(original);

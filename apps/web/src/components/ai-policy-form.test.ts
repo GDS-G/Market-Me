@@ -17,7 +17,7 @@ vi.mock("react", async importOriginal => {
   } };
 });
 type Props = Parameters<typeof AiPolicyForm>[0];
-const props = (): Props => ({ workspaceId: "synthetic-workspace", policy: { workspaceId: "synthetic-workspace", mode: "recommended",
+const props = (): Props => ({ userId: "synthetic-user", policyRevision: 1, workspaceId: "synthetic-workspace", policy: { workspaceId: "synthetic-workspace", mode: "recommended",
   maximumPrivacyClass: "cloud", failoverMode: "ask_before_switching", capBehavior: "require_approval", currency: "USD",
   monthlyBudgetMinor: 99999, alertThresholdPercentages: [50, 80, 100] },
   usage: { currency: "USD", currentMonthCostMinor: 500, requestCount: 1, inputUnits: 1, outputUnits: 1, cachedInputUnits: 0, byFeature: [] },

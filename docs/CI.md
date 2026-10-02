@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.41 locally accepted candidate
+
+The corrected full local gate passes **3,247 tests/174 files without skips**, 44/44 standalone quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web1247/70; workflow-worker68/5; companion protocol4/1; connectors166/10; database1376/62; domain128/6; generation112/7; ingestion79/8; media24/2; workflows43/3. Next compile5.0s, TypeScript12.6s, 105/105 generation438ms; companion18 modules, 201.34kB/64.02kB gzip,131ms; cargo check3.10s, Rust test build14.27s.
+
+The first broad run failed only the obsolete schema120 expectation; the corrected successor is authoritative. Migration0121 is frozen; fresh QA applies121 and CI upgrade proof preserves all fields of three synthetic historical policies except additive revision1, then replays121 checksums. New database race tests wait for actual lock evidence before release. Browser/mobile/production and unsigned packaging pass separately. Exact-source cloud gates and final Google synchronization remain pending in [Releases](RELEASES.md).
+
 ## Release 1.40 verified checkpoint
 
 Final full local gate passes **3,109 tests/169 files without skips**, 44/44 standalone draft-quality evaluations, all twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web 1160/67; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 112/7; ingestion 79/8; media 24/2; workflows 43/3. Next compile 2.4 s, TypeScript 4.4 s, 104/104 generation 428 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms; cargo check 0.76 s, Rust test build 4.67 s.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import type {
   AiMode,
@@ -13,7 +13,9 @@ import type {
 } from "@market-me/domain";
 import { AI_MODES } from "@market-me/domain";
 import type { WorkspaceAiPolicyWrite } from "@market-me/database";
-import { aiPolicyChoiceLabel, aiPolicyValues } from "./ai-policy-presentation";
+import { aiPolicyChoiceLabel } from "./ai-policy-presentation";
+import { AiPolicySaveRecovery, useAiPolicySaveRecovery } from "./ai-policy-save-recovery";
+import styles from "./ai-policy-save.module.css";
 
 const modeDescriptions: Readonly<Record<AiMode, string>> = {
   recommended: "Balances quality, speed, privacy, and cost for each task.",
@@ -24,21 +26,10 @@ const modeDescriptions: Readonly<Record<AiMode, string>> = {
   custom: "Uses advanced routing choices configured for this workspace.",
 };
 
-export function AiPolicyForm({
-  workspaceId,
-  policy,
-  usage,
-  budgetStatus,
-  budgetAlerts,
-  spendExceptions,
-  capResponses,
-  canRequestSpendException,
-  canApproveSpendException,
-  canEditPolicy,
-  hasSavedPolicy,
-  modeIndicators,
-}: {
+export type AiPolicyFormProps = {
+  userId: string;
   workspaceId: string;
+  policyRevision: number;
   policy: WorkspaceAiPolicyWrite;
   usage: AiUsageSummary;
   budgetStatus: AiBudgetStatus;
@@ -50,15 +41,38 @@ export function AiPolicyForm({
   canEditPolicy: boolean;
   hasSavedPolicy: boolean;
   modeIndicators: Readonly<Record<AiMode, AiModeIndicators>>;
-}) {
+};
+const subscribe = () => () => {}, browser = () => true, server = () => false;
+export function AiPolicyForm(props: AiPolicyFormProps) {
+  const ready = useSyncExternalStore(subscribe, browser, server);
+  // Static preview never reads browser recovery storage. Remount once hydrated or scope changes.
+  return <AiPolicyPanel key={JSON.stringify([props.userId, props.workspaceId, props.canEditPolicy, props.policyRevision, ready])} {...props} recoveryReady={ready} />;
+}
+export function AiPolicyPanel({
+  userId,
+  workspaceId,
+  policyRevision,
+  recoveryReady,
+  policy,
+  usage,
+  budgetStatus,
+  budgetAlerts,
+  spendExceptions,
+  capResponses,
+  canRequestSpendException,
+  canApproveSpendException,
+  canEditPolicy,
+  hasSavedPolicy,
+  modeIndicators,
+}: AiPolicyFormProps & { recoveryReady: boolean }) {
   const router = useRouter();
-  const [values, setValues] = useState(() => aiPolicyValues(policy));
-  const [pending, setPending] = useState(false);
   const [pendingAlertId, setPendingAlertId] = useState<string>();
   const [pendingSpendExceptionAction, setPendingSpendExceptionAction] = useState<string>();
   const [exceptionJustification, setExceptionJustification] = useState("");
   const [selectedDeniedReservationId, setSelectedDeniedReservationId] = useState("");
   const [error, setError] = useState("");
+  const recovery = useAiPolicySaveRecovery({ userId, workspaceId, policyRevision, policy, canEditPolicy, recoveryReady });
+  const { values, setValues, pending, frozen } = recovery;
   const selectedIndicators = modeIndicators[values.mode];
   const monthlyBudgetMinor = budgetStatus.monthly.capMinor;
   const budgetPercent = monthlyBudgetMinor
@@ -75,36 +89,7 @@ export function AiPolicyForm({
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!canEditPolicy) return;
-    setPending(true);
-    setError("");
-    const alertThresholdPercentages = values.alerts
-      .split(",")
-      .map((value) => Number(value.trim()))
-      .filter((value) => Number.isFinite(value));
-    const response = await fetch("/api/v1/ai-policy", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        workspaceId,
-        mode: values.mode,
-        maximumPrivacyClass: values.maximumPrivacyClass,
-        failoverMode: values.failoverMode,
-        capBehavior: values.capBehavior,
-        currency: values.currency.trim().toUpperCase(),
-        dailyBudgetMinor: toMinor(values.dailyBudget),
-        campaignBudgetMinor: toMinor(values.campaignBudget),
-        monthlyBudgetMinor: toMinor(values.monthlyBudget),
-        alertThresholdPercentages,
-      }),
-    });
-    const body = await response.json().catch(() => ({}));
-    setPending(false);
-    if (!response.ok) {
-      setError(body?.error?.message ?? "Could not save the AI policy.");
-      return;
-    }
-    router.refresh();
+    await recovery.run();
   }
 
   async function acknowledgeAlert(alertId: string) {
@@ -195,7 +180,7 @@ export function AiPolicyForm({
               <button
                 className={`ai-mode-card ${values.mode === mode ? "selected" : ""}`}
                 key={mode}
-                disabled={!canEditPolicy || pending}
+                disabled={frozen}
                 aria-pressed={values.mode === mode}
                 onClick={() => setValues((current) => ({ ...current, mode }))}
                 type="button"
@@ -211,7 +196,7 @@ export function AiPolicyForm({
           })}
         </div>
         <p className="ai-selection-summary">
-          {aiPolicyChoiceLabel(values, policy, hasSavedPolicy)}: <strong>{label(values.mode)}</strong> · {label(selectedIndicators.quality)} quality ·{" "}
+          {recovery.attempt ? "Retained request preference — see original result below" : aiPolicyChoiceLabel(values, policy, hasSavedPolicy)}: <strong>{label(values.mode)}</strong> · {label(selectedIndicators.quality)} quality ·{" "}
           {label(selectedIndicators.speed)} speed · {label(selectedIndicators.estimatedCost)} estimated cost
         </p>
         <p>These indicators describe a preference, not measured quality, verified model availability or a price quote. Choosing a mode does not run AI or authorize spending.</p>
@@ -219,11 +204,14 @@ export function AiPolicyForm({
       </section>
 
       {canEditPolicy ? <form className="resource-panel ai-policy-form" onSubmit={submit}>
+        <fieldset className={styles.fields} disabled={frozen} aria-label="AI policy settings">
         <div className="resource-panel-head">
           <div>
             <p className="eyebrow">Hard routing boundaries</p>
             <h2>Privacy, failover, and spend</h2>
             <p>Privacy is a hard filter. Failover never expands it silently.</p>
+            <p>Loaded policy revision: {policyRevision}. Saving requires that revision to still be current. An unsaved policy uses revision zero.</p>
+            {!recoveryReady && <p role="status">Loading saved policy requests…</p>}
           </div>
         </div>
         <div className="field-grid">
@@ -264,9 +252,10 @@ export function AiPolicyForm({
             <input required value={values.alerts} onChange={(event) => setValues((current) => ({ ...current, alerts: event.target.value }))} placeholder="50, 80, 100" />
           </label>
         </div>
-        <button className="button-primary" disabled={pending} type="submit">
+        <button className="button-primary" disabled={frozen} type="submit">
           {pending ? "Saving…" : "Save AI policy"}
         </button>
+        </fieldset>
       </form> : <section className="resource-panel ai-policy-form" aria-label="Saved privacy and budget policy">
         <h2>Privacy and budget boundaries</h2>
         <p>{hasSavedPolicy ? "Saved workspace settings" : "Unsaved application defaults"}. Inspect these values without changing policy or granting execution.</p>
@@ -281,6 +270,7 @@ export function AiPolicyForm({
           <dt>Alert thresholds</dt><dd>{policy.alertThresholdPercentages.map(value => `${value}%`).join(", ")}</dd>
         </dl>
       </section>}
+      {canEditPolicy && recoveryReady && <AiPolicySaveRecovery recovery={recovery} />}
       {error && <p className="form-error" role="alert">{error}</p>}
 
       <section className="resource-panel ai-usage-panel">
@@ -458,7 +448,6 @@ function BudgetScope({ title, status, currency }: { title: string; status: AiBud
   const committed = status.spentMinor + status.reservedMinor;
   return <article className="metric-card"><div><p>{title}</p><strong>{money(committed, currency)}</strong><small>{money(status.spentMinor, currency)} settled · {money(status.reservedMinor, currency)} reserved{status.capMinor === undefined ? " · no cap" : ` · ${money(status.availableMinor ?? 0, currency)} available`}</small></div></article>;
 }
-function toMinor(value: string): number | undefined { if (!value.trim()) return undefined; const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) : undefined; }
 function money(value: number, currency: string): string { return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value / 100); }
 function label(value: string): string { return value.replaceAll("_", " ").replace(/^./, (character) => character.toUpperCase()); }
 function budgetScopeLabel(scope: AiBudgetAlert["scope"]): string { return scope === "campaign" ? "Campaign budget" : `${scope} budget`; }

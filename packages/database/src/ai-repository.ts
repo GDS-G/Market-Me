@@ -47,6 +47,8 @@ import {
 } from "@market-me/generation";
 import { AI_TEXT_CODEC_LIMITS } from "@market-me/connectors";
 import type { DatabaseClient } from "./client";
+import { aiPolicySaveUuid, aiPolicySaveValues, normalizeAiPolicySaveRequest, AiPolicySaveError, AI_POLICY_SAVE_LIMITS,
+  type AiPolicySaveReceipt, type RevisionedWorkspaceAiPolicy } from "./ai-policy-save-models";
 import type {
   AiUsageEventWrite,
   StoredAiBudgetAlert,
@@ -314,20 +316,29 @@ async function auditSpendException(
   `;
 }
 
+type AiPolicySaveReceiptRow = Omit<AiPolicySaveReceipt, "policy" | "createdAt"> & {
+  policySnapshot: WorkspaceAiPolicyWrite; createdBy: string; canonicalRequest: string; createdAt: string | Date;
+};
+function policySaveReceipt(row: AiPolicySaveReceiptRow): AiPolicySaveReceipt {
+  const request = normalizeAiPolicySaveRequest({ ...row.policySnapshot, requestId: row.requestId, expectedRevision: row.revision - 1 });
+  return { workspaceId: row.workspaceId, requestId: row.requestId, revision: row.revision,
+    policy: aiPolicySaveValues(request), createdAt: new Date(row.createdAt).toISOString() };
+}
+
 export class AiRepository {
   constructor(private readonly sql: DatabaseClient) {}
 
   async getPolicy(
     workspaceId: string,
-  ): Promise<StoredWorkspaceAiPolicy | undefined> {
-    const rows = await this.sql<StoredWorkspaceAiPolicy[]>`
+  ): Promise<RevisionedWorkspaceAiPolicy | undefined> {
+    const rows = await this.sql<RevisionedWorkspaceAiPolicy[]>`
       SELECT workspace_id, mode, maximum_privacy_class, failover_mode,
         cap_behavior, currency, daily_budget_minor, campaign_budget_minor,
         monthly_budget_minor, alert_threshold_percentages, created_by,
-        updated_by, created_at, updated_at
+        updated_by, created_at, updated_at, revision
       FROM workspace_ai_policy WHERE workspace_id = ${workspaceId}
     `;
-    return rows[0] ? normalizePolicy(rows[0]) : undefined;
+    return rows[0] ? { ...normalizePolicy(rows[0]), revision: rows[0].revision } : undefined;
   }
 
   async savePolicy(
@@ -335,9 +346,63 @@ export class AiRepository {
     actorUserId: string,
   ): Promise<StoredWorkspaceAiPolicy> {
     validatePolicy(input);
-    await this.sql.begin(async (transaction) => {
+    return this.sql.begin(async (transaction) => {
       await this.requireWriter(transaction, input.workspaceId, actorUserId);
-      await transaction`
+      const saved = await this.writePolicy(transaction, input, actorUserId);
+      await this.auditPolicy(transaction, input, actorUserId);
+      return saved;
+    });
+  }
+
+  /** Private exact-save replay precedes current revision comparison, never current authority. */
+  async savePolicyExactly(input: unknown, actorUserId: string): Promise<{ receipt: AiPolicySaveReceipt; replayed: boolean }> {
+    const request = normalizeAiPolicySaveRequest(input), actor = aiPolicySaveUuid(actorUserId), canonical = JSON.stringify(request);
+    return this.sql.begin(async tx => {
+      await this.lockPolicySaveWriter(tx, request.workspaceId, actor);
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`ai-policy-save:${request.workspaceId}:${request.requestId}`},0))`;
+      const prior = (await tx<AiPolicySaveReceiptRow[]>`SELECT * FROM workspace_ai_policy_save_receipt
+        WHERE workspace_id=${request.workspaceId} AND request_id=${request.requestId}`)[0];
+      if (prior) {
+        if (prior.createdBy !== actor || prior.canonicalRequest !== canonical) {
+          throw new AiPolicySaveError("request_conflict", "This request identifier belongs to different policy settings. Recover the original request before starting another.");
+        }
+        return { receipt: policySaveReceipt(prior), replayed: true };
+      }
+      const current = (await tx<{ revision: number }[]>`SELECT revision FROM workspace_ai_policy
+        WHERE workspace_id=${request.workspaceId} FOR UPDATE`)[0];
+      if ((current?.revision ?? 0) !== request.expectedRevision || request.expectedRevision === AI_POLICY_SAVE_LIMITS.maxRevision) {
+        throw new AiPolicySaveError("revision_conflict", "The policy changed or reached its revision limit. Read current settings before starting another request.");
+      }
+      const policy = aiPolicySaveValues(request);
+      const saved = await this.writePolicy(tx, policy, actor, request.expectedRevision);
+      const row = (await tx<AiPolicySaveReceiptRow[]>`INSERT INTO workspace_ai_policy_save_receipt
+        (workspace_id,request_id,created_by,revision,policy_snapshot,canonical_request)
+        VALUES (${request.workspaceId},${request.requestId},${actor},${saved.revision},${tx.json(policy as unknown as JSONValue)},${canonical}) RETURNING *`)[0]!;
+      await this.auditPolicy(tx, policy, actor);
+      return { receipt: policySaveReceipt(row), replayed: false };
+    });
+  }
+
+  /** Missing is not proof of failure; another transaction may still be in flight. */
+  async getPolicySaveReceipt(workspaceId: string, requestId: string, actorUserId: string): Promise<AiPolicySaveReceipt | undefined> {
+    const workspace = aiPolicySaveUuid(workspaceId), key = aiPolicySaveUuid(requestId), actor = aiPolicySaveUuid(actorUserId);
+    return this.sql.begin(async tx => {
+      await this.lockPolicySaveWriter(tx, workspace, actor);
+      const row = (await tx<AiPolicySaveReceiptRow[]>`SELECT * FROM workspace_ai_policy_save_receipt
+        WHERE workspace_id=${workspace} AND request_id=${key} AND created_by=${actor}`)[0];
+      return row ? policySaveReceipt(row) : undefined;
+    });
+  }
+
+  private async lockPolicySaveWriter(tx: TransactionSql, workspaceId: string, actor: string): Promise<void> {
+    const rows = await tx`SELECT user_id FROM workspace_membership WHERE workspace_id=${workspaceId}
+      AND user_id=${actor} AND role IN ('owner','admin','editor') FOR SHARE`;
+    if (!rows.length) throw new AiPolicySaveError("access_denied", "Current workspace authoring access is required to save or recover policy settings.");
+  }
+
+  private async writePolicy(transaction: TransactionSql, input: WorkspaceAiPolicyWrite, actorUserId: string,
+    expectedRevision?: number): Promise<RevisionedWorkspaceAiPolicy> {
+    const rows = await transaction<RevisionedWorkspaceAiPolicy[]>`
         INSERT INTO workspace_ai_policy (
           workspace_id, mode, maximum_privacy_class, failover_mode,
           cap_behavior, currency, daily_budget_minor, campaign_budget_minor,
@@ -362,10 +427,12 @@ export class AiRepository {
           alert_threshold_percentages = EXCLUDED.alert_threshold_percentages,
           updated_by = EXCLUDED.updated_by,
           updated_at = now()
+        WHERE ${expectedRevision === undefined} OR (${expectedRevision !== 0} AND workspace_ai_policy.revision=${expectedRevision ?? 0})
+        RETURNING *
       `;
-      await this.auditPolicy(transaction, input, actorUserId);
-    });
-    return (await this.getPolicy(input.workspaceId))!;
+    // A competing first insert cannot be upgraded to an overwrite by ON CONFLICT.
+    if (!rows[0]) throw new AiPolicySaveError("revision_conflict", "Another writer saved this policy first. Read current settings before starting another request.");
+    return { ...normalizePolicy(rows[0]), revision: rows[0].revision };
   }
 
   async getWorkspaceExecutionControl(

@@ -1,10 +1,10 @@
 # Exact AI-policy save recovery
 
-Status: next independent increment after source-evidence release 1.40; not included in its accepted runtime or test totals.
+Status: release 1.41 is locally accepted after verified 1.40; not included in 1.40 runtime or test totals. The three pre-fix handler failures are reproduced and fixed; the complete local gate passes 3,247 tests/174 files plus 44/44 quality cases. Browser/mobile/production recovery, historical-value preservation and unsigned packaging pass. [Implementation and variable reference](AI_POLICY_SAVE_RECOVERY.md) records the completed contract; exact-source cloud publication and Google synchronization remain pending in [Releases](RELEASES.md).
 
 ## Observed problem
 
-The current AI-policy form leaves pending true when fetch rejects, treats malformed successful responses as success, and has no synchronous duplicate-submit fence. Its PUT route has no exact request key or expected policy revision. The repository upserts last-writer-wins, then reads policy after committing, so a concurrent writer can replace the value returned as the first writer's result. Simply clearing pending or retrying could overwrite a newer privacy/budget policy and append another audit.
+The pre-1.41 AI-policy form left pending true when fetch rejected, treated malformed successful responses as success, and had no synchronous duplicate-submit fence. Its PUT route had no exact request key or expected policy revision. The repository upserted last-writer-wins, then read policy after committing, so a concurrent writer could replace the value returned as the first writer's result. Simply clearing pending or retrying could overwrite a newer privacy/budget policy and append another audit.
 
 ## Bounded implementation
 

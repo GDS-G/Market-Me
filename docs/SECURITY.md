@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.41 policy recovery authority
+
+Both POST saves and legacy PUT require exact Origin, authentication, closed bounded JSON and the loaded revision. Current owner/admin/editor membership is locked through commit. Same-key replay additionally binds original actor and canonical settings; lookup never exposes another actor's receipt and a missing row does not authorize a fresh overwrite. Receipt mutation/deletion and policy-history reset fail at the database boundary, except existing workspace erasure cascades. Browser storage is scoped, verified before sending and never treated as authorization; safe responses/logs exclude private SQL and payloads. [Security and recovery reference](AI_POLICY_SAVE_RECOVERY.md) records sessionStorage limits, immutable history and the unchanged provider/spend/approval gates.
+
 ## Release 1.40 incomplete-source boundary
 
 Unresolved source text cannot become effective evidence or receive exact package approval merely because other context exists. New ingestion never treats a path/file label as a marketing fact or a cut prefix as complete evidence. Owner/admin/approver correction remains explicit, current-role and fingerprint guarded; editors are denied, and correction does not approve. Preserved source capture/review proofs are not a source-truth guarantee. No historical approvals, rights/scans, provider execution or financial authority are changed. [Full boundary reference](SOURCE_EVIDENCE_INTEGRITY.md) distinguishes reported completeness from parser fidelity.

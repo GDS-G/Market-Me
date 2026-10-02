@@ -1,5 +1,11 @@
 # Market Me implementation status
 
+## Release 1.41 exact policy-save recovery: locally accepted candidate
+
+The three reproduced response-loss/malformed-success/duplicate-submit failures are fixed. Policy values and loaded revision are bound to a retained account/workspace request before sending. Same-key replay returns the original actor-private receipt, never reapplies settings, and rechecks current authoring authority. Database revision guards include no-op/trusted writes and absent-row races; the legacy PUT cannot bypass the new protocol. [Implementation reference](AI_POLICY_SAVE_RECOVERY.md) covers every symbol and rollout boundary.
+
+Full local gate passes 3,247 tests/174 files without skips, 44/44 quality cases, twelve typechecks, lint, both frontends, native checks and three Rust tests. Fresh schema and replay total 121 migrations. Historical monetary fields remain exact; isolated browser/mobile/production recovery preserves all 141 measured domain tables after the intentional saves. Unsigned Windows packaging passes. Cloud gates and final Google synchronization remain pending; the application is not complete, and no new user input is needed merely to continue.
+
 ## Release 1.40 source-evidence integrity: verified and published
 
 Whole-text admission replaces observed 500-unit prefixes and transport-only facts. Missing, oversized or reported incomplete extraction creates unresolved evidence that the existing exact-review evaluator blocks, regardless of context facts. Captured text, source references and superseded review history remain intact; correction and approval are separate current-role/fingerprint-guarded operations. [Contracts and variables](SOURCE_EVIDENCE_INTEGRITY.md) explain the boundary without implying semantic understanding or source truth.

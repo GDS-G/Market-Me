@@ -212,7 +212,7 @@ export default async function AiSettingsPage() {
         />
           </div>
         </details>
-        <AiPolicyForm key={JSON.stringify([workspace.workspaceId, workspace.role, savedPolicy])} workspaceId={workspace.workspaceId} policy={policy} hasSavedPolicy={savedPolicy !== undefined} canEditPolicy={canEdit} usage={usage} budgetStatus={budgetStatus} budgetAlerts={budgetAlerts} spendExceptions={spendExceptions} capResponses={capResponses} canRequestSpendException={canEdit} canApproveSpendException={canApprove} modeIndicators={AI_MODE_INDICATORS} />
+        <AiPolicyForm key={JSON.stringify([user.id, workspace.workspaceId, workspace.role, savedPolicy])} userId={user.id} workspaceId={workspace.workspaceId} policyRevision={savedPolicy?.revision ?? 0} policy={policy} hasSavedPolicy={savedPolicy !== undefined} canEditPolicy={canEdit} usage={usage} budgetStatus={budgetStatus} budgetAlerts={budgetAlerts} spendExceptions={spendExceptions} capResponses={capResponses} canRequestSpendException={canEdit} canApproveSpendException={canApprove} modeIndicators={AI_MODE_INDICATORS} />
         <details id="ai-configuration" className={styles.section}>
           <summary><strong>Advanced assistants and provider setup</strong><span>Optional model routing, accounts and approved implementation configuration</span></summary>
           <div className={styles.content}>

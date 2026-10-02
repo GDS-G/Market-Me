@@ -1,5 +1,9 @@
 # Backup and Recovery Runbook
 
+## Release 1.41 exact policy-save recovery
+
+Keep the retained request after every outcome. Check saved policy result performs read-only current-authority lookup; Retry same policy request reuses the original key/settings/revision. A success receipt describes its original revision, not the latest policy. A 404, timeout or broken response does not prove failure. Do not generate a fresh key merely to retry uncertain work. Explicit local clearing requires acknowledgement and exact current storage bytes, then full reload for fresh revision/authority; it never cancels an in-flight save or erases the server receipt. [Full runbook](AI_POLICY_SAVE_RECOVERY.md) explains missing-key/tab-close/role-revocation/restore limitations. Apply and retain migration 0121; stop policy mutation before any older-application rollback.
+
 ## Release 1.40 source-evidence recovery
 
 Do not erase unresolved evidence or relabel old prefixes to make approval succeed. Review the original source and complete captured text, record a supported successor through the existing correction operation, then separately approve the new exact review. Preserve old claims, supersession pointers, assets and immutable receipts. An uncertain action requires checking its existing recovery/history, not a fresh automatic retry. Code rollback changes future ingestion only and may restore unsafe prefix behavior; this release performs no historical backfill. [Source-evidence reference](SOURCE_EVIDENCE_INTEGRITY.md) documents fixture ownership and operator limits.

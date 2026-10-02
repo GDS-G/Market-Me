@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.41 policy-save transaction and recovery
+
+The same-origin bounded API calls AiRepository.savePolicyExactly: lock current writer membership, serialize exact request key, replay immutable original receipt or compare/lock revision, then atomically write policy/receipt/audit. Conditional upsert closes the missing-row race; the revision trigger covers all trusted writers. Read-only recovery rechecks current original-actor authority. The hydration-gated client persists account/workspace-scoped exact settings before transport, freezes editing and offers explicit lookup/replay without automatic refresh or retry. [Complete design](AI_POLICY_SAVE_RECOVERY.md) records locks, per-form refs, response validation and rollback limits. No provider or spend authority is introduced.
+
 ## Release 1.40 source-evidence admission
 
 ContentPackageService assesses the original extraction through the pure internal assessSourceTextEvidence helper. It retains full capture and attaches versioned sourceEvidence metadata, admitting one exact whole-text observed claim or an unresolved instruction. Transport identity stays asset provenance. Existing effective-evidence evaluation, explicit correction, exact approval and grounded preparation remain separate authority boundaries. Context cannot bypass unresolved source review. [Design reference](SOURCE_EVIDENCE_INTEGRITY.md) documents the data flow and original/derivative distinction; no semantic summarizer or mutable global is introduced.

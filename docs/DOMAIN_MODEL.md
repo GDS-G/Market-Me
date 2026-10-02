@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.41 policy-save fields and collections
+
+Migration 0121 adds policy revision and immutable workspace_ai_policy_save_receipt rows keyed by workspace/request, with original actor, committed revision, policy JSON snapshot, bounded canonical request and database timestamp. AI_POLICY_SAVE_LIMITS, branded AiPolicySaveError, AiPolicySaveRequest/Receipt and RevisionedWorkspaceAiPolicy define the server contract. The closed policy enums and ascending threshold array remain existing domain concepts; stored money is not reinterpreted. Browser PolicySaveAttempt version 1, AI_POLICY_BROWSER_LIMITS, frozen error dictionary, scoped storage key and per-form state/ref lifetimes are documented in the [full variable reference](AI_POLICY_SAVE_RECOVERY.md). Receipt identity is historical evidence, not current-policy or execution authority.
+
 ## Release 1.40 source-evidence variables
 
 SOURCE_TEXT_EVIDENCE_VERSION=source-evidence-v1 and SOURCE_TEXT_EVIDENCE_MAX_CODE_UNITS=500 define the automatic whole-text contract. SourceTextEvidenceInput contains optional extractedText/extractionError/readonly metadata and completed/skipped/failed extractionStatus. The six-value SourceTextReviewReason union, readonly reviewMessages dictionary and per-call reasons array determine reviewRequired, claim and provenance. metadata records version, whole_text/review_required state, trimmed characterCount, utf16_code_units, automaticCharacterLimit and all reasons in stable order. No mutable global or schema is added. [Complete symbol reference](SOURCE_EVIDENCE_INTEGRITY.md) covers malformed diagnostic handling, history and manual correction.

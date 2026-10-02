@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.41 policy-save development
+
+Read [AI-policy save recovery](AI_POLICY_SAVE_RECOVERY.md) before changing either save endpoint, canonical request field order, revision locks, receipt retention or client recovery state. Apply frozen migration 0121 before the web build; readiness expects 121 migrations. Browser input is independently validated on the server; never replace the guarded legacy PUT with an unconditional writer. A missing/aborted response is not rollback proof. No new dependencies or environment variables are required; own package/native metadata is 1.41.0 and user pnpm files remain untouched.
+
+Local gate passes 3,247 tests/174 files plus 44/44 quality cases. Focused web coverage totals 114 cases; 36 model and 15 live database cases cover exact recovery, including lock-evidenced races. Browser fixture seeding/later-writer mutation are one-time guarded actions; use read-only --status afterward. Run the ignored snapshot verifier with node node_modules/tsx/dist/cli.mjs .market-me/verify-ai-policy-141.ts --production so npm does not consume the production flag. Native/browser/cloud evidence remains separate in [Releases](RELEASES.md).
+
 ## Release 1.40 source-evidence development
 
 Read [source-evidence contracts](SOURCE_EVIDENCE_INTEGRITY.md) before modifying admission reasons, extraction diagnostic keys, raw capture, correction or historical lineage. SOURCE_TEXT_EVIDENCE_MAX_CODE_UNITS is a whole-extraction admission bound, not permission to truncate. Absent optional diagnostics retain the plain-text contract; present malformed/unknown diagnostics fail closed. Future parser changes must explicitly preserve that distinction. Own metadata is 1.40.0; no schema, dependencies, secrets or environment variables change. Generator/corpus identities remain unchanged from 1.39.

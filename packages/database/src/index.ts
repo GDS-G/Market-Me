@@ -25,6 +25,7 @@ export * from "./conversation-repository";
 export * from "./conversation-assistant-repository";
 export * from "./conversation-composer-repository";
 export * from "./ai-repository";
+export * from "./ai-policy-save-models";
 export * from "./operations-repository";
 export * from "./preparation-preset-models";
 export * from "./preparation-preset-repository";
