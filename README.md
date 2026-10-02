@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.34 candidate: Start here workflow guide
+## Release 1.34: Start here workflow guide
 
 The authenticated Start here guide explains six stages from folder intake to monitoring, suggests a next action from current workspace evidence and respects the collaborator's current role. Overview now favors review-first preparation. The guide only reads saved state and navigates: it never creates, approves, activates or sends work. Counts are not a completion percentage or launch permission. [Guide design and variables](docs/WORKSPACE_START_GUIDE.md) documents the contract.
 
-Final local acceptance passes 2,780 tests/153 files, static/build/native checks, synthetic desktop/mobile/refresh behavior, production authentication and unsigned Windows packaging. All 120 migrations remain unchanged. Exact-source cloud validation and Google development-tab synchronization are pending; this is not yet a verified public 1.34 release, production deployment or whole-product completion. See [Releases](docs/RELEASES.md).
+Reviewed runtime `515dbf87b6ec84403fa3176092a55768ac24d561` is public on main. Exact [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36943447300) and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36943913349) pass 2,780 tests/153 files, 120 migrations, static/build checks and both clean audits. Local native/package, synthetic desktop/mobile/refresh, production authentication and final Google development-tab verification pass separately. This is not production deployment or whole-product completion. [Package-specific Related work](docs/PACKAGE_WORK_JOURNEY_PLAN.md) is the next separate increment; see [Releases](docs/RELEASES.md).
 
 ## Previous release: 1.33 reviewed existing-member role changes
 

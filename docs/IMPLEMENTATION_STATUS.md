@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Current candidate: Release 1.34 read-only Start here guide
+## Current verified source: Release 1.34 read-only Start here guide
 
 The selected workspace now has a role-aware six-stage map, saved-state next-action guidance, collaborator handoffs and optional supporting tools. Overview favors review-first preparation; safe workspace switching preserves only the section root. One membership-scoped statement supplies current role and 18 aggregate counts without writes or inferred per-item lineage. [Programmer reference](WORKSPACE_START_GUIDE.md) inventories fields, filters, collections, priorities, cache lifetime and boundaries.
 
-Final local acceptance passes 2,780 tests/153 files, static/build/native checks, fresh/replayed 120 migrations, synthetic desktop/mobile/refresh, production authentication and unsigned packaging. Exact-source feature/main cloud checks and Google synchronization remain pending. This is a bounded usability improvement, not the full setup wizard, semantic intelligence, connected per-package launch journey, hosted deployment or whole-product completion. No input is needed merely to continue development.
+Reviewed runtime `515dbf87b6ec84403fa3176092a55768ac24d561` is public on main after exact feature/main runs 36943447300/36943913349 pass 2,780 tests/153 files, 120 migrations, static/build checks and both clean audits. Local native/package, synthetic desktop/mobile/refresh, production authentication and final Google readback pass separately. This is not the full setup wizard, semantic intelligence, hosted deployment or whole-product completion. [Package-specific Related work](PACKAGE_WORK_JOURNEY_PLAN.md) is underway separately; its new code/tests are not included in 1.34 evidence. No input is needed merely to continue development.
 
 ## Previous verified source: Release 1.33 existing-member role management
 

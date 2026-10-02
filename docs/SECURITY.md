@@ -4,7 +4,7 @@
 
 The server owns actor/workspace scope; the guide accepts no query authority. Current membership, role and counts share one SELECT snapshot, without organization-owner fallback, result cache, secret selection or provider access. Malformed projections/storage failures never invent an empty healthy workspace. SQL read-only execution and foreign/revoked membership are tested. Counts omit content/private identifiers but remain tenant-confidential.
 
-Fresh-role shortcuts confer no permission: later operations recheck current membership and exact approval/execution prerequisites. Snapshots can become stale after their statement; refresh reloads them. No count, status label, completed run or internally published plan proves external delivery or safe launch. [Start guide reference](WORKSPACE_START_GUIDE.md) describes the boundaries. Exact-source cloud audits remain pending; no dependency, permission or credential is added.
+Fresh-role shortcuts confer no permission: later operations recheck current membership and exact approval/execution prerequisites. Snapshots can become stale after their statement; refresh reloads them. No count, status label, completed run or internally published plan proves external delivery or safe launch. [Start guide reference](WORKSPACE_START_GUIDE.md) describes the boundaries. Exact runtime `515dbf87b6ec84403fa3176092a55768ac24d561` passes both production/full dependency audits with zero vulnerabilities in feature/main runs 36943447300/36943913349. No dependency, permission or credential is added.
 
 ## Release 1.33 member-role authority
 

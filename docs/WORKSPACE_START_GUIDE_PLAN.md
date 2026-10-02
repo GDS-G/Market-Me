@@ -1,6 +1,6 @@
 # Workspace start guide
 
-Status: Release 1.34 passes final local acceptance after the reviewed 1.33 runtime; exact cloud/publication and Google documentation gates remain in progress. [The programmer reference](WORKSPACE_START_GUIDE.md) records fields, filters, guidance precedence, page/accessibility behavior, lifecycle and boundaries. This is a bounded usability improvement toward specification sections 01 and 23, not completion of their full nontechnical setup or end-to-end acceptance.
+Status: Release 1.34 is verified on public main at runtime `515dbf87b6ec84403fa3176092a55768ac24d561`; local, exact feature/main cloud and final Google documentation gates pass. [The programmer reference](WORKSPACE_START_GUIDE.md) records fields, filters, precedence, page/accessibility behavior, lifecycle and boundaries. This is a bounded improvement toward specification sections 01 and 23, not completion of their full setup/end-to-end acceptance. [Package-specific Related work](PACKAGE_WORK_JOURNEY_PLAN.md) is the next separate increment.
 
 ## Purpose and scope
 

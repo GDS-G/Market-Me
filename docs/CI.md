@@ -1,10 +1,12 @@
 # Cloud continuous integration
 
-## Release 1.34 candidate local checkpoint
+## Verified Release 1.34 checkpoint
 
 Final local gate: 2,780 TypeScript tests/153 files, no skips. Split: web 1035/59, workflow-worker 68/5, companion protocol 4/1, connectors 166/10, database 1250/58, domain 128/6, generation 29/4, ingestion 33/5, media 24/2, workflows 43/3. All 12 typechecks, lint, both frontend builds, cargo check and three Rust tests pass. Full regression was repeated after accessibility/plural refinements: Next compile 2.5 s, TypeScript 3.0 s, 104/104 generation 411 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms.
 
-Fresh QA applies all 120 migrations; replay applies none/skips all 120. Final CI cleanup leaves zero organizations and 120 migration entries. Synthetic desktop/mobile/keyboard/refresh, production authentication and unsigned packaging pass separately. Exact-source feature/main cloud test/build/audit runs and Google synchronization remain pending. Prior 1.33 docs-only runs 36941438858/36941441683 do not verify this runtime.
+Fresh QA applies all 120 migrations; replay applies none/skips all 120. Final local CI cleanup leaves zero organizations and 120 migration entries. Synthetic desktop/mobile/keyboard/refresh, production authentication, unsigned packaging and final Google readback pass separately.
+
+Exact runtime `515dbf87b6ec84403fa3176092a55768ac24d561` passes [feature run 36943447300](https://github.com/GDS-G/Market-Me/actions/runs/36943447300) in 4:09 and [main run 36943913349](https://github.com/GDS-G/Market-Me/actions/runs/36943913349) in 4:12. Main is a non-forced fast-forward of the reviewed commit. Both clean Linux jobs install 609 packages/audit 622, apply all 120 migrations, reproduce 2,780 tests/153 files, pass static/frontend/native-dependency checks and cleanup, and report zero vulnerabilities in both production/full audits. Next compile is 13.5 seconds in both, with 104/104 generation in 457/568 ms. No dependency upgrade, test skip or audit suppression was added. Logs are ignored `qa-release-134-cloud-feature.log` and `qa-release-134-cloud-main.log`. Next-increment Related work tests are not included; prior 1.33 docs-only runs 36941438858/36941441683 do not verify this runtime.
 
 ## Verified Release 1.33 checkpoint
 
