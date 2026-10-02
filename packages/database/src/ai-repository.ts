@@ -33,6 +33,10 @@ import {
   AI_DRAFT_REVISION_CURRENT_PROMPT_VERSION,
   AI_DRAFT_REVISION_PROMPT_VERSIONS,
   AI_DRAFT_REVISION_SUGGESTION_VERSION,
+  isAiBudgetQuoteUnitCompatible,
+  AI_BUDGET_UNIT_MISMATCH,
+  AI_BUDGET_HISTORY_MISMATCH,
+  AI_BUDGET_LEDGER_EXPONENT,
   type AiAnalysisCacheKey,
   type AiAnalysisCacheSummary,
 } from "@market-me/domain";
@@ -47,6 +51,7 @@ import {
 } from "@market-me/generation";
 import { AI_TEXT_CODEC_LIMITS } from "@market-me/connectors";
 import type { DatabaseClient } from "./client";
+import { readAiBudgetUnitIntegrity } from "./ai-budget-unit-integrity";
 import { aiPolicySaveUuid, aiPolicySaveValues, normalizeAiPolicySaveRequest, AiPolicySaveError, AI_POLICY_SAVE_LIMITS,
   type AiPolicySaveReceipt, type RevisionedWorkspaceAiPolicy } from "./ai-policy-save-models";
 import type {
@@ -1885,6 +1890,7 @@ export class AiRepository {
           AND s.cost_quote_id IS NOT NULL
           AND q.capability = s.capability AND q.feature = s.feature
           AND q.currency = s.currency
+          AND q.minor_unit_exponent = ${AI_BUDGET_LEDGER_EXPONENT} AND card.minor_unit_exponent = ${AI_BUDGET_LEDGER_EXPONENT}
           AND q.maximum_cost_minor = s.estimated_cost_minor
           AND q.rate_card_id = rb.rate_card_id
           AND q.expires_at > ${asOf}
@@ -1901,6 +1907,7 @@ export class AiRepository {
           field: "reservationId",
           message: "Draft revision requests require a reserved prepare-copy quote.",
         }]);
+      await this.assertBudgetUnitIntegrity(transaction, input.workspaceId, target.currency);
       const id = randomUUID();
       await transaction`
         INSERT INTO workspace_ai_text_invocation_intent (
@@ -2665,6 +2672,7 @@ export class AiRepository {
       const previousStatus = current.reservationStatus as "reserved" | "released" | "expired";
       let finalStatus: "settled" | "released" | "expired";
       if (input.disposition === "settled_provider_charge") {
+        await this.assertBudgetUnitIntegrity(transaction, input.workspaceId, current.currency);
         finalStatus = "settled";
         const settled = await markReservation(
           transaction, input.workspaceId, current.reservationId,
@@ -3149,10 +3157,11 @@ export class AiRepository {
     return this.sql.begin(async (transaction) => {
       await this.requireWriter(transaction, input.workspaceId, actorUserId);
       const rows = await transaction<(AiTextInvocationAttemptTarget & {
+        currency: string;
         userTextSha256: string;
         systemTextSha256?: string | null;
       })[]>`
-        SELECT i.workspace_id, i.id AS intent_id, i.provider, i.model_id,
+        SELECT i.workspace_id, i.id AS intent_id, i.provider, i.model_id, q.currency,
           i.max_output_tokens, i.user_text_sha256, i.system_text_sha256,
           c.encrypted_credential, c.credential_fingerprint,
           ic.source_hash AS contract_source_hash
@@ -3185,6 +3194,7 @@ export class AiRepository {
           AND s.cost_quote_id = i.cost_quote_id AND s.capability = 'generate_text'
           AND s.feature LIKE 'assistant.%' AND q.capability = s.capability
           AND q.feature = s.feature AND q.currency = s.currency
+          AND q.minor_unit_exponent = ${AI_BUDGET_LEDGER_EXPONENT} AND card.minor_unit_exponent = ${AI_BUDGET_LEDGER_EXPONENT}
           AND q.maximum_cost_minor = s.estimated_cost_minor
           AND q.rate_card_id = rb.rate_card_id AND q.expires_at > ${asOf}
           AND ib.status = 'configured' AND r.status = 'registered'
@@ -3260,6 +3270,7 @@ export class AiRepository {
       if (target.userTextSha256 !== sha256(input.userText) ||
         (target.systemTextSha256 ?? undefined) !== (input.systemText ? sha256(input.systemText) : undefined))
         throw new AiPolicyValidationError([{ field: "userText", message: "Prompt material does not match the prepared intent evidence." }]);
+      await this.assertBudgetUnitIntegrity(transaction, input.workspaceId, target.currency);
       const attemptId = randomUUID();
       const claimExpiresAt = new Date(asOf.getTime() + 60_000);
       await transaction`
@@ -3272,7 +3283,7 @@ export class AiRepository {
       `;
       await this.auditTextInvocationAttempt(transaction, input.workspaceId,
         actorUserId, attemptId, target.provider, "claimed");
-      const { userTextSha256: _user, systemTextSha256: _system, ...safeTarget } = target;
+      const { userTextSha256: _user, systemTextSha256: _system, currency: _currency, ...safeTarget } = target;
       return { ...safeTarget, attemptId };
     });
   }
@@ -3328,6 +3339,7 @@ export class AiRepository {
            AND s.capability = 'generate_text' AND s.feature LIKE 'assistant.%'
            AND q.capability = s.capability AND q.feature = s.feature
            AND q.currency = s.currency AND q.maximum_cost_minor = s.estimated_cost_minor
+           AND q.minor_unit_exponent = ${AI_BUDGET_LEDGER_EXPONENT} AND card.minor_unit_exponent = ${AI_BUDGET_LEDGER_EXPONENT}
            AND q.rate_card_id = rb.rate_card_id AND q.expires_at > ${asOf}
            AND ib.status = 'configured' AND r.status = 'registered'
            AND candidate.status = 'approved' AND model.retired_at IS NULL
@@ -3385,10 +3397,12 @@ export class AiRepository {
       if (current.credentialFingerprint !== input.expectedCredentialFingerprint ||
         current.contractSourceHash !== input.expectedContractSourceHash)
         throw new AiPolicyValidationError([{ field: "attemptId", message: "Attempt evidence does not match its claim." }]);
+      const unitHistoryCompatible = input.outcome.status !== "succeeded" ||
+        (await readAiBudgetUnitIntegrity(transaction, input.workspaceId, current.currency)).status === "compatible";
       const outcome = input.outcome.status === "succeeded" && !current.claimCurrent
         ? { status: "ambiguous" as const, failureCode: "claim_abandoned" as const,
             safeMessage: "Provider outcome arrived after the attempt reconciliation deadline and was discarded." }
-        : input.outcome.status === "succeeded" && !current.authorizationCurrent
+        : input.outcome.status === "succeeded" && (!current.authorizationCurrent || !unitHistoryCompatible)
           ? { status: "ambiguous" as const, failureCode: "evidence_changed" as const,
               safeMessage: "Provider outcome was discarded because authorization evidence changed in flight." }
           : input.outcome;
@@ -4061,6 +4075,7 @@ export class AiRepository {
     validateReservation(input);
     return this.sql.begin(async (transaction) => {
       await this.requireWriter(transaction, input.workspaceId, actorUserId);
+      await this.assertBudgetUnitIntegrity(transaction, input.workspaceId, input.currency);
       await transaction`
         SELECT id FROM workspace WHERE id = ${input.workspaceId} FOR UPDATE
       `;
@@ -4215,6 +4230,9 @@ export class AiRepository {
           { field: "quoteId", message: "Cost quote was not found." },
         ]);
       const quote = normalizeCostQuote(quoteRows[0], asOf);
+      if (!isAiBudgetQuoteUnitCompatible(quote.minorUnitExponent))
+        throw new AiPolicyValidationError([{ field: "quoteId", message: AI_BUDGET_UNIT_MISMATCH }]);
+      await this.assertBudgetUnitIntegrity(transaction, input.workspaceId, quote.currency);
       if (quote.quoteHash !== costQuoteHash(
         quote.workspaceId,
         quote.campaignId,
@@ -4366,6 +4384,7 @@ export class AiRepository {
           { field: "reservationId", message: "Spend reservation was not found." },
         ]);
       const reservation = normalizeReservation(rows[0], new Date(0));
+      await this.assertBudgetUnitIntegrity(transaction, input.workspaceId, reservation.currency);
       if (reservation.status === "settled") return reservation;
       if (reservation.status !== "reserved")
         throw new AiPolicyValidationError([
@@ -4540,6 +4559,7 @@ export class AiRepository {
               "Spend approval requires a denied reservation whose cap behavior is require approval.",
           },
         ]);
+      await this.assertBudgetUnitIntegrity(transaction, input.workspaceId, reservation.currency);
       const existing = await selectSpendException(
         transaction,
         input.workspaceId,
@@ -4641,6 +4661,7 @@ export class AiRepository {
           { field: "requestId", message: "Spend exception request was not found." },
         ]);
       const current = normalizeSpendException(selected, new Date(0));
+      if (decision === "approved") await this.assertBudgetUnitIntegrity(transaction, workspaceId, current.currency);
       if (
         current.status === "pending" &&
         new Date(current.expiresAt) <= asOf
@@ -4715,6 +4736,7 @@ export class AiRepository {
           { field: "requestId", message: "Spend exception request was not found." },
         ]);
       const request = normalizeSpendException(selected, new Date(0));
+      await this.assertBudgetUnitIntegrity(transaction, workspaceId, request.currency);
       if (request.consumedAt) {
         const existing = await transaction<StoredAiSpendReservation[]>`
           SELECT id, workspace_id, campaign_id, spend_exception_request_id,
@@ -4848,6 +4870,7 @@ export class AiRepository {
     return {
       asOf: asOf.toISOString(),
       currency,
+      unitIntegrity: await readAiBudgetUnitIntegrity(this.sql, workspaceId, currency),
       daily: scopeStatus(
         "daily",
         totals.dailySpent,
@@ -5024,6 +5047,7 @@ export class AiRepository {
     const total = totals[0]!;
     return {
       currency,
+      unitIntegrity: await readAiBudgetUnitIntegrity(this.sql, workspaceId, currency),
       currentMonthCostMinor: total.currentMonthCostMinor,
       requestCount: total.requestCount,
       inputUnits: total.inputUnits,
@@ -5034,6 +5058,11 @@ export class AiRepository {
         : { averageLatencyMs: total.averageLatencyMs }),
       byFeature,
     };
+  }
+
+  private async assertBudgetUnitIntegrity(transaction: TransactionSql, workspaceId: string, currency: string) {
+    if ((await readAiBudgetUnitIntegrity(transaction, workspaceId, currency)).status !== "compatible")
+      throw new AiPolicyValidationError([{ field: "currency", message: AI_BUDGET_HISTORY_MISMATCH }]);
   }
 
   private async requireWriter(

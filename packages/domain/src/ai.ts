@@ -1,3 +1,5 @@
+import type { AiBudgetUnitIntegrity } from "./ai-budget-units";
+
 export const AI_MODES = [
   "recommended",
   "lower_cost",
@@ -993,6 +995,7 @@ export interface AiRoutingDecision {
 }
 
 export interface AiUsageSummary {
+  unitIntegrity: AiBudgetUnitIntegrity;
   currency: string;
   currentMonthCostMinor: number;
   requestCount: number;
@@ -1038,6 +1041,7 @@ export interface AiBudgetScopeStatus {
 }
 
 export interface AiBudgetStatus {
+  unitIntegrity: AiBudgetUnitIntegrity;
   asOf: string;
   currency: string;
   daily: AiBudgetScopeStatus;

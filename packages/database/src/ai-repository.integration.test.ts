@@ -112,6 +112,7 @@ describe.skipIf(!databaseUrl)("AI gateway policy and usage", () => {
           new Date("2026-08-06T12:00:00.000Z"),
         ),
       ).toEqual({
+        unitIntegrity: { status: "compatible", ledgerExponent: 2, incompatibleReservationCount: 0 },
         currency: "USD",
         currentMonthCostMinor: 0,
         requestCount: 3,

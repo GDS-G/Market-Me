@@ -1,5 +1,11 @@
 # Market Me implementation status
 
+## Release 1.43 money-unit boundary: acceptance in progress
+
+Four reproduced quote-scale defects are corrected by explicit hundredths compatibility, all-history quote-lineage checks, guarded exceptions and provider prepare/claim/complete/settlement boundaries. Historical integers and receipts are unchanged; release/rejection/inspection remain available. [Implementation reference](AI_BUDGET_UNIT_BOUNDARY.md) records the semantics and deliberately excluded automatic conversion/reconciliation.
+
+Final local gate passes 3,392 tests/181 files and 44 quality cases, static/frontend/native checks and unsigned packaging. Read-only development and final production acceptance preserve all 141 domain-table fingerprints across three synthetic workspaces. Final warning/mobile inspection and Google candidate readback pass; exact-source cloud publication remains pending. No user input is needed to continue.
+
 ## Release 1.42 budget-action recovery: verified and published
 
 The three budget-action kinds retain scope-bound intent before sending, block duplicate submissions and recover current entity state through an explicit read-only check. Original actor/payload and expiry are displayed honestly; no immutable receipt or automatic retry is invented. Current membership is locked through each mutation/lookup. [Implementation reference](AI_BUDGET_ACTION_RECOVERY.md) covers all fields, functions and operational limits.

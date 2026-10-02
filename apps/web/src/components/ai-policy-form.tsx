@@ -10,12 +10,13 @@ import type {
   AiSpendExceptionRequest,
   AiCapResponsePlan,
 } from "@market-me/domain";
-import { AI_MODES } from "@market-me/domain";
+import { AI_MODES, AI_BUDGET_HISTORY_MISMATCH, formatAiBudgetMoney } from "@market-me/domain";
 import type { WorkspaceAiPolicyWrite } from "@market-me/database";
 import { aiPolicyChoiceLabel } from "./ai-policy-presentation";
 import { AiPolicySaveRecovery, useAiPolicySaveRecovery } from "./ai-policy-save-recovery";
 import { BudgetActionRecovery, useBudgetActionRecovery } from "./ai-budget-action-recovery";
 import styles from "./ai-policy-save.module.css";
+import unitStyles from "./ai-money-units.module.css";
 
 const modeDescriptions: Readonly<Record<AiMode, string>> = {
   recommended: "Balances quality, speed, privacy, and cost for each task.",
@@ -67,6 +68,11 @@ export function AiPolicyPanel({
 }: AiPolicyFormProps & { recoveryReady: boolean }) {
   const [exceptionJustification, setExceptionJustification] = useState("");
   const [selectedDeniedReservationId, setSelectedDeniedReservationId] = useState("");
+  const unitsVerified = usage.unitIntegrity?.status === "compatible" && budgetStatus.unitIntegrity?.status === "compatible"
+    && usage.unitIntegrity.ledgerExponent === 2 && budgetStatus.unitIntegrity.ledgerExponent === 2
+    && usage.unitIntegrity.incompatibleReservationCount === 0 && budgetStatus.unitIntegrity.incompatibleReservationCount === 0
+    && usage.currency === budgetStatus.currency;
+  const money = (value: number, currency: string) => unitsVerified && currency === budgetStatus.currency ? formatAiBudgetMoney(value, currency) : "Unverified amount";
   const budgetRecovery = useBudgetActionRecovery({ userId, workspaceId, recoveryReady, canAcknowledge: canEditPolicy, canRequest: canRequestSpendException, canDecide: canApproveSpendException });
   const pendingAlertId = budgetRecovery.pending && budgetRecovery.attempt?.action.kind === "acknowledge_alert" ? budgetRecovery.attempt.action.targetId : undefined;
   const pendingSpendExceptionAction = budgetRecovery.pending && budgetRecovery.attempt?.action.kind === "request_exception" ? "request" : undefined;
@@ -74,7 +80,7 @@ export function AiPolicyPanel({
   const { values, setValues, pending, frozen } = recovery;
   const selectedIndicators = modeIndicators[values.mode];
   const monthlyBudgetMinor = budgetStatus.monthly.capMinor;
-  const budgetPercent = monthlyBudgetMinor
+  const budgetPercent = monthlyBudgetMinor && unitsVerified
     ? Math.min(100, Math.round(((budgetStatus.monthly.spentMinor + budgetStatus.monthly.reservedMinor) / monthlyBudgetMinor) * 100))
     : undefined;
   const eligibleDeniedReservations = budgetStatus.recentReservations.filter(
@@ -97,6 +103,7 @@ export function AiPolicyPanel({
 
   async function requestSpendException(event: React.FormEvent) {
     event.preventDefault();
+    if (!unitsVerified) return;
     const deniedReservationId =
       selectedDeniedReservationId || eligibleDeniedReservations[0]?.id;
     if (!deniedReservationId || !eligibleDeniedReservations.some(reservation => reservation.id === deniedReservationId)) return;
@@ -107,6 +114,7 @@ export function AiPolicyPanel({
     requestId: string,
     decision: "approved" | "rejected",
   ) {
+    if (decision === "approved" && !unitsVerified) return;
     await budgetRecovery.run({ kind: "decide_exception", workspaceId, targetId: requestId, decision });
   }
 
@@ -218,6 +226,9 @@ export function AiPolicyPanel({
         </dl>
       </section>}
       {canEditPolicy && recoveryReady && <AiPolicySaveRecovery recovery={recovery} />}
+      <p className={unitStyles.notice}>Budget amounts use two decimal places in the existing ledger. Quotes with a different money scale remain inspectable but cannot authorize spending; stored history is never converted automatically.</p>
+      {!unitsVerified && <p role="alert" className={unitStyles.warning}>{budgetStatus.unitIntegrity?.status === "incompatible_history" || usage.unitIntegrity?.status === "incompatible_history"
+        ? AI_BUDGET_HISTORY_MISMATCH : "Money-unit verification is unavailable. Monetary totals and new spend approvals are unavailable until verification succeeds."}</p>}
 
       <section className="resource-panel ai-usage-panel">
         <div className="resource-panel-head">
@@ -228,13 +239,13 @@ export function AiPolicyPanel({
           </div>
           <strong className="ai-spend">{money(usage.currentMonthCostMinor, usage.currency)}</strong>
         </div>
-        {monthlyBudgetMinor ? (
+        {monthlyBudgetMinor && unitsVerified ? (
           <div className="ai-budget-progress">
             <div><span>Recorded spend plus active holds against the loaded monthly cap</span><strong>{budgetPercent}% of {money(monthlyBudgetMinor, budgetStatus.currency)}</strong></div>
             <div className="usage-track"><span style={{ width: `${budgetPercent}%` }} /></div>
           </div>
         ) : (
-          <p>No monthly cap is configured.</p>
+          <p>{monthlyBudgetMinor ? "Budget progress is unavailable until money units are verified." : "No monthly cap is configured."}</p>
         )}
         <details className="ai-advanced-usage">
           <summary>Advanced usage details</summary>
@@ -265,8 +276,8 @@ export function AiPolicyPanel({
           <span className="status-pill status-green">Enforced in persistence</span>
         </div>
         <div className="ai-budget-scope-grid">
-          <BudgetScope title="Today" status={budgetStatus.daily} currency={budgetStatus.currency} />
-          <BudgetScope title="This month" status={budgetStatus.monthly} currency={budgetStatus.currency} />
+          <BudgetScope title="Today" status={budgetStatus.daily} currency={budgetStatus.currency} money={money} />
+          <BudgetScope title="This month" status={budgetStatus.monthly} currency={budgetStatus.currency} money={money} />
           <article className="metric-card">
             <div><p>Active reservations</p><strong>{budgetStatus.activeReservationCount}</strong><small>15-minute authorization leases</small></div>
           </article>
@@ -284,7 +295,7 @@ export function AiPolicyPanel({
                 <div>
                   <strong>{label(reservation.capability)}</strong>
                   <p>{label(reservation.feature)} · {money(reservation.estimatedCostMinor, reservation.currency)} estimated</p>
-                  {capResponse && <small className="ai-cap-response-summary">Next: {capResponseLabel(capResponse)} · {capResponse.reasons[0]}</small>}
+                  {capResponse && <small className="ai-cap-response-summary">{unitsVerified ? `Next: ${capResponseLabel(capResponse)} · ${capResponse.reasons[0]}` : "Money-unit verification is required before requesting or approving new spending. Inspection and rejection remain available."}</small>}
                 </div>
                 <span className={`status-pill ${reservation.status === "reserved" || reservation.status === "settled" ? "status-green" : reservation.status === "denied" ? "status-red" : "status-neutral"}`}>{label(reservation.status)}</span>
               </article>
@@ -354,7 +365,7 @@ export function AiPolicyPanel({
               <span>Business justification</span>
               <textarea disabled={budgetRecovery.frozen} maxLength={1000} required value={budgetRecovery.attempt?.action.kind === "request_exception" ? budgetRecovery.attempt.action.justification : exceptionJustification} onChange={(event) => setExceptionJustification(event.target.value)} placeholder="Explain why this one estimate should exceed the configured cap." />
             </label>
-            <button className="button-secondary" disabled={budgetRecovery.frozen || !exceptionJustification.trim()} type="submit">
+            <button className="button-secondary" disabled={budgetRecovery.frozen || !unitsVerified || !exceptionJustification.trim()} type="submit">
               {pendingSpendExceptionAction === "request" ? "Requesting…" : "Request approval"}
             </button>
           </form>
@@ -373,7 +384,7 @@ export function AiPolicyPanel({
                 <span className={`status-pill ${request.status === "approved" ? "status-green" : request.status === "rejected" || request.status === "expired" ? "status-red" : "status-amber"}`}>{request.consumedAt ? "Consumed" : label(request.status)}</span>
                 {request.status === "pending" && canApproveSpendException && (
                   <>
-                    <button className="button-primary" disabled={budgetRecovery.frozen} onClick={() => decideSpendException(request.id, "approved")} type="button">Approve</button>
+                    <button className="button-primary" disabled={budgetRecovery.frozen || !unitsVerified} onClick={() => decideSpendException(request.id, "approved")} type="button">Approve</button>
                     <button className="button-secondary" disabled={budgetRecovery.frozen} onClick={() => decideSpendException(request.id, "rejected")} type="button">Reject</button>
                   </>
                 )}
@@ -392,11 +403,10 @@ function Money({ label: text, value, onChange }: { label: string; value: string;
 function UsageMetric({ label: text, value }: { label: string; value: string }) {
   return <article className="metric-card"><div><p>{text}</p><strong>{value}</strong></div></article>;
 }
-function BudgetScope({ title, status, currency }: { title: string; status: AiBudgetStatus["daily"]; currency: string }) {
+function BudgetScope({ title, status, currency, money }: { title: string; status: AiBudgetStatus["daily"]; currency: string; money: typeof formatAiBudgetMoney }) {
   const committed = status.spentMinor + status.reservedMinor;
   return <article className="metric-card"><div><p>{title}</p><strong>{money(committed, currency)}</strong><small>{money(status.spentMinor, currency)} settled · {money(status.reservedMinor, currency)} reserved{status.capMinor === undefined ? " · no cap" : ` · ${money(status.availableMinor ?? 0, currency)} available`}</small></div></article>;
 }
-function money(value: number, currency: string): string { return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value / 100); }
 function label(value: string): string { return value.replaceAll("_", " ").replace(/^./, (character) => character.toUpperCase()); }
 function budgetScopeLabel(scope: AiBudgetAlert["scope"]): string { return scope === "campaign" ? "Campaign budget" : `${scope} budget`; }
 function alertWindowLabel(alert: AiBudgetAlert): string { return alert.scope === "campaign" ? "Campaign lifetime" : alert.scope === "daily" ? alert.windowKey : `${alert.windowKey} UTC`; }

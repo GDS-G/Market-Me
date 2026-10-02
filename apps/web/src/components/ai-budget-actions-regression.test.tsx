@@ -21,8 +21,8 @@ const deniedReservationId = "55555555-5555-4555-8555-555555555555", stamp = "202
 const props: AiPolicyFormProps = {
   userId, workspaceId, policyRevision: 0,
   policy: { workspaceId, mode: "recommended", maximumPrivacyClass: "cloud", failoverMode: "ask_before_switching", capBehavior: "require_approval", currency: "USD", alertThresholdPercentages: [50, 80, 100] },
-  usage: { currency: "USD", currentMonthCostMinor: 0, requestCount: 0, inputUnits: 0, outputUnits: 0, cachedInputUnits: 0, byFeature: [] },
-  budgetStatus: { asOf: stamp, currency: "USD", daily: { scope: "daily", spentMinor: 0, reservedMinor: 0 }, monthly: { scope: "monthly", spentMinor: 0, reservedMinor: 0 }, activeReservationCount: 0, recentReservations: [] },
+  usage: { unitIntegrity: { status: "compatible", ledgerExponent: 2, incompatibleReservationCount: 0 }, currency: "USD", currentMonthCostMinor: 0, requestCount: 0, inputUnits: 0, outputUnits: 0, cachedInputUnits: 0, byFeature: [] },
+  budgetStatus: { unitIntegrity: { status: "compatible", ledgerExponent: 2, incompatibleReservationCount: 0 }, asOf: stamp, currency: "USD", daily: { scope: "daily", spentMinor: 0, reservedMinor: 0 }, monthly: { scope: "monthly", spentMinor: 0, reservedMinor: 0 }, activeReservationCount: 0, recentReservations: [] },
   budgetAlerts: [{ id: alertId, workspaceId, scope: "monthly", windowKey: "2026-10", thresholdPercentage: 50, committedCostMinor: 50, capMinor: 100, currency: "USD", status: "open", createdAt: stamp, updatedAt: stamp }],
   spendExceptions: [{ id: requestId, workspaceId, deniedReservationId, capability: "generate_text", feature: "synthetic", currency: "USD", estimatedCostMinor: 100, exceededScopes: ["monthly"], capBehavior: "require_approval", status: "pending", justification: "Synthetic approved test input", requestedBy: userId, expiresAt: "2099-01-01T00:00:00.000Z", createdAt: stamp, updatedAt: stamp }],
   capResponses: [], canRequestSpendException: true, canApproveSpendException: true, canEditPolicy: true, hasSavedPolicy: false, modeIndicators: AI_MODE_INDICATORS,
@@ -101,6 +101,12 @@ describe("budget action response safety", () => {
   it("checks independent client permissions before new actions and recovery", async () => {
     const send = vi.fn(); vi.stubGlobal("fetch", send); currentProps = { ...currentProps, canEditPolicy: false, canRequestSpendException: false, canApproveSpendException: false };
     await recovery().run({ kind: "decide_exception", workspaceId, targetId: requestId, decision: "approved" }); expect(send).not.toHaveBeenCalled();
+  });
+  it("blocks new approval for incompatible units but preserves rejection", async () => {
+    const send = vi.fn().mockRejectedValue(new Error("Synthetic response loss")); vi.stubGlobal("fetch", send);
+    currentProps = { ...currentProps, budgetStatus: { ...currentProps.budgetStatus, unitIntegrity: { status: "incompatible_history", ledgerExponent: 2, incompatibleReservationCount: 1 } } };
+    await action("Approve")(); expect(send).not.toHaveBeenCalled();
+    await action("Reject")(); expect(send).toHaveBeenCalledOnce(); expect(recovery().attempt?.action).toMatchObject({ kind: "decide_exception", decision: "rejected" });
   });
   it("requires explicit acknowledgement and byte-identical storage before clearing", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Synthetic loss"))); const reload = vi.fn(); vi.stubGlobal("window", { location: { reload } });

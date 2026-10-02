@@ -288,9 +288,10 @@ export default async function AiSettingsPage() {
             serverConfiguration.aiProviderExecutionEnabled &&
             Buffer.from(serverConfiguration.aiProviderCredentialEncryptionKey ?? "", "base64").length === 32 &&
             executionControl.executionAllowed
+            && budgetStatus.unitIntegrity?.status === "compatible"
           }
         />
-        <AiQuoteLedger workspaceId={workspace.workspaceId} quotes={costQuotes.map(presentQuote)} canEdit={canEdit} />
+        <AiQuoteLedger workspaceId={workspace.workspaceId} quotes={costQuotes.map(presentQuote)} canEdit={canEdit} budgetUnitIntegrity={budgetStatus.unitIntegrity} budgetCurrency={policy.currency} />
           </div>
         </details>
         <details id="ai-diagnostics" className={styles.section}>

@@ -483,6 +483,27 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         idempotencyKey: randomUUID(),
       }, owner.user.id);
       const attemptPrompt = "Prepare a second bounded QA announcement.";
+      const snapshotUnitBoundary = async () => {
+        const result: Record<string, unknown> = {};
+        for (const table of ["workspace_ai_text_invocation_intent", "workspace_ai_text_invocation_attempt", "ai_usage_event", "audit_event"])
+          result[table] = Array.from(await sql!`SELECT to_jsonb(t) AS data FROM ${sql!(table)} t WHERE workspace_id=${owner.workspace.workspaceId} ORDER BY to_jsonb(t)::text`);
+        return result;
+      };
+      // Synthetic evidence changes only; no provider transport is used by this repository suite.
+      for (const target of ["quote", "card"] as const) for (const exponent of [0, 1, 3, 4]) {
+        try {
+          if (target === "quote") await sql`UPDATE ai_cost_quote SET minor_unit_exponent=${exponent} WHERE id=${attemptQuote.id}`;
+          else await sql`UPDATE ai_provider_rate_card SET minor_unit_exponent=${exponent} WHERE id=${rateCardId}`;
+          const before = await snapshotUnitBoundary();
+          await expect(ai.prepareWorkspaceTextInvocationIntent({ workspaceId: owner.workspace.workspaceId, invocationBindingId: invocation.id,
+            reservationId: attemptReservation.id, idempotencyKey: randomUUID(), userText: attemptPrompt, maxOutputTokens: 256 }, owner.user.id))
+            .rejects.toMatchObject({ name: "AiPolicyValidationError" });
+          expect(await snapshotUnitBoundary()).toEqual(before);
+        } finally {
+          await sql`UPDATE ai_cost_quote SET minor_unit_exponent=2 WHERE id=${attemptQuote.id}`;
+          await sql`UPDATE ai_provider_rate_card SET minor_unit_exponent=2 WHERE id=${rateCardId}`;
+        }
+      }
       const attemptIntent = await ai.prepareWorkspaceTextInvocationIntent({
         workspaceId: owner.workspace.workspaceId,
         invocationBindingId: invocation.id,
@@ -510,6 +531,19 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         intentId: attemptIntent.id,
         userText: "Prompt substitution is forbidden.",
       }, owner.user.id)).rejects.toMatchObject({ name: "AiPolicyValidationError" });
+      for (const target of ["quote", "card"] as const) for (const exponent of [0, 1, 3, 4]) {
+        try {
+          if (target === "quote") await sql`UPDATE ai_cost_quote SET minor_unit_exponent=${exponent} WHERE id=${attemptQuote.id}`;
+          else await sql`UPDATE ai_provider_rate_card SET minor_unit_exponent=${exponent} WHERE id=${rateCardId}`;
+          const before = await snapshotUnitBoundary();
+          await expect(ai.claimWorkspaceTextInvocationAttempt({ workspaceId: owner.workspace.workspaceId, intentId: attemptIntent.id, userText: attemptPrompt }, owner.user.id))
+            .rejects.toMatchObject({ name: "AiPolicyValidationError" });
+          expect(await snapshotUnitBoundary()).toEqual(before);
+        } finally {
+          await sql`UPDATE ai_cost_quote SET minor_unit_exponent=2 WHERE id=${attemptQuote.id}`;
+          await sql`UPDATE ai_provider_rate_card SET minor_unit_exponent=2 WHERE id=${rateCardId}`;
+        }
+      }
       const attemptTarget = await ai.claimWorkspaceTextInvocationAttempt({
         workspaceId: owner.workspace.workspaceId,
         intentId: attemptIntent.id,
@@ -1132,6 +1166,29 @@ describe.skipIf(!databaseUrl)("AI provider connections", () => {
         owner.workspace.workspaceId,
         "USD",
       )).monthly.spentMinor).toBe(8);
+      for (const unitSource of ["quote", "card"] as const) {
+        const prompt = `Discard synthetic output after ${unitSource} unit evidence changes.`;
+        const unitExecution = await prepareAdditionalExecution(prompt);
+        const unitTarget = await ai.claimWorkspaceTextInvocationAttempt({ workspaceId: owner.workspace.workspaceId, intentId: unitExecution.intent.id, userText: prompt }, owner.user.id);
+        const beforeUsage = Array.from(await sql`SELECT to_jsonb(t) AS data FROM ai_usage_event t WHERE workspace_id=${owner.workspace.workspaceId} ORDER BY id`);
+        try {
+          if (unitSource === "quote") await sql`UPDATE ai_cost_quote SET minor_unit_exponent=3 WHERE id=${unitExecution.reservation.costQuoteId!}`;
+          else await sql`UPDATE ai_provider_rate_card SET minor_unit_exponent=3 WHERE id=${rateCardId}`;
+          expect(await ai.completeWorkspaceTextInvocationAttempt({ workspaceId: owner.workspace.workspaceId, attemptId: unitTarget.attemptId,
+            expectedCredentialFingerprint: firstFingerprint, expectedContractSourceHash: unitTarget.contractSourceHash,
+            outcome: { status: "succeeded", outputText: "Discard this synthetic output.", encryptedOutput: "v1.synthetic-units", encryptionKeyVersion: "v1", stopReason: "completed", inputTokens: 1, outputTokens: 1, latencyMs: 1 } }, owner.user.id))
+            .toMatchObject({ status: "ambiguous", failureCode: "evidence_changed", outputStored: false });
+          expect(Array.from(await sql`SELECT to_jsonb(t) AS data FROM ai_usage_event t WHERE workspace_id=${owner.workspace.workspaceId} ORDER BY id`)).toEqual(beforeUsage);
+          if (unitSource === "quote") await expect(ai.resolveWorkspaceTextInvocation({ workspaceId: owner.workspace.workspaceId, attemptId: unitTarget.attemptId,
+            disposition: "settled_provider_charge", providerChargeMinor: 1, evidenceReference: "Synthetic unit mismatch", resolutionNote: "Must not settle ambiguous unit history." }, owner.user.id)).rejects.toMatchObject({ name: "AiPolicyValidationError" });
+          expect(await ai.resolveWorkspaceTextInvocation({ workspaceId: owner.workspace.workspaceId, attemptId: unitTarget.attemptId,
+            disposition: "confirmed_no_charge", evidenceReference: "Synthetic no-provider fixture", resolutionNote: "No real transport occurred; release the synthetic hold." }, owner.user.id))
+            .toMatchObject({ disposition: "confirmed_no_charge", reservationFinalStatus: "released" });
+        } finally {
+          await sql`UPDATE ai_cost_quote SET minor_unit_exponent=2 WHERE id=${unitExecution.reservation.costQuoteId!}`;
+          await sql`UPDATE ai_provider_rate_card SET minor_unit_exponent=2 WHERE id=${rateCardId}`;
+        }
+      }
       const stoppedInFlight = await prepareAdditionalExecution(
         "Discard this outcome if an operator stops execution in flight.",
       );

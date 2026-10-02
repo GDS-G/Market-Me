@@ -1,6 +1,6 @@
 # Quote and budget monetary-unit boundary
 
-Status: independently reproduced after the accepted release-1.42 runtime; not part of its gates. Four synthetic live regressions demonstrate that exponent-0/1/3/4 quotes are accepted into a legacy hundredths ledger without unit compatibility checks. For one major currency unit and a half-unit cap, exponents0/1 incorrectly create active reservations; exponents3/4 create differently scaled denial records. An initial invalid fixture failover enum was corrected before this evidence. No real provider, credential, charge or user data is involved.
+Status: reproduced and implemented for release1.43, with final local3,392-test/181-file and44-quality gates, focused provider boundaries, browser/production/native and Google candidate preservation checks passing. Exact-source cloud publication remains pending; [programmer reference](AI_BUDGET_UNIT_BOUNDARY.md) inventories the implemented contracts. This is independent of accepted1.42. Four pre-fix live regressions demonstrate exponent0/1/3/4 quotes entering a hundredths ledger without scale checks; exponents0/1 incorrectly authorize one major unit under a half-unit cap. An initial invalid fixture enum was corrected before reproduction. No real provider, credential, charge or user data is involved.
 
 ## Intent and safety contract
 

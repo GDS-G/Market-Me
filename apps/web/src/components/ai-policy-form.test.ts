@@ -20,8 +20,8 @@ type Props = Parameters<typeof AiPolicyForm>[0];
 const props = (): Props => ({ userId: "synthetic-user", policyRevision: 1, workspaceId: "synthetic-workspace", policy: { workspaceId: "synthetic-workspace", mode: "recommended",
   maximumPrivacyClass: "cloud", failoverMode: "ask_before_switching", capBehavior: "require_approval", currency: "USD",
   monthlyBudgetMinor: 99999, alertThresholdPercentages: [50, 80, 100] },
-  usage: { currency: "USD", currentMonthCostMinor: 500, requestCount: 1, inputUnits: 1, outputUnits: 1, cachedInputUnits: 0, byFeature: [] },
-  budgetStatus: { asOf: "2026-10-01T12:00:00Z", currency: "USD", daily: { scope: "daily", spentMinor: 500, reservedMinor: 100 },
+  usage: { unitIntegrity: { status: "compatible", ledgerExponent: 2, incompatibleReservationCount: 0 }, currency: "USD", currentMonthCostMinor: 500, requestCount: 1, inputUnits: 1, outputUnits: 1, cachedInputUnits: 0, byFeature: [] },
+  budgetStatus: { unitIntegrity: { status: "compatible", ledgerExponent: 2, incompatibleReservationCount: 0 }, asOf: "2026-10-01T12:00:00Z", currency: "USD", daily: { scope: "daily", spentMinor: 500, reservedMinor: 100 },
     monthly: { scope: "monthly", spentMinor: 500, reservedMinor: 100, capMinor: 1000, availableMinor: 400 }, activeReservationCount: 1, recentReservations: [] },
   budgetAlerts: [{ id: "synthetic-alert", workspaceId: "synthetic-workspace", sourceReservationId: "synthetic-reservation", scope: "monthly",
     windowKey: "2026-10", thresholdPercentage: 50, committedCostMinor: 600, capMinor: 1000, currency: "USD", status: "open", createdAt: "2026-10-01", updatedAt: "2026-10-01" }],
@@ -31,6 +31,28 @@ const render = (value: Props) => { mocks.emptyStateCount = 0; return renderToSta
 beforeEach(() => { vi.clearAllMocks(); mocks.formError = ""; vi.stubGlobal("fetch", mocks.fetch); });
 afterEach(() => { expect(mocks.fetch).not.toHaveBeenCalled(); vi.unstubAllGlobals(); });
 describe("role-honest AI policy presentation", () => {
+  it.each(["budget", "usage", "missing", "currency"])("withholds monetary totals/progress when %s unit verification is unsafe", source => {
+    const input = props();
+    if (source === "budget") input.budgetStatus.unitIntegrity = { status: "incompatible_history", ledgerExponent: 2, incompatibleReservationCount: 1 };
+    if (source === "usage") input.usage.unitIntegrity = { status: "incompatible_history", ledgerExponent: 2, incompatibleReservationCount: 1 };
+    if (source === "missing") input.budgetStatus.unitIntegrity = undefined as never;
+    if (source === "currency") input.usage.currency = "EUR";
+    input.budgetStatus.recentReservations = [{ id: "denied", workspaceId: input.workspaceId, capability: "generate_text", feature: "synthetic", currency: "USD", estimatedCostMinor: 1000,
+      status: "denied", exceededScopes: ["daily"], capBehavior: "require_approval", requestedBy: input.userId, createdAt: "2026-10-01", updatedAt: "2026-10-01" }];
+    input.capResponses = [{ deniedReservationId: "denied", capability: "generate_text", capBehavior: "require_approval", status: "ready", action: "request_approval",
+      requiresApproval: true, requiresPaidReservation: false, limitations: [], reasons: ["Synthetic approval hint"] }];
+    const html = render(input);
+    expect(html).toContain("Unverified amount"); expect(html).toContain('role="alert"');
+    expect(html).not.toContain("60% of"); expect(html).not.toContain("$5.00");
+    expect(html).toContain("Budget progress is unavailable");
+    expect(html).toContain("Money-unit verification is required before requesting or approving"); expect(html).not.toContain("Next: Request approval");
+    expect(html).toContain("Requests"); expect(html).toContain("Input units");
+  });
+  it("does not round a recorded JPY hundredth down to zero", () => {
+    const input = props(); input.policy.currency = "JPY"; input.usage.currency = "JPY"; input.budgetStatus.currency = "JPY";
+    input.usage.currentMonthCostMinor = 1;
+    const html = render(input); expect(html).toContain("¥0.01"); expect(html).toContain("two decimal places in the existing ledger");
+  });
   it("keeps request failure feedback visible to an approver without a policy form", () => {
     mocks.formError = "Synthetic spend decision failure";
     const html = render({ ...props(), canApproveSpendException: true });

@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.43 money-unit compatibility
+
+Shared exponent2/divisor100 constants describe the existing ledger. A read-only workspace/currency history query follows direct quotes and consumed-exception denied-quote lineage across every status/age. New reservation, exception and settlement paths fail closed on incompatible history; provider preparation/claim additionally require exact quote/card scale, and changed evidence during transport becomes ambiguous without output acceptance or automatic settlement. Matching UI/API exposes required unitIntegrity metadata and suppresses unsafe monetary displays. [Complete design](AI_BUDGET_UNIT_BOUNDARY.md) documents query lifetimes, authority, rollout and excluded reconciliation. No migration, FX conversion or history rewrite occurs.
+
 ## Release 1.42 budget-action recovery
 
 Three existing mutations share closed bounded same-origin transport and a minimized entity projection. Membership FOR SHARE precedes the existing target lock through commit. Explicit GET recovery rechecks the appropriate current ability and reads the exact alert, denied-reservation request or exception without mutation. The hydration-gated browser retains one original action per account/workspace tab, blocks same-tick duplicates and freezes budget actions until acknowledged clearing/reload. Unlike policy saves, this is mutable current-state recovery with no retry or immutable receipt. [Complete design and compatibility](AI_BUDGET_ACTION_RECOVERY.md) documents the distinction. Schema remains121; no provider/reservation authority is added.

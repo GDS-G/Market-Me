@@ -20,8 +20,8 @@ function panel() {
     workspaceId: "22222222-2222-4222-8222-222222222222", policy: {
     workspaceId: "22222222-2222-4222-8222-222222222222", mode: "recommended", maximumPrivacyClass: "cloud",
     failoverMode: "ask_before_switching", capBehavior: "require_approval", currency: "USD", alertThresholdPercentages: [50,80,100],
-  }, usage: { currency: "USD", currentMonthCostMinor: 0, requestCount: 0, inputUnits: 0, outputUnits: 0, cachedInputUnits: 0, byFeature: [] },
-  budgetStatus: { asOf: "2026-10-01T00:00:00Z", currency: "USD", daily: { scope: "daily", spentMinor: 0, reservedMinor: 0 },
+  }, usage: { unitIntegrity: { status: "compatible", ledgerExponent: 2, incompatibleReservationCount: 0 }, currency: "USD", currentMonthCostMinor: 0, requestCount: 0, inputUnits: 0, outputUnits: 0, cachedInputUnits: 0, byFeature: [] },
+  budgetStatus: { unitIntegrity: { status: "compatible", ledgerExponent: 2, incompatibleReservationCount: 0 }, asOf: "2026-10-01T00:00:00Z", currency: "USD", daily: { scope: "daily", spentMinor: 0, reservedMinor: 0 },
     monthly: { scope: "monthly", spentMinor: 0, reservedMinor: 0 }, activeReservationCount: 0, recentReservations: [] },
   budgetAlerts: [], spendExceptions: [], capResponses: [], canRequestSpendException: false, canApproveSpendException: false,
   canEditPolicy: true, hasSavedPolicy: false, modeIndicators: AI_MODE_INDICATORS });

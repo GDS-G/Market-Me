@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.43 candidate gate
+
+Corrected full local gate passes **3,392 tests/181 files without skips**, 44/44 standalone quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web1341/74; workflow-worker68/5; companion protocol4/1; connectors166/10; database1398/64; domain157/7; generation112/7; ingestion79/8; media24/2; workflows43/3. First corrected build: Next compile4.2s, TypeScript11.2s,106/106 generation422ms; companion201.34kB/64.02kB gzip137ms; cargo check2.74s and Rust test build15.27s. A final rerun follows warning-legibility and truthful next-action improvements; cloud results are pending.
+
+The final presentation rerun also passes the complete gate: Next compile3.0s, TypeScript3.9s,106/106 generation416ms; companion131ms, cargo check0.77s and Rust test build4.80s. New coverage adds29 domain,26 web and14 live database cases. Provider boundary scenarios are expanded within one existing test rather than counted separately. The first full gate caught an exact usage assertion missing the new required unitIntegrity metadata; the assertion now verifies the metadata explicitly. No new migration/dependency: schema121. Native packaging and browser/database preservation are separate gates. [Releases](RELEASES.md) records evidence and acceptance status.
+
 ## Release 1.42 verified checkpoint
 
 Final local gate passes **3,323 tests/178 files without skips**, 44/44 standalone quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web1315/73; workflow-worker68/5; companion protocol4/1; connectors166/10; database1384/63; domain128/6; generation112/7; ingestion79/8; media24/2; workflows43/3. Final rerun follows scoped spacing/focus improvements: Next compile2.5s, TypeScript12.7s,106/106 generation600ms; companion18 modules,201.34kB/64.02kB gzip,141ms; cargo check0.81s, Rust test build4.70s.

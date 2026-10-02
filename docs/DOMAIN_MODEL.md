@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.43 money-unit fields and helpers
+
+AI_BUDGET_LEDGER_EXPONENT=2 and AI_BUDGET_LEDGER_DIVISOR=100 are immutable primitives. AiBudgetUnitIntegrity carries literal ledgerExponent, compatible/incompatible_history status and incompatibleReservationCount; both budget and usage DTOs require it. Raw totals remain integers, not verified money when compatibility fails. readAiBudgetUnitIntegrity returns a fresh scoped lineage count without mutations/cache. Strict quote-unit acceptance and BigInt-based exact hundredths formatting, safe mismatch constants, unitsVerified/ledgerCompatible/canReserve/validQuoteMoney and the private write assertion are inventoried in the [full variable reference](AI_BUDGET_UNIT_BOUNDARY.md). No configurable globals, environment keys, persistence fields or migration are added.
+
 ## Release 1.42 budget-action fields and lifetimes
 
 BudgetAction is the closed acknowledge_alert/request_exception/decide_exception union with workspaceId/targetId plus the applicable justification or decision/optional note. BudgetActionAttempt version1 binds userId/action; BudgetActionState is the minimized alert or exception projection with original actor/time and expiry/consumption state. Frozen BUDGET_ACTION_LIMITS bounds8192-byte requests,16384-byte storage/responses and20000ms transport. No persistent schema/global cache is added. [Complete variable inventory](AI_BUDGET_ACTION_RECOVERY.md) covers storage keys, strict schemas, chunks/buffers, response/status sets, permissions, per-mount React state/ref fencing and compatibility with existing entity semantics.

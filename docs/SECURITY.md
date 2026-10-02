@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.43 money-unit authority
+
+Quote and currency identity alone do not authorize arithmetic: the ledger accepts only exponent2 quoted spending and blocks known incompatible workspace/currency history before new monetary writes. Provider prepare/claim/complete and explicit charged settlement recheck current evidence; returned browser metadata never authorizes transport. Original policy/quote/receipt/reservation evidence is not converted or deleted. Rejection, release and inspection remain governed by their existing roles. Stop old writers during rollout; this is not protection against arbitrary administrator SQL or a historical-reconciliation procedure. [Detailed boundaries](AI_BUDGET_UNIT_BOUNDARY.md) distinguish evidence compatibility from billing correctness.
+
 ## Release 1.42 budget-action authority
 
 Acknowledgement/request require current write ability; decision requires current approve ability. Mutations and lookup repeat authorization inside a transaction and hold membership FOR SHARE through commit. Same-origin closed bounded mutation input rejects actor/path-ID overrides; lookup is exact workspace/kind/target with no extra query authority. Returned mutable entities remain shared with existing authorized workspace roles, not actor-private receipts; original actors are shown for honest attribution. Scoped plaintext sessionStorage is never authority and never silently replaces a retained explanation. Safe output/logging excludes private persistence details. [Full boundary](AI_BUDGET_ACTION_RECOVERY.md) includes role revocation, no automatic retry, exact local clearing and unchanged spend/provider gates.
