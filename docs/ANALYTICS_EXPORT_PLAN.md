@@ -1,6 +1,6 @@
 # Analytics snapshot downloads
 
-Status: 1.46.0 candidate implemented; local/static/native and actual production-browser file acceptance pass. Independent cloud/publication and Google gates remain pending; [Releases](RELEASES.md) records exact evidence and an optional diagnostic blocked by Chrome. [Developer reference](ANALYTICS_EXPORTS.md) inventories formats, variables and boundaries. Specification section 17 explicitly requests CSV/JSON/API exports. This first export is the existing authorized aggregate report, not raw personal events, complete history or a scheduled BI feed.
+Status: 1.46.0 verified and published with local/independent feature/main cloud,native,actual production-browser files and Google gates complete; [Releases](RELEASES.md) records exact evidence and an optional diagnostic blocked by Chrome. [Developer reference](ANALYTICS_EXPORTS.md) inventories formats,variables and boundaries. Specification section17 explicitly requests CSV/JSON/API exports. This first export is the existing authorized aggregate report,not raw personal events,complete history or a scheduled BI feed.
 
 ## Product and scope
 

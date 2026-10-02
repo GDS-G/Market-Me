@@ -1,8 +1,10 @@
 # Cloud continuous integration
 
-## Release 1.46 local checkpoint
+## Release 1.46 verified checkpoint
 
-Full local gate passes **3,635 tests/191 files without skips**: web1515/81,workflow-worker68/5,companion protocol4/1,connectors166/10,database1458/66,domain157/7,generation121/8,ingestion79/8,media24/2,workflows43/3. All44 quality cases,twelve typechecks,lint,both frontends,cargo check and three Rust tests pass. Next compile4.5s/TypeScript12.6s/109-page generation430ms;companion137ms/201.34kB JavaScript64.02kB gzip;native check2.99s/test build15.22s. New export coverage adds72 cases/two files; existing page cases gain link/scope/warning assertions. Independent exact-source cloud acceptance is pending. [Releases](RELEASES.md) separates actual downloads/browser, unsigned packaging and the unexecuted optional diagnostic.
+Full local gate passes **3,635 tests/191 files without skips**: web1515/81,workflow-worker68/5,companion protocol4/1,connectors166/10,database1458/66,domain157/7,generation121/8,ingestion79/8,media24/2,workflows43/3. All44 quality cases,twelve typechecks,lint,both frontends,cargo check and three Rust tests pass. Next compile4.5s/TypeScript12.6s/109-page generation430ms;companion137ms/201.34kB JavaScript64.02kB gzip;native check2.99s/test build15.22s. New export coverage adds72 cases/two files; existing page cases gain link/scope/warning assertions. [Releases](RELEASES.md) separates actual downloads/browser, unsigned packaging and the blocked optional diagnostic.
+
+Exact runtime `1db4dbb505d7819650873aeb6a6fa90baccff722` passes [feature CI36970967229](https://github.com/GDS-G/Market-Me/actions/runs/36970967229) in4:30 and [main CI36971381513](https://github.com/GDS-G/Market-Me/actions/runs/36971381513) in3:46. Each locked install adds609/audits622 packages,applies121 migrations,reproduces the entire test/quality split,and passes static/frontend/native-dependency smoke/cleanup and both zero-vulnerability audits. Next compile14.2/12.2s,109-page generation488/404ms and companion171/139ms respectively. Final Google readback verifies46 paragraphs and preserves prior content/styles/list definitions and30 tabs. Developing catalog search is excluded from this checkpoint.
 
 ## Release 1.45 verified checkpoint
 

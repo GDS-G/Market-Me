@@ -1,6 +1,6 @@
 # Analytics snapshot downloads: developer reference
 
-Release: 1.46.0 candidate; acceptance is recorded separately in [Releases](RELEASES.md). [Scope plan](ANALYTICS_EXPORT_PLAN.md) implements the first CSV/JSON export slice of specification section 17. [Analytics contracts](WORKSPACE_ANALYTICS.md) remain authoritative for the unchanged SQL projection, current-membership authorization, exact numbers, clocks, attribution and provider corrections.
+Release: 1.46.0 verified and published; exact local/cloud/native/browser/Google acceptance is recorded separately in [Releases](RELEASES.md). [Scope plan](ANALYTICS_EXPORT_PLAN.md) implements the first CSV/JSON export slice of specification section 17. [Analytics contracts](WORKSPACE_ANALYTICS.md) remain authoritative for the unchanged SQL projection,current-membership authorization,exact numbers,clocks,attribution and provider corrections.
 
 ## Behavior and authority
 

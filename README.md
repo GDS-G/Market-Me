@@ -6,7 +6,7 @@ Market Me is a universal content-to-campaign operating system. It monitors custo
 
 Analytics now offers explicit workspace/Campaign snapshot downloads with exact numeric strings, original JSON labels, guarded CSV text, source/time separation and embedded coverage notes. Downloads are current-member-only, private/no-store and read-only. [Programmer reference](docs/ANALYTICS_EXPORTS.md) documents every format field, helper, variable and limit.
 
-Local acceptance passes 3,635 tests/191 files,44 quality cases, twelve typechecks,lint,frontend/native builds and unsigned packaging. Six actual production-browser files across workspace/Campaign/empty scopes match the isolated database, with all141 table fingerprints and both projections unchanged. Cloud/publication and Google synchronization are pending; [Releases](docs/RELEASES.md) records exact evidence and a blocked optional browser diagnostic. This is a bounded report export, not full history, a public BI API or whole-application completion.
+Reviewed runtime `1db4dbb505d7819650873aeb6a6fa90baccff722` is public on main. Local and independent exact-source feature/main cloud gates pass3,635 tests/191 files and44 quality cases; both cloud audits are clean. Six actual production-browser files match the isolated database, preserving all141 table fingerprints and both projections; native/unsigned packaging and final Google readback pass separately. [Releases](docs/RELEASES.md) records exact evidence and a blocked optional browser diagnostic. [Searchable Content Package catalog](docs/CONTENT_CATALOG_PLAN.md) is the next independent increment. This is a bounded report export,not full history,a public BI API or whole-application completion.
 
 ## Previous release 1.45: Workspace Analytics
 
