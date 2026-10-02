@@ -21,6 +21,7 @@ import { defaultWorkspaceAiPolicy } from "@/server/ai-schema";
 import { getAiRepository, getDraftRepository } from "@/server/database";
 import { getServerConfiguration } from "@/server/config";
 import { AI_MODE_INDICATORS } from "@market-me/generation";
+import styles from "./ai-settings.module.css";
 
 export default async function AiSettingsPage() {
   const user = await getAuthenticatedUser();
@@ -32,9 +33,8 @@ export default async function AiSettingsPage() {
   const canManageExecution = ["owner", "admin"].includes(workspace.role);
   const serverConfiguration = getServerConfiguration();
   const repository = getAiRepository();
-  const policy =
-    (await repository.getPolicy(workspace.workspaceId)) ??
-    defaultWorkspaceAiPolicy(workspace.workspaceId);
+  const savedPolicy = await repository.getPolicy(workspace.workspaceId);
+  const policy = savedPolicy ?? defaultWorkspaceAiPolicy(workspace.workspaceId);
   const pricingAsOf = new Date();
   const [usage, budgetStatus, budgetAlerts, spendExceptions, assistantAssignments, routingPreferences, providerConnections, providerAdapters, adapterRegistry, analysisCache, rateCards, effectiveRateCards, costQuotes] = await Promise.all([
     repository.getCurrentMonthUsage(workspace.workspaceId, policy.currency),
@@ -174,12 +174,20 @@ export default async function AiSettingsPage() {
       <div className="resource-page">
         <header className="resource-header">
           <div>
-            <p className="eyebrow">Provider-neutral model gateway</p>
+            <p className="eyebrow">Practical preferences and spending boundaries</p>
             <h1>AI &amp; cost controls</h1>
-            <p>Choose an outcome, enforce privacy and spend boundaries, and inspect technical usage only when needed.</p>
+            <p>Choose the result you value, inspect recorded costs, and open technical controls when you need them.</p>
           </div>
           <ShieldCheck size={26} aria-hidden="true" />
         </header>
+        <aside className={styles.notice} aria-label="AI execution and attention summary">
+          <p>{!serverConfiguration.aiProviderExecutionEnabled ? "External AI calls are stopped for this deployment." : !executionControl.executionAllowed ? "External AI calls are stopped for this workspace." : "A workspace AI execution window is open. Each request still needs its own eligibility and spending checks."}</p>
+          <p>{operationalIncidents.length} loaded active issue{operationalIncidents.length === 1 ? "" : "s"} · {providerCircuits.filter(circuit => circuit.state === "open").length} provider safety stops. Inspect safety controls below; these observations are not a complete health or launch-readiness check.</p>
+          <p>Current role: {workspace.role}. Opening sections does not connect a provider, spend money or run a model.</p>
+        </aside>
+        <details id="ai-safety" className={styles.section} open={executionControl.executionAllowed || operationalIncidents.length > 0 || providerCircuits.some(circuit => circuit.state === "open")}>
+          <summary><strong>Safety and interruptions</strong><span>Execution stops, active issues and their existing recovery controls</span></summary>
+          <div className={styles.content}>
         <AiExecutionControl
           workspaceId={workspace.workspaceId}
           control={executionControl}
@@ -202,7 +210,12 @@ export default async function AiSettingsPage() {
             serverConfiguration.aiOperationalAlertAllowedHosts.length > 0
           }
         />
-        <AiPolicyForm workspaceId={workspace.workspaceId} policy={policy} usage={usage} budgetStatus={budgetStatus} budgetAlerts={budgetAlerts} spendExceptions={spendExceptions} capResponses={capResponses} canRequestSpendException={["owner", "admin", "editor"].includes(workspace.role)} canApproveSpendException={["owner", "admin", "approver"].includes(workspace.role)} modeIndicators={AI_MODE_INDICATORS} />
+          </div>
+        </details>
+        <AiPolicyForm key={JSON.stringify([workspace.workspaceId, workspace.role, savedPolicy])} workspaceId={workspace.workspaceId} policy={policy} hasSavedPolicy={savedPolicy !== undefined} canEditPolicy={canEdit} usage={usage} budgetStatus={budgetStatus} budgetAlerts={budgetAlerts} spendExceptions={spendExceptions} capResponses={capResponses} canRequestSpendException={canEdit} canApproveSpendException={canApprove} modeIndicators={AI_MODE_INDICATORS} />
+        <details id="ai-configuration" className={styles.section}>
+          <summary><strong>Advanced assistants and provider setup</strong><span>Optional model routing, accounts and approved implementation configuration</span></summary>
+          <div className={styles.content}>
         <AiAssistantAssignments
           workspaceId={workspace.workspaceId}
           profiles={AI_ASSISTANT_PROFILES}
@@ -253,6 +266,11 @@ export default async function AiSettingsPage() {
           bindings={adapterInvocationBindings}
           canManage={["owner", "admin"].includes(workspace.role)}
         />
+          </div>
+        </details>
+        <details id="ai-requests" className={styles.section}>
+          <summary><strong>AI requests, results and cost quotes</strong><span>Inspect saved work and exact quotes; execution and spend approval stay separate</span></summary>
+          <div className={styles.content}>
         <AiTextInvocationIntents
           workspaceId={workspace.workspaceId}
           bindings={adapterInvocationBindings}
@@ -272,6 +290,12 @@ export default async function AiSettingsPage() {
             executionControl.executionAllowed
           }
         />
+        <AiQuoteLedger workspaceId={workspace.workspaceId} quotes={costQuotes.map(presentQuote)} canEdit={canEdit} />
+          </div>
+        </details>
+        <details id="ai-diagnostics" className={styles.section}>
+          <summary><strong>Advanced usage and routing details</strong><span>Provider inventory, price evidence, analysis cache and capability diagnostics</span></summary>
+          <div className={styles.content}>
         <section className="resource-panel ai-adapter-registry-panel">
           <div className="resource-panel-head">
             <div>
@@ -314,11 +338,6 @@ export default async function AiSettingsPage() {
           </div>
           <p className="ai-selection-summary">Each ready action is matched to a closed server-owned metering profile and its policy-eligible effective rate card. A strict action quote request can persist that exact envelope; previewing or creating it never calls a provider, reserves spend, or authorizes execution.</p>
         </section>
-        <AiQuoteLedger
-          workspaceId={workspace.workspaceId}
-          quotes={costQuotes.map(presentQuote)}
-          canEdit={["owner", "admin", "editor"].includes(workspace.role)}
-        />
         <section className="resource-panel ai-cache-panel">
           <div className="resource-panel-head">
             <div>
@@ -349,6 +368,8 @@ export default async function AiSettingsPage() {
             ))}
           </div>
         </section>
+          </div>
+        </details>
       </div>
     </WorkspaceShell>
   );

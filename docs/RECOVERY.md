@@ -1,5 +1,9 @@
 # Backup and Recovery Runbook
 
+## Release 1.37 AI presentation recovery
+
+Temporary disclosure/input state is browser-local and resets on reload; editor scope changes remount from current policy. Failed database reads must not appear as healthy zero-spend state. Reload current workspace before investigating stale presentation, without resubmitting consequential actions. No migration or cleanup is needed for this UI change; never erase quotes, reservations, approvals, incidents or history to repair layout. Existing API conflict/retry/authority rules remain unchanged. [AI controls reference](AI_CONTROLS_USABILITY.md) separates UI state from persisted financial/provider evidence.
+
 ## Release 1.36 pool saturation and configuration recovery
 
 Retain domain data and investigate database connectivity, per-runtime pool demand and deployment concurrency. Do not erase records or replay writes to recover a connection failure. The factory reuses one lazy client; ordinary driver reconnects occur on later queries. URL/credential/constructor-origin changes require draining requests and replacing the process, not clearing the global during traffic.

@@ -13,6 +13,7 @@ import type {
 } from "@market-me/domain";
 import { AI_MODES } from "@market-me/domain";
 import type { WorkspaceAiPolicyWrite } from "@market-me/database";
+import { aiPolicyChoiceLabel, aiPolicyValues } from "./ai-policy-presentation";
 
 const modeDescriptions: Readonly<Record<AiMode, string>> = {
   recommended: "Balances quality, speed, privacy, and cost for each task.",
@@ -33,6 +34,8 @@ export function AiPolicyForm({
   capResponses,
   canRequestSpendException,
   canApproveSpendException,
+  canEditPolicy,
+  hasSavedPolicy,
   modeIndicators,
 }: {
   workspaceId: string;
@@ -44,20 +47,12 @@ export function AiPolicyForm({
   capResponses: readonly AiCapResponsePlan[];
   canRequestSpendException: boolean;
   canApproveSpendException: boolean;
+  canEditPolicy: boolean;
+  hasSavedPolicy: boolean;
   modeIndicators: Readonly<Record<AiMode, AiModeIndicators>>;
 }) {
   const router = useRouter();
-  const [values, setValues] = useState({
-    mode: policy.mode,
-    maximumPrivacyClass: policy.maximumPrivacyClass,
-    failoverMode: policy.failoverMode,
-    capBehavior: policy.capBehavior,
-    currency: policy.currency,
-    dailyBudget: fromMinor(policy.dailyBudgetMinor),
-    campaignBudget: fromMinor(policy.campaignBudgetMinor),
-    monthlyBudget: fromMinor(policy.monthlyBudgetMinor),
-    alerts: policy.alertThresholdPercentages.join(", "),
-  });
+  const [values, setValues] = useState(() => aiPolicyValues(policy));
   const [pending, setPending] = useState(false);
   const [pendingAlertId, setPendingAlertId] = useState<string>();
   const [pendingSpendExceptionAction, setPendingSpendExceptionAction] = useState<string>();
@@ -65,7 +60,7 @@ export function AiPolicyForm({
   const [selectedDeniedReservationId, setSelectedDeniedReservationId] = useState("");
   const [error, setError] = useState("");
   const selectedIndicators = modeIndicators[values.mode];
-  const monthlyBudgetMinor = toMinor(values.monthlyBudget);
+  const monthlyBudgetMinor = budgetStatus.monthly.capMinor;
   const budgetPercent = monthlyBudgetMinor
     ? Math.min(100, Math.round(((budgetStatus.monthly.spentMinor + budgetStatus.monthly.reservedMinor) / monthlyBudgetMinor) * 100))
     : undefined;
@@ -80,6 +75,7 @@ export function AiPolicyForm({
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!canEditPolicy) return;
     setPending(true);
     setError("");
     const alertThresholdPercentages = values.alerts
@@ -112,6 +108,7 @@ export function AiPolicyForm({
   }
 
   async function acknowledgeAlert(alertId: string) {
+    if (!canEditPolicy) return;
     setPendingAlertId(alertId);
     setError("");
     const response = await fetch(
@@ -183,7 +180,7 @@ export function AiPolicyForm({
 
   return (
     <>
-      <section className="resource-panel ai-mode-panel">
+      <section className="resource-panel ai-mode-panel" id="ai-policy">
         <div className="resource-panel-head">
           <div>
             <p className="eyebrow">Outcome-first controls</p>
@@ -198,6 +195,8 @@ export function AiPolicyForm({
               <button
                 className={`ai-mode-card ${values.mode === mode ? "selected" : ""}`}
                 key={mode}
+                disabled={!canEditPolicy || pending}
+                aria-pressed={values.mode === mode}
                 onClick={() => setValues((current) => ({ ...current, mode }))}
                 type="button"
               >
@@ -212,12 +211,14 @@ export function AiPolicyForm({
           })}
         </div>
         <p className="ai-selection-summary">
-          Current choice: <strong>{label(values.mode)}</strong> · {label(selectedIndicators.quality)} quality ·{" "}
+          {aiPolicyChoiceLabel(values, policy, hasSavedPolicy)}: <strong>{label(values.mode)}</strong> · {label(selectedIndicators.quality)} quality ·{" "}
           {label(selectedIndicators.speed)} speed · {label(selectedIndicators.estimatedCost)} estimated cost
         </p>
+        <p>These indicators describe a preference, not measured quality, verified model availability or a price quote. Choosing a mode does not run AI or authorize spending.</p>
+        {!canEditPolicy && <p>An owner, admin or editor can change the policy. Your current access is read-only for these settings.</p>}
       </section>
 
-      <form className="resource-panel ai-policy-form" onSubmit={submit}>
+      {canEditPolicy ? <form className="resource-panel ai-policy-form" onSubmit={submit}>
         <div className="resource-panel-head">
           <div>
             <p className="eyebrow">Hard routing boundaries</p>
@@ -266,8 +267,21 @@ export function AiPolicyForm({
         <button className="button-primary" disabled={pending} type="submit">
           {pending ? "Saving…" : "Save AI policy"}
         </button>
-        {error && <p className="form-error" role="alert">{error}</p>}
-      </form>
+      </form> : <section className="resource-panel ai-policy-form" aria-label="Saved privacy and budget policy">
+        <h2>Privacy and budget boundaries</h2>
+        <p>{hasSavedPolicy ? "Saved workspace settings" : "Unsaved application defaults"}. Inspect these values without changing policy or granting execution.</p>
+        <dl className="ai-policy-readonly">
+          <dt>Maximum data exposure</dt><dd>{label(policy.maximumPrivacyClass)}</dd>
+          <dt>Provider backup</dt><dd>{label(policy.failoverMode)}</dd>
+          <dt>When a cap is reached</dt><dd>{label(policy.capBehavior)}</dd>
+          <dt>Currency</dt><dd>{policy.currency}</dd>
+          <dt>Daily cap</dt><dd>{policy.dailyBudgetMinor === undefined ? "No cap configured" : money(policy.dailyBudgetMinor, policy.currency)}</dd>
+          <dt>Campaign cap</dt><dd>{policy.campaignBudgetMinor === undefined ? "No cap configured" : money(policy.campaignBudgetMinor, policy.currency)}</dd>
+          <dt>Monthly cap</dt><dd>{policy.monthlyBudgetMinor === undefined ? "No cap configured" : money(policy.monthlyBudgetMinor, policy.currency)}</dd>
+          <dt>Alert thresholds</dt><dd>{policy.alertThresholdPercentages.map(value => `${value}%`).join(", ")}</dd>
+        </dl>
+      </section>}
+      {error && <p className="form-error" role="alert">{error}</p>}
 
       <section className="resource-panel ai-usage-panel">
         <div className="resource-panel-head">
@@ -280,7 +294,7 @@ export function AiPolicyForm({
         </div>
         {monthlyBudgetMinor ? (
           <div className="ai-budget-progress">
-            <div><span>Monthly spend</span><strong>{budgetPercent}% of {money(monthlyBudgetMinor, usage.currency)}</strong></div>
+            <div><span>Recorded spend plus active holds against the loaded monthly cap</span><strong>{budgetPercent}% of {money(monthlyBudgetMinor, budgetStatus.currency)}</strong></div>
             <div className="usage-track"><span style={{ width: `${budgetPercent}%` }} /></div>
           </div>
         ) : (
@@ -364,12 +378,12 @@ export function AiPolicyForm({
                   <strong>{alert.thresholdPercentage}% {budgetScopeLabel(alert.scope)}</strong>
                   <p>{money(alert.committedCostMinor, alert.currency)} committed of {money(alert.capMinor, alert.currency)} · {alertWindowLabel(alert)}</p>
                 </div>
-                {alert.status === "open" ? (
+                {alert.status === "open" && canEditPolicy ? (
                   <button className="button-secondary" disabled={pendingAlertId === alert.id} onClick={() => acknowledgeAlert(alert.id)} type="button">
                     {pendingAlertId === alert.id ? "Acknowledging…" : "Acknowledge"}
                   </button>
                 ) : (
-                  <span className="status-pill status-neutral">Acknowledged</span>
+                  <span className="status-pill status-neutral">{alert.status === "open" ? "Open — a writer can acknowledge" : "Acknowledged"}</span>
                 )}
               </article>
             ))
@@ -444,7 +458,6 @@ function BudgetScope({ title, status, currency }: { title: string; status: AiBud
   const committed = status.spentMinor + status.reservedMinor;
   return <article className="metric-card"><div><p>{title}</p><strong>{money(committed, currency)}</strong><small>{money(status.spentMinor, currency)} settled · {money(status.reservedMinor, currency)} reserved{status.capMinor === undefined ? " · no cap" : ` · ${money(status.availableMinor ?? 0, currency)} available`}</small></div></article>;
 }
-function fromMinor(value?: number): string { return value === undefined ? "" : (value / 100).toFixed(2); }
 function toMinor(value: string): number | undefined { if (!value.trim()) return undefined; const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) : undefined; }
 function money(value: number, currency: string): string { return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value / 100); }
 function label(value: string): string { return value.replaceAll("_", " ").replace(/^./, (character) => character.toUpperCase()); }

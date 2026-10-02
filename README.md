@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.36: Production database pool reuse
+## Release 1.37 candidate: Practical AI controls
+
+AI & Cost now starts with outcome preferences, honest saved/default/unsaved labels and recorded budget boundaries. Technical configuration and diagnostics remain available in four native keyboard-accessible disclosures; safety opens automatically for active issues, stops or an execution window. Readers can inspect policy without writer controls, and editor state resets across workspace/role/policy changes. [Programmer reference](docs/AI_CONTROLS_USABILITY.md) records all props, collections and limits.
+
+Final local acceptance passes 2,944 tests/161 files, static/frontend/native checks, desktop/mobile/keyboard and production scope checks, plus unsigned Windows packaging. All 36 synthetic AI/audit table fingerprints remain unchanged during browser interactions. Cloud verification/publication and Google synchronization are pending. No provider execution, new monetary semantics or whole-product completion is claimed. [Responsive workspace navigation](docs/RESPONSIVE_WORKSPACE_NAVIGATION_PLAN.md) is the next independent increment.
+
+## Previous release 1.36: Production database pool reuse
 
 The server now lazily shares one database/repository bundle per runtime in production as well as development. Repeated access no longer multiplies pools; membership, role and domain queries still read fresh state. The bounded probe changes from 28 clients to one, with concurrent connections capped at ten. [Lifecycle and variable reference](docs/DATABASE_POOL_LIFECYCLE.md) documents process boundaries, configuration restart rules and capacity limits.
 

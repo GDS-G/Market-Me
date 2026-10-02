@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.37 AI page presentation boundary
+
+The authenticated Server Component retains all current actor/workspace reads and assembles the existing panels into four native disclosures. No query is deferred merely because its panel is closed. Execution/attention summary and practical policy/budget controls remain visible; active window/issues/circuits open safety. AiPolicyForm is keyed by current workspace, role and saved policy to reset browser-local state across scope changes. New pure mapping/label helpers contain no repository runtime imports. [AI controls reference](AI_CONTROLS_USABILITY.md) documents topology, props, arrays/maps and authority limits.
+
 ## Release 1.36 server-runtime database lifecycle
 
 `getRepositories()` now always retains its completed bundle in server `globalThis.marketMeDatabase`, including production. Synchronous lazy construction creates one SQL client shared by all 22 repository accessors in that runtime; module reimports reuse it. Import is inert, missing configuration/failed construction does not cache a partial bundle, and query failures do not trigger replacement pools or write replay. Existing server-only boundary, query parameters and transactions remain unchanged.

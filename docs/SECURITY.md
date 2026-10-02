@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.37 AI control affordances
+
+Reader policy/mode/alert controls are disabled or replaced by read-only values, while independent approver spend review remains. These are presentation checks; existing API current-member/role guards remain mandatory. All provider/recovery controls remain explicit behind native disclosures; opening them sends no provider request or approval. Workspace/role/policy key changes reset stale editor state. Static indicators, open execution windows and loaded incident counts are not permission, price, quality or complete readiness evidence. No secret, schema, external call, new authority or monetary reinterpretation is introduced. See [AI controls](AI_CONTROLS_USABILITY.md); exact candidate cloud audits remain pending.
+
 ## Release 1.36 pooling is not authority caching
 
 The existing server-only database bundle is now retained in every environment. No credential, result, membership, actor or page state is sent to the browser or stored in a new cache. Same-workspace authorization and transactions still execute per operation; tests prove role changes, unrelated-actor denial and revocation through the same retained repository. Query errors are not retried as writes or treated as proof of rollback.

@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.37 AI presentation state
+
+No domain or schema change. savedPolicy distinguishes absent persistence from application defaults; hasSavedPolicy and canEditPolicy are required presentation props. aiPolicyValues maps the existing policy into nine editable fields, AiPolicyFormValues types them, frozen AI_POLICY_VALUE_KEYS enumerates them, and aiPolicyChoiceLabel compares every field against a fresh saved/default mapping. The component key scopes transient state to workspace/role/policy. Monthly progress uses the loaded budget snapshot, not edited form values. [Complete field/lifetime reference](AI_CONTROLS_USABILITY.md) includes all retained arrays, maps, pending fields and the pre-existing two-decimal monetary limitation.
+
 ## Release 1.36 shared repository handle
 
 Server `databaseGlobal` aliases `globalThis`; optional `marketMeDatabase` contains the 22 SQL-backed repository handles after complete lazy initialization. Locals `databaseUrl`, `sql` and `repositories` exist only during construction. No user/workspace lookup dictionary, request state, query-result array or authority snapshot is added. Campaign/finalization/publishing retain initialization-time origin options; data and permission checks remain operation-local.

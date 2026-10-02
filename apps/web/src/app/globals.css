@@ -3414,10 +3414,20 @@ kbd {
   text-align: left;
 }
 
-.ai-mode-card:hover,
+.ai-mode-card:hover:not(:disabled),
 .ai-mode-card.selected {
   border-color: var(--violet);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--violet) 16%, transparent);
+}
+
+.ai-mode-card:disabled { cursor: default; }
+.ai-mode-card:focus-visible { outline: 3px solid var(--violet); outline-offset: 3px; }
+.ai-policy-readonly { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 0.65rem 1rem; }
+.ai-policy-readonly dt { color: var(--muted); }
+.ai-policy-readonly dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .ai-policy-readonly { grid-template-columns: minmax(0, 1fr); gap: 0.35rem; }
+  .ai-policy-readonly dd { margin-bottom: 0.65rem; }
 }
 
 .ai-mode-card p,

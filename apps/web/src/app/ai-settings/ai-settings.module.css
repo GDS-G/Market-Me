@@ -1,0 +1,13 @@
+.notice { background: #f6f2fc; border: 1px solid #ded4f3; border-radius: 14px; padding: 18px 24px; margin-bottom: 22px; }
+.notice p { color: #62596f; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+.section { border: 1px solid var(--line); border-radius: 14px; background: white; margin: 22px 0; min-width: 0; }
+.section > summary { padding: 20px 24px; cursor: pointer; color: var(--violet-dark); }
+.section > summary strong { font-size: 18px; }
+.section > summary span { display: block; margin: 7px 0 0 19px; color: #716778; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.section > summary:focus-visible { outline: 3px solid var(--violet); outline-offset: 3px; }
+.content { border-top: 1px solid var(--line); padding: 0 18px 18px; }
+.content > section { margin-bottom: 0; }
+@media (max-width: 640px) {
+  .notice, .section > summary { padding: 17px; }
+  .content { padding: 0 8px 8px; }
+}

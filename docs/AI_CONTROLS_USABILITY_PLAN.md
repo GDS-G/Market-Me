@@ -1,6 +1,6 @@
 # Outcome-first AI controls
 
-Status: next bounded usability increment after 1.36; no implementation is included in this plan. Specification sections 01/19 require ordinary users to choose practical outcomes and see cost/privacy boundaries without starting with provider internals.
+Status: implemented in the 1.37 candidate; final gates remain separate from focused tests/browser checks. [Programmer reference](AI_CONTROLS_USABILITY.md) inventories the delivered controls, state and boundaries. Specification sections 01/19 require ordinary users to choose practical outcomes and see cost/privacy boundaries without starting with provider internals.
 
 ## Observed gap and intended result
 

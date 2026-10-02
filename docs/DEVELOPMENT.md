@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.37 AI controls development
+
+Read [AI controls design/variables](AI_CONTROLS_USABILITY.md) before changing disclosure placement, role props or form remount identity. Own metadata is 1.37.0; dependencies, 120 migrations and user pnpm files are unchanged. Three focused suites add 39 cases; full local acceptance passes 2,944 tests/161 files, all static/frontend/native checks and unsigned packaging. Browser QA opens disclosures and changes only unsaved inputs/existing workspace selection; do not enable execution, connect providers or approve spending as a layout test. Legacy policy hundredths and exponent-bearing quote semantics are not unified by this UI work. [Releases](RELEASES.md) records final gates; mobile shell navigation is a separate next increment.
+
 ## Release 1.36 production pooling development
 
 Read [Pool lifecycle](DATABASE_POOL_LIFECYCLE.md) before changing the server global, configuration or shutdown behavior. Own metadata is 1.36.0; third-party dependencies, user pnpm files and all 120 frozen migrations remain unchanged. Deploy matching web code and restart; URL/credential/constructor-origin changes cannot hot-swap a live pool. Never clear the global under active requests.

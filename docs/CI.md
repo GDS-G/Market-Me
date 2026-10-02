@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.37 candidate checkpoint
+
+Final local gate: **2,944 tests/161 files, no skips**. Split: web 1124/65; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 29/4; ingestion 33/5; media 24/2; workflows 43/3. All 12 typechecks, lint, both frontends, cargo check and three Rust tests pass. Next compile 2.7 s, TypeScript 3.2 s, 104/104 generation 466 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms. Schema remains 120/latest frozen 0120 with clean replay/fixture cleanup.
+
+Focused coverage adds 39 cases across pure nine-field dirty labels, rendered policy role/cost semantics and authenticated page/disclosure/scoping. Local desktop/mobile/keyboard, unsaved-state workspace reset, production authentication/current-role rendering and unsigned Windows packaging pass separately. All 36 synthetic AI/audit table fingerprints remain unchanged. Exact-source cloud feature/main tests/audits and final Google verification are pending; [Releases](RELEASES.md) is the evidence ledger.
+
 ## Release 1.36 verified checkpoint
 
 Final local gate: **2,905 tests/158 files, no skips**. Split: web 1085/62; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 29/4; ingestion 33/5; media 24/2; workflows 43/3. All 12 typechecks, lint, both frontend builds, cargo check and three Rust tests pass. Next compile 2.9 s, TypeScript 2.8 s, 104/104 generation 429 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 136 ms.
