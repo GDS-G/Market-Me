@@ -1,6 +1,6 @@
 # Self-service account display name
 
-Status: next independent increment after1.49. The implementation matrix records user-profile editing as incomplete,and Settings explicitly says it is unavailable. The signed-in account already has a stable ID,email and display_name;OIDC uses the stored name for existing identities. Provide a narrow self-service Market Me display-name editor without changing provider identity,verified email,password,roles or account linking.
+Status: implemented as1.50 with final local4065-test gate and isolated desktop/mobile/production acceptance passing. Exact-source feature/main cloud verification and Google readback remain pending. The design below records the original bounded scope; [ACCOUNT_PROFILE.md](ACCOUNT_PROFILE.md) is the implemented contract and [RELEASES.md](RELEASES.md) the evidence authority. This is a narrow self-service Market Me display-name editor without provider identity,verified email,password,role or account-link changes; broader user-profile requirements remain incomplete.
 
 ## Intended experience
 

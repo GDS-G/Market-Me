@@ -1,5 +1,11 @@
 # Developer Guide
 
+## Release 1.50 account-profile development
+
+Read [Self-service display names](ACCOUNT_PROFILE.md) before changing account hints, Unicode/name limits, row locks, revisions, receipts, error mapping, form-local recovery or authentication reuse. Own metadata1.50.0/schema123 requires forward migrations0122/0123; do not change their applied checksums. The shared repository pool now has27 getters. Development reauthentication must preserve chosen names; do not restore the old display_name overwrite when rolling back UI. No identity/email/permission/provider profile changes are included.
+
+Browser QA initializes market_me_qa_150_profile_v1 once with two synthetic accounts and viewer/analyst workspaces. Compare the post-login baseline across142 domain tables, allowing only the primary account's display_name/profile_revision/updated_at and exact matching receipt/audit records; preserve all139 other tables and every other account/identity field. Session/OIDC bookkeeping is excluded explicitly. Native packages are built but not installed/signed/distributed. User pnpm files remain untouched. [Releases](RELEASES.md) distinguishes initial gates from final acceptance.
+
 ## Release 1.49 asset-inventory development
 
 Read [Asset catalog](ASSET_CATALOG.md) before changing metadata projection,source/parent scope,added-time ordering,exact bigint byte strings or recorded-state labels. Own metadata1.49.0/schema121;no dependency/environment/migration addition. Shared pool26 getters/navigation19 destinations;exact `/assets` is a safe switch root,query/record paths are not. The page reuses existing catalog CSS and native filter tuple identity. QA149 initializes once with65 synthetic assets and disabled intake,then compares post-login141-table/two-projection snapshots. No preview/download/provider or mutation occurs. User pnpm files remain untouched/excluded; [Releases](RELEASES.md) separates all acceptance evidence.

@@ -46,3 +46,5 @@ export * from "./draft-catalog-models";
 export * from "./asset-catalog-models";
 export * from "./asset-catalog-repository";
 export * from "./draft-catalog-repository";
+export * from "./account-profile-models";
+export * from "./account-profile-repository";

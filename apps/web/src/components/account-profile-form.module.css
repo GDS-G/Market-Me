@@ -1,0 +1,3 @@
+.profile :is(input, button, a):focus-visible { outline: 3px solid #7144b8; outline-offset: 3px; }
+.profile :is(input, button) { min-height: 44px; }
+.profile a { display: inline-flex; align-items: center; min-height: 44px; padding: 11px 15px; border: 1px solid #ac94c4; border-radius: 8px; background: #fff; color: #4c3267; }

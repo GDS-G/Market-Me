@@ -3,8 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { getAuthenticatedUser } from "@/server/auth";
 import { getActiveWorkspace } from "@/server/active-workspace";
-import { getWorkspaceManagementRepository } from "@/server/database";
+import { getAccountProfileRepository, getWorkspaceManagementRepository } from "@/server/database";
 import { WorkspaceManagementForm } from "@/components/workspace-management-form";
+import { AccountProfileForm } from "@/components/account-profile-form";
 import styles from "@/components/workspace-management.module.css";
 
 export default async function SettingsPage() {
@@ -14,15 +15,17 @@ export default async function SettingsPage() {
   if (!workspace) redirect("/login");
   const settings = await getWorkspaceManagementRepository().getSettings(workspace.workspaceId, user.id);
   if (!settings) notFound();
+  const profile = await getAccountProfileRepository().getProfile(user.id, user.id);
+  if (!profile || profile.accountId !== user.id) notFound();
   const canManageTeam = ["owner", "admin"].includes(workspace.role);
   return (
-    <WorkspaceShell activePath="/settings" workspaceName={workspace.workspaceName} userName={user.displayName}>
+    <WorkspaceShell activePath="/settings" workspaceName={workspace.workspaceName} userName={profile.displayName}>
       <div className="resource-page">
         <header className="resource-header"><div><p className="eyebrow">Account &amp; workspace</p><h1>Settings</h1><p>Review your current workspace and signed-in account.</p></div></header>
         <section className={`resource-panel ${styles.panel}`}>
           <h2>Current workspace</h2><p>If you belong to multiple workspaces, select one in the sidebar and choose Switch workspace.</p>
-          <div className={styles.summary}><div><strong>{workspace.workspaceName}</strong><p>Your role: {workspace.role}</p></div><Link href="/team" className="button-secondary">{canManageTeam ? "Manage team invitations" : "View team"}</Link></div>
-          <p>Existing member role changes are not available in this interface. {canManageTeam ? "Owners and administrators can manage invitations on the Team page." : "Contact a workspace owner or administrator for access changes."}</p>
+          <div className={styles.summary}><div><strong>{workspace.workspaceName}</strong><p>Your role: {workspace.role}</p></div><Link href="/team" className="button-secondary">{canManageTeam ? "Manage team" : "View team"}</Link></div>
+          <p>{canManageTeam ? "Owners and administrators can manage invitations and reviewed non-owner member-role changes on the Team page." : "Contact a workspace owner or administrator for access changes."} Owner transfer is not available here.</p>
         </section>
         <section className={`resource-panel ${styles.panel}`}><h2>Workspace settings</h2>
           {settings.canRename ? <WorkspaceManagementForm operation="rename" userId={user.id} workspaceId={settings.workspaceId}
@@ -35,9 +38,9 @@ export default async function SettingsPage() {
             : <p>Only an organization owner may create a workspace. Workspace administration alone does not grant that permission.</p>}
         </section>
         <section className={`resource-panel ${styles.panel}`}>
-          <h2>Signed-in account</h2><p>Profile details are supplied by your sign-in provider.</p>
-          <div className={styles.summary}><div><strong>{user.displayName}</strong><p>{user.email}</p></div></div>
-          <p>Account profile editing is not available here. Use your sign-in provider to manage your profile.</p>
+          <h2>Signed-in account</h2><p>Your sign-in identity and your Market Me display name are separate.</p>
+          <div className={styles.summary}><div><strong>{profile.displayName}</strong><p>Sign-in email: {user.email}</p></div></div>
+          <AccountProfileForm profile={profile} />
         </section>
       </div>
     </WorkspaceShell>

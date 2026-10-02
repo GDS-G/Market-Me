@@ -1,5 +1,11 @@
 # Market Me implementation status
 
+## Release 1.50 account display names: locally verified candidate
+
+All authenticated accounts can change their own application label, independent of workspace role. The self-scoped API, revision lock, immutable receipt and account audit prevent foreign/stale hints and lost updates. Browser state retains one original intent in memory, explicitly checks its historical result and never retries automatically. Existing OIDC and development reauthentication preserve the saved name. Email, credentials, membership and provider profiles remain outside this change. [Full programmer reference](ACCOUNT_PROFILE.md) inventories source/contracts/variables/collections and lifetime boundaries.
+
+Final local4065 tests/206 files,44 quality cases,static/frontend/native,unsigned packaging and actual isolated desktop/mobile/production checks pass. Five intentional receipts/audits account for two name changes and three no-ops;139 unrelated tables,other accounts and identity/access fields remain unchanged. Exact feature/main cloud and Google readback are pending. Personal sign-in session controls are the next independent scope; no new input is needed merely to continue. Hosted deployment and whole-product completion are not claimed.
+
 ## Release 1.49 asset inventory: verified and published
 
 Assets adds current-member metadata search,recorded-role filtering,exact totals/byte strings and added-time microsecond pagination without loading original content,private metadata or previews. Stored scan/rights states are not permission or safety decisions. Shared desktop/mobile navigation19 destinations and26 shared-pool getters are covered. [Full programmer reference](ASSET_CATALOG.md) inventories source/contracts/variables/collections and bounds.

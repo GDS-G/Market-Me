@@ -83,7 +83,7 @@ export class MarketMeRepository {
         INSERT INTO app_user (id, email, normalized_email, display_name)
         VALUES (${userId}, ${input.email.trim()}, ${normalizedEmail}, ${input.displayName.trim()})
         ON CONFLICT (normalized_email) DO UPDATE
-        SET display_name = EXCLUDED.display_name, updated_at = now()
+        SET updated_at = now()
         RETURNING id, email, display_name
       `;
       const user = users[0];

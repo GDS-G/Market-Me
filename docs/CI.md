@@ -1,5 +1,11 @@
 # Cloud continuous integration
 
+## Release 1.50 local checkpoint; exact-source cloud pending
+
+Final local gate passes **4,065 tests/206 files without skips**,44/44 quality cases,twelve typechecks,lint,both frontends,cargo check and three Rust tests. Split:web1723/88,workflow-worker68/5,protocol4/1,connectors166/10,database1680/74,domain157/7,generation121/8,ingestion79/8,media24/2,workflows43/3. New coverage adds66 database/model and79 net web cases. Schema123 includes additive migrations0122/0123; no dependency is added.
+
+Next compile3.3s/TypeScript8.6s/112-page generation472ms;companion135ms/201.34kB JavaScript64.02kB gzip;native check0.35s/test build0.31s. This final-source gate supersedes the earlier4059 and4060 gates, which preceded focus/Unicode hardening. Native packaging and actual desktop/mobile/production acceptance pass separately; [Releases](RELEASES.md) records the exact evidence. Independent feature/main cloud gates and Google readback remain pending, not inferred from local success.
+
 ## Release 1.49 verified checkpoint
 
 Exact runtime `c7bceea1b2ad98c4b8ff6d52d9eedafdf5f169cd` passes [feature CI36977652932](https://github.com/GDS-G/Market-Me/actions/runs/36977652932) in4:29 and [main CI36978320937](https://github.com/GDS-G/Market-Me/actions/runs/36978320937) in3:37. Each locked install adds609/audits622 packages,applies121 migrations,reproduces3920 tests/202 files and44 quality cases,and passes static/frontend/native-dependency smoke and both zero-vulnerability audits. Next compile13.7/11.2s,111-page generation477/385ms,companion169/134ms respectively. Final Google readback verifies43 paragraphs and preserves all30 tabs,prior bodies/styles and list definitions. Developing account profile code is excluded from this checkpoint.

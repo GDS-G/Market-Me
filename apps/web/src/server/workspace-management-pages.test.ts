@@ -1,11 +1,12 @@
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ user: vi.fn(), workspace: vi.fn(), getSettings: vi.fn(), getCreationOrganization: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: vi.fn(), workspace: vi.fn(), getSettings: vi.fn(), getCreationOrganization: vi.fn(), getProfile: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); }, notFound: () => { throw new Error("not-found"); } }));
 vi.mock("@/server/auth", () => ({ getAuthenticatedUser: mocks.user }));
 vi.mock("@/server/active-workspace", () => ({ getActiveWorkspace: mocks.workspace }));
-vi.mock("@/server/database", () => ({ getWorkspaceManagementRepository: () => mocks }));
+vi.mock("@/server/database", () => ({ getWorkspaceManagementRepository: () => mocks, getAccountProfileRepository: () => mocks }));
+vi.mock("@/components/account-profile-form", () => ({ AccountProfileForm: (props: unknown) => createElement("form", { "data-profile": JSON.stringify(props) }, "Account profile editor") }));
 vi.mock("@/components/workspace-shell", () => ({ WorkspaceShell: ({ children }: { children: ReactNode }) => createElement("main", {}, children) }));
 vi.mock("@/components/workspace-management-form", () => ({ WorkspaceManagementForm: (props: unknown) => createElement("form", { "data-workspace": JSON.stringify(props) }, "Workspace editor") }));
 vi.mock("@/components/workspace-management.module.css", () => ({ default: {} }));
@@ -18,8 +19,22 @@ beforeEach(() => {
   vi.resetAllMocks(); mocks.user.mockResolvedValue({ id: userId, displayName: "Synthetic QA", email: "qa@market-me.local" });
   mocks.workspace.mockResolvedValue({ workspaceId, workspaceName: "QA workspace", role: "owner" });
   mocks.getSettings.mockResolvedValue(settings); mocks.getCreationOrganization.mockResolvedValue({ id: organizationId, name: "QA organization" });
+  mocks.getProfile.mockResolvedValue({ accountId: userId, displayName: "Chosen profile", revision: 2 });
 });
 describe("workspace settings and explicit organization creation pages", () => {
+  it.each(["owner", "admin", "editor", "approver", "analyst", "viewer"])("shows the own account editor for workspace %s without granting workspace management", async role => {
+    mocks.workspace.mockResolvedValue({ workspaceId, workspaceName: "QA workspace", role });
+    mocks.getSettings.mockResolvedValue({ ...settings, canRename: role === "owner" || role === "admin", canCreateWorkspace: false });
+    const html = renderToStaticMarkup(await Settings());
+    expect(mocks.getProfile).toHaveBeenCalledWith(userId, userId); expect(html).toContain("Account profile editor");
+    expect(html).toContain("Chosen profile"); expect(html).toContain("Sign-in email: qa@market-me.local");
+    expect(html).not.toContain("Account profile editing is not available"); expect(html).not.toContain("Existing member role changes are not available");
+    if (role === "owner" || role === "admin") expect(html).toContain("reviewed non-owner member-role changes");
+  });
+  it("fails closed on missing or mismatched self profile data", async () => {
+    mocks.getProfile.mockResolvedValue(undefined); await expect(Settings()).rejects.toThrow("not-found");
+    mocks.getProfile.mockResolvedValue({ accountId: workspaceId, displayName: "Other account", revision: 2 }); await expect(Settings()).rejects.toThrow("not-found");
+  });
   it("requires signed-in membership before rendering settings", async () => {
     mocks.user.mockResolvedValue(undefined); await expect(Settings()).rejects.toThrow("redirect:/login"); await expect(page()).rejects.toThrow("redirect:/login");
     expect(mocks.getSettings).not.toHaveBeenCalled(); expect(mocks.getCreationOrganization).not.toHaveBeenCalled();
