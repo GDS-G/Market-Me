@@ -35,7 +35,9 @@ type CampaignRow = Omit<StoredCampaign, "currentVersion" | "draftVersion"> & {
 };
 type VersionRow = Omit<CampaignVersion, "steps" | "audienceProfileVersionIds">;
 
+const campaignValidationErrorBrand = Symbol.for("@market-me/database/CampaignValidationError/v1");
 export class CampaignValidationError extends Error {
+  readonly [campaignValidationErrorBrand] = true;
   constructor(
     readonly issues: readonly {
       code: string;
@@ -46,6 +48,13 @@ export class CampaignValidationError extends Error {
     super(issues.map((issue) => issue.message).join(" "));
     this.name = "CampaignValidationError";
   }
+}
+
+/** Shared repository bundles may outlive a route module during development reloads. */
+export function isCampaignValidationError(value: unknown): value is CampaignValidationError {
+  if (!value || typeof value !== "object" || !(campaignValidationErrorBrand in value)
+    || value[campaignValidationErrorBrand] !== true || !("issues" in value) || !Array.isArray(value.issues)) return false;
+  return value.issues.every(issue => issue && typeof issue === "object" && typeof issue.code === "string" && typeof issue.message === "string");
 }
 
 /** No execution was admitted; callers may persist expiry or wait using this exact evidence. */
@@ -345,14 +354,24 @@ export class CampaignRepository {
     return true;
   }
 
+  /** Trusted internal creation only. HTTP callers must use CampaignActivationRepository
+   * for current grant authorization and durable request/receipt correlation. */
   async activateCampaign(input: {
     workspaceId: string;
     campaignId: string;
     actorUserId: string;
     expectedVersionId?: string;
   }): Promise<StoredCampaignInstance | undefined> {
-    const instanceId = randomUUID();
-    const created = await this.sql.begin(async (transaction) => {
+    const created = await this.sql.begin(transaction => this.activateCampaignInTransaction(transaction, input));
+    return created ? this.getCampaignInstance(input.workspaceId, created.id) : undefined;
+  }
+
+  /** Internal transaction primitive: caller owns authority, request identity and commit.
+   * The existing proof/route/admission checks remain here so wrappers cannot diverge. */
+  async activateCampaignInTransaction(transaction: TransactionSql, input: {
+    workspaceId: string; campaignId: string; actorUserId: string; expectedVersionId?: string;
+  }): Promise<{ id: string; versionId: string; status: "scheduled" | "awaiting_approval"; createdAt: Date | string } | undefined> {
+      const instanceId = randomUUID();
       try { await lockWorkspaceExecutionAdmission(transaction, input.workspaceId); }
       catch (error) {
         if (isWorkspaceExecutionControlError(error)) throw new CampaignValidationError([{ code: error.code, message: error.message }]);
@@ -377,7 +396,7 @@ export class CampaignRepository {
         if (input.expectedVersionId && (await transaction<{ id: string }[]>`
           SELECT id FROM campaign WHERE id = ${input.campaignId} AND workspace_id = ${input.workspaceId} FOR UPDATE
         `).length) throw new CampaignValidationError([{ code: "campaign_version_changed", message: "The reviewed Campaign version is no longer published. Reload before activation." }]);
-        return false;
+        return undefined;
       }
       if (input.expectedVersionId && input.expectedVersionId !== rows[0].versionId) {
         throw new CampaignValidationError([{ code: "campaign_version_changed", message: "The reviewed Campaign version changed. Reload before activation." }]);
@@ -572,9 +591,10 @@ export class CampaignRepository {
         code: "execution_schedule_expired", stepId: step.stepKey,
         message: "A preferred request-start window has already closed. Publish a newly reviewed plan before activation.",
       })));
-      await transaction`
+      const [created] = await transaction<{ createdAt: Date | string }[]>`
         INSERT INTO campaign_instance (id, workspace_id, campaign_id, campaign_version_id, status, requested_by)
         VALUES (${instanceId}, ${input.workspaceId}, ${input.campaignId}, ${rows[0].versionId}, ${status}, ${input.actorUserId})
+        RETURNING created_at
       `;
       const steps = await transaction<
         { id: string; stepKey: string; inputs: Record<string, unknown> }[]
@@ -591,11 +611,7 @@ export class CampaignRepository {
         VALUES (${randomUUID()}, ${input.workspaceId}, ${instanceId}, 'start', ${`campaign:${instanceId}:start`}, ${input.actorUserId})
       `;
       await transaction`UPDATE campaign SET status = ${status}, updated_at = now() WHERE id = ${input.campaignId}`;
-      return true;
-    });
-    return created
-      ? this.getCampaignInstance(input.workspaceId, instanceId)
-      : undefined;
+      return { id: instanceId, versionId: rows[0].versionId, status, createdAt: created!.createdAt };
   }
 
   async listCampaignInstances(

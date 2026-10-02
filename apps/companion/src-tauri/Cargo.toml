@@ -1,6 +1,6 @@
 [package]
 name = "market-me-companion"
-version = "1.53.0"
+version = "1.54.0"
 description = "Secure local execution companion for Market Me"
 authors = ["Market Me"]
 edition = "2021"

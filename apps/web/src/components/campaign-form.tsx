@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CAMPAIGN_METRIC_TYPES,
@@ -199,12 +200,12 @@ export function CampaignForm({
     router.refresh();
     return true;
   }
-  async function action(kind: "publish" | "activate") {
-    if (!campaign || (kind === "publish" && !(await save()))) return;
+  async function publish() {
+    if (!campaign || !(await save())) return;
     setPending(true);
     setError("");
     setMessage("");
-    const response = await fetch(`/api/v1/campaigns/${campaign.id}/${kind}`, {
+    const response = await fetch(`/api/v1/campaigns/${campaign.id}/publish`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ workspaceId }),
@@ -212,12 +213,10 @@ export function CampaignForm({
     const payload = await response.json().catch(() => ({}));
     setPending(false);
     if (!response.ok)
-      setError(payload?.error?.message ?? `Could not ${kind} campaign.`);
+      setError(payload?.error?.message ?? "Could not publish campaign.");
     else
       setMessage(
-        kind === "publish"
-          ? `Published version ${payload.data.currentVersion.versionNumber}.`
-          : "The currently published campaign version was queued for the durable workflow worker. Unsaved draft edits were not activated.",
+        `Published version ${payload.data.currentVersion.versionNumber}.`,
       );
     router.refresh();
   }
@@ -832,20 +831,19 @@ export function CampaignForm({
             className="button-secondary"
             type="button"
             disabled={pending}
-            onClick={() => action("publish")}
+            onClick={() => publish()}
           >
             Publish version
           </button>
         )}
         {campaign?.currentVersion && (
-          <button
+          <Link
             className="button-primary"
-            type="button"
-            disabled={pending}
-            onClick={() => action("activate")}
+            prefetch={false}
+            href={`/campaigns/${campaign.id}/activate?${new URLSearchParams({ workspaceId, expectedVersionId: campaign.currentVersion.id })}`}
           >
-            Activate campaign
-          </button>
+            Review published-version activation
+          </Link>
         )}
         {message && <p className="form-success">{message}</p>}
         {error && (

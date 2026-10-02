@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.54 activation uncertainty boundary
+
+New activation requires current workspace writer membership plus exact version/grant hints; own-history lookup/closure requires current membership but may recover after downgrade. Revocation, foreign actors, cross-tenant identity and conflicting reused keys fail closed. Bounded strict JSON/exact origin, private response headers and fixed error messages protect both POSTs. An absent GET result never permits a replacement: a separately confirmed closure must serialize against in-flight acceptance. [Full reference](CAMPAIGN_ACTIVATION_RECOVERY.md) documents SQL exclusion/immutability, trusted legacy-call limits, tab storage and why closing a request cannot cancel an accepted run. Release verification remains distinct from these implemented boundaries.
+
 ## Release 1.53 workspace admission fence
 
 Current owner/admin membership under lock, exact configured mutation origin, strict bounded UTF-8 JSON, independent request normalization, expected revision/incarnation and creator-private receipt recovery protect the execution control. New publishing, companion and AI admissions take a shared database fence; pause/reopen requires the conflicting exclusive lock. SQL guards also reject older direct admission writers. Held steps cannot be manually completed, old reopening replay cannot undo a newer pause, and reopening never enables other stopped controls. Already-admitted operations, truthful reconciliation/settlement and diagnostic/operator traffic remain explicitly outside cancellation guarantees. [Full boundary and rollout reference](WORKSPACE_EXECUTION_PAUSE.md) separates implementation from verified acceptance and from deployment-wide isolation.

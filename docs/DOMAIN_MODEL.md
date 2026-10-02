@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.54 exact activation intent and terminal history
+
+The five-field canonical `CampaignActivationRequest`, immutable accepted receipt/closure union, bounded member preview, fixed limits/status tuple and branded errors are documented in [Activation recovery](CAMPAIGN_ACTIVATION_RECOVERY.md). Migrations0130/0131 add typed immutable history and exact request-key serialization; ordinary run progress is separate. Browser scope is user/workspace/campaign; schemaVersion1 storage contains only exact intent, not authority. Hydration, restored storage, review/confirmation, synchronous retained intent, operation gate and post-commit focus restoration have explicit lifetimes. No process-global actor/result/permission cache is added.
+
 ## Release 1.53 execution state, receipts and holds
 
 The new execution state/receipt tables and `execution_held` campaign-step state are introduced by migrations0127–0129. Frozen state/limit tuples, the exact six-field request, minimized current-member snapshot, creator-private historical receipt, branded errors, SQL timestamps/guards, workflow-local maps/counters and browser-scoped refs/gate are inventoried in [Workspace execution pause](WORKSPACE_EXECUTION_PAUSE.md). Revision and active-member incarnation prevent stale changes; receipts never substitute for current state. No new process-global actor, permission, intent or result cache is introduced.

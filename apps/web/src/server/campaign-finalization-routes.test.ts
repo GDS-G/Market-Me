@@ -12,7 +12,6 @@ vi.mock("@/server/campaign-version-action-api", () => import("./campaign-version
 import { GET, POST } from "../app/api/v1/campaign-finalizations/route";
 import { GET as SELECT } from "../app/api/v1/campaign-preparations/[id]/preview-selection/route";
 import { POST as PUBLISH } from "../app/api/v1/campaigns/[id]/publish/route";
-import { POST as ACTIVATE } from "../app/api/v1/campaigns/[id]/activate/route";
 
 const uuid = (n: number) => `${String(n).repeat(8)}-${String(n).repeat(4)}-4${String(n).repeat(3)}-8${String(n).repeat(3)}-${String(n).repeat(12)}`;
 const workspaceId = uuid(1), userId = uuid(2), idempotencyKey = uuid(3), id = uuid(4), preparationId = uuid(5), campaignId = uuid(6);
@@ -112,7 +111,8 @@ describe("read-only finalization and exact preview lookups", () => {
   });
 });
 
-describe.each([["publish", PUBLISH], ["activate", ACTIVATE]] as const)("pinned %s action", (_name, action) => {
+// Activation has a separate durable five-field request boundary and dedicated tests.
+describe.each([["publish", PUBLISH]] as const)("pinned %s action", (_name, action) => {
   it("forwards one expected version and never saves a campaign draft first", async () => {
     const response = await action(post({ workspaceId, expectedVersionId: id }), context(campaignId));
     expect(response.status).toBe(action === PUBLISH ? 200 : 202);

@@ -1,16 +1,27 @@
-import { requireWorkspaceAccess } from "@/server/auth";
-import { getCampaignRepository } from "@/server/database";
-import { finalizationUuid, finalizationValidation } from "@/server/campaign-finalization-api";
-import { campaignVersionAction, campaignVersionActionError, campaignVersionOriginAllowed } from "@/server/campaign-version-action-api";
+import { CampaignActivationError, campaignActivationUuid, normalizeCampaignActivationRequest } from "@market-me/database";
+import { requireAuthenticatedUser } from "@/server/auth";
+import { getCampaignActivationRepository } from "@/server/database";
+import { activationApiError, activationResponse, readActivationJson, requireActivationOrigin } from "@/server/campaign-activation-api";
 
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
-  if (!campaignVersionOriginAllowed(request)) return Response.json({ error: { code: "origin_forbidden", message: "Activate campaign versions from this application only." } }, { status: 403 });
+type Context = { params: Promise<{ id: string }> };
+export async function POST(request: Request, context: Context) {
   try {
-    const body = campaignVersionAction.safeParse(await request.json().catch(() => undefined));
-    const id = finalizationUuid.safeParse((await context.params).id);
-    if (!body.success || !id.success) return finalizationValidation("Choose a valid campaign, workspace, and expected version.");
-    const { user, workspace } = await requireWorkspaceAccess(body.data.workspaceId, "write");
-    const data = await getCampaignRepository().activateCampaign({ workspaceId: workspace.workspaceId, campaignId: id.data, actorUserId: user.id, expectedVersionId: body.data.expectedVersionId });
-    return data ? Response.json({ data }, { status: 202 }) : Response.json({ error: { code: "not_found", message: "Published campaign not found." } }, { status: 404 });
-  } catch (error) { return campaignVersionActionError(error); }
+    requireActivationOrigin(request);
+    const campaignId = campaignActivationUuid((await context.params).id), input = normalizeCampaignActivationRequest(await readActivationJson(request));
+    if (input.campaignId !== campaignId) throw new CampaignActivationError("invalid_input", "Campaign mismatch.");
+    const user = await requireAuthenticatedUser(), result = await getCampaignActivationRepository().activate(input, user.id);
+    return activationResponse({ data: result.receipt, meta: { replayed: result.replayed } }, result.replayed ? 200 : 202);
+  } catch (error) { return activationApiError(error); }
+}
+export async function GET(request: Request, context: Context) {
+  try {
+    const campaignId = campaignActivationUuid((await context.params).id), query = new URL(request.url).searchParams;
+    if (query.getAll("workspaceId").length !== 1 || query.getAll("requestId").length > 1
+      || [...query.keys()].some(k => k !== "workspaceId" && k !== "requestId")) throw new CampaignActivationError("invalid_input", "Unexpected query.");
+    const workspaceId = campaignActivationUuid(query.get("workspaceId")), requestId = query.has("requestId") ? campaignActivationUuid(query.get("requestId")) : undefined;
+    const user = await requireAuthenticatedUser(), repository = getCampaignActivationRepository();
+    const data = requestId ? await repository.getOutcome(workspaceId, campaignId, requestId, user.id) : await repository.preview(workspaceId, campaignId, user.id);
+    if (!data) throw new CampaignActivationError("not_found", "No result observed.");
+    return activationResponse({ data });
+  } catch (error) { return activationApiError(error); }
 }

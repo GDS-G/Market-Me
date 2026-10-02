@@ -1,6 +1,7 @@
 import "server-only";
 import {
   CampaignRepository,
+  CampaignActivationRepository,
   CampaignPreparationRepository,
   CampaignFinalizationRepository,
   ContentPackageReviewRepository,
@@ -38,6 +39,7 @@ const databaseGlobal = globalThis as typeof globalThis & {
   marketMeDatabase?: {
     core: MarketMeRepository;
     campaigns: CampaignRepository;
+    campaignActivations: CampaignActivationRepository;
     preparations: CampaignPreparationRepository;
     finalizations: CampaignFinalizationRepository;
     packageReviews: ContentPackageReviewRepository;
@@ -198,9 +200,14 @@ export function getWorkspaceExecutionControlRepository(): WorkspaceExecutionCont
   return getRepositories().workspaceExecutionControl;
 }
 
+export function getCampaignActivationRepository(): CampaignActivationRepository {
+  return getRepositories().campaignActivations;
+}
+
 function getRepositories(): {
   core: MarketMeRepository;
   campaigns: CampaignRepository;
+  campaignActivations: CampaignActivationRepository;
   preparations: CampaignPreparationRepository;
   finalizations: CampaignFinalizationRepository;
   packageReviews: ContentPackageReviewRepository;
@@ -237,6 +244,7 @@ function getRepositories(): {
   const repositories = {
     core: new MarketMeRepository(sql),
     campaigns: new CampaignRepository(sql, { appBaseUrl: process.env.APP_BASE_URL }),
+    campaignActivations: new CampaignActivationRepository(sql, { appBaseUrl: process.env.APP_BASE_URL }),
     preparations: new CampaignPreparationRepository(sql),
     finalizations: new CampaignFinalizationRepository(sql, { appBaseUrl: process.env.APP_BASE_URL }),
     packageReviews: new ContentPackageReviewRepository(sql),

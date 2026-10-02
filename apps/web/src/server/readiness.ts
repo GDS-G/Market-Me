@@ -1,8 +1,8 @@
 import { createDatabaseClient, OperationsRepository } from "@market-me/database";
 import { objectStoreConfigurationFromEnvironment } from "@market-me/media";
 
-export const EXPECTED_DATABASE_MIGRATION = "0129_campaign_execution_hold.sql";
-export const EXPECTED_DATABASE_MIGRATION_COUNT = 129;
+export const EXPECTED_DATABASE_MIGRATION = "0131_campaign_activation_closure.sql";
+export const EXPECTED_DATABASE_MIGRATION_COUNT = 131;
 
 export const READINESS_CHECK_NAMES = [
   "database_configuration",

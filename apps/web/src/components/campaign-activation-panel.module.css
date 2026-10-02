@@ -1,0 +1,14 @@
+.panel { display: grid; gap: 1rem; min-width: 0; }
+.card { display: grid; gap: .85rem; padding: 1.25rem; min-width: 0; border: 1px solid var(--line, #d7dce6); border-radius: 14px; background: var(--surface, #fff); overflow-wrap: anywhere; }
+.panel h2, .panel h3, .panel p { margin: 0; }
+.panel p, .panel li { line-height: 1.6; }
+.panel ul { margin: 0; padding-left: 1.3rem; }
+.actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
+.panel button, .actions a { box-sizing: border-box; min-height: 44px; padding: .7rem 1rem; border: 1px solid #bdc8dc; border-radius: 8px; background: #fff; color: #18263e; cursor: pointer; font: inherit; white-space: normal; }
+.panel button.primary { background: #3148c2; border-color: #3148c2; color: white; }
+.panel button:disabled { opacity: .6; cursor: not-allowed; }
+.panel button:focus-visible, .panel input:focus-visible, .panel a:focus-visible, .panel h3:focus { outline: 3px solid #586deb; outline-offset: 3px; }
+.check { display: flex; align-items: flex-start; gap: .7rem; line-height: 1.6; }
+.check input { width: 20px; height: 20px; flex: 0 0 20px; margin-top: .25rem; }
+.identity { font-family: ui-monospace, monospace; font-size: .88rem; overflow-wrap: anywhere; }
+@media(max-width:600px) { .card { padding: 1rem; } .actions { align-items: stretch; flex-direction: column; } .actions button, .actions a { width: 100%; } }

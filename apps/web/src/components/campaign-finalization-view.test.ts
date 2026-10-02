@@ -52,7 +52,9 @@ describe("protected finalization result controls", () => {
   });
   it("requires separate explicit confirmation before activating an already published exact version", () => {
     const html = renderToStaticMarkup(createElement(CampaignFinalizationActions, { workspaceId: receipt.workspaceId, campaignId: receipt.campaignId, versionId: receipt.finalizedVersionId, state: "published" }));
-    expect(html).toContain("queue one workflow run"); expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Activate this version/);
+    expect(html).toContain("queue one workflow run"); expect(html).toContain("Review activation and recovery");
+    expect(html).toContain(`/campaigns/${receipt.campaignId}/activate?workspaceId=${receipt.workspaceId}&amp;expectedVersionId=${receipt.finalizedVersionId}`);
+    expect(html).not.toContain("<button");
     expect(html).not.toContain("Publish this version"); expect(html).toContain("still requires approval");
   });
   it("shows existing exact-version runs instead of another activation action", () => {

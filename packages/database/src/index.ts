@@ -54,3 +54,5 @@ export * from "./account-session-models";
 export * from "./account-session-repository";
 export * from "./workspace-execution-control-models";
 export * from "./workspace-execution-control-repository";
+export * from "./campaign-activation-models";
+export * from "./campaign-activation-repository";

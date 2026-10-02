@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.54 activation recovery candidate
+
+One exact user request now reaches `CampaignActivationRepository`, not the trusted legacy activation wrapper. Current membership, request advisory serialization, execution admission and the existing campaign/proof locks protect one atomic instance/steps/start-command/receipt/audit commit. An explicit closure competes on the same key and either returns original acceptance or prevents future acceptance of that request. Shared guided/advanced review retains tab-local correlation before submission; reload only restores, never resends. The shared pool has31 repository getters. [Complete design](CAMPAIGN_ACTIVATION_RECOVERY.md) separates observations, authority, terminal history, transaction timestamps, UI state and rollout from pending release acceptance.
+
 ## Release 1.53 verified workspace execution pause
 
 A durable workspace control row is the shared publication/AI/companion admission fence; current administrators change it through exclusive-lock, revision/grant-bound transactions with immutable receipts and atomic audit. Early router reads avoid unnecessary preflight, but do not replace the transaction fence. Distinct held workflow results preserve prior outcomes, pause individual campaigns and require explicit resume. Actual frozen 1.19 and 1.52 histories replay on the additive compatibility paths. [Full design](WORKSPACE_EXECUTION_PAUSE.md) documents lock order, adapter coverage, excluded operational traffic, variables and rollout. The shared pool has30 repository getters. Acceptance remains separate from implementation.
