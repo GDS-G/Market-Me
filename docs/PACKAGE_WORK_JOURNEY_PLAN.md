@@ -1,6 +1,6 @@
 # Package work journey
 
-Status: implemented in the 1.35 candidate, with local acceptance in progress. [Programmer reference](PACKAGE_WORK_JOURNEY.md) records the delivered contract; [release evidence](RELEASES.md) distinguishes local, cloud and publication gates. This follows specification sections 01/23: a person should be able to trace one package through actual prepared work, not infer a journey from unrelated workspace totals.
+Status: implemented and accepted in public release 1.35. [Programmer reference](PACKAGE_WORK_JOURNEY.md) records the delivered contract; [release evidence](RELEASES.md) distinguishes local, exact feature/main cloud, publication and documentation gates. This follows specification sections 01/23: a person should be able to trace one package through actual prepared work, not infer a journey from unrelated workspace totals.
 
 ## User outcome
 

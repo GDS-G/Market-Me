@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Current candidate: Release 1.35 package-specific Related work
+## Current verified source: Release 1.35 package-specific Related work
 
 Exact saved preparation lineage now connects one package to captured/current drafts, exact finalization and recent finalized-version runs. This is a read-only navigation improvement with current membership checks, bounded history, explicit historical/unavailable/empty states and no new action authority. [Programmer reference](PACKAGE_WORK_JOURNEY.md) inventories every DTO, helper, collection, join and lifetime.
 
-Final local acceptance passes 2,892 tests/156 files, all static/frontend/native checks, unsigned packaging, synthetic desktop/mobile/keyboard/refresh and production authentication. All 120 migrations are unchanged. Exact cloud CI, publication and Google development-tab synchronization are pending; the broader product is not complete or deployed. Production repository-pool lifecycle is an identified follow-up, not silently changed in this increment. No user input is needed merely to continue development.
+Reviewed runtime `48dfce4077129e940aa18f33fc6a340ce94d5ee6` is public on main after exact feature/main runs 36946006898/36946495808 pass 2,892 tests/156 files, 120 migrations, static/build checks and both clean audits. Local native/package, synthetic desktop/mobile/keyboard/navigation/refresh, production authentication and final Google readback pass separately. The broader product is not complete or deployed. The [production repository-pool correction](DATABASE_POOL_LIFECYCLE_PLAN.md) is underway independently; its changes/tests are not included in 1.35 evidence. No user input is needed merely to continue development.
 
 ## Previous verified source: Release 1.34 read-only Start here guide
 

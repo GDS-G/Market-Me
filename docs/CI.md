@@ -1,10 +1,12 @@
 # Cloud continuous integration
 
-## Release 1.35 candidate checkpoint
+## Verified Release 1.35 checkpoint
 
 Final local gate: **2,892 tests/156 files, no skips**. Split: web 1072/60; workflow-worker 68/5; companion protocol 4/1; connectors 166/10; database 1325/60; domain 128/6; generation 29/4; ingestion 33/5; media 24/2; workflows 43/3. All 12 typechecks, lint, web/companion builds, cargo check and three Rust tests pass. The full gate was repeated after mobile progressive-disclosure refinement: Next compile 2.5 s, TypeScript 11.6 s, 104/104 generation 422 ms; companion 18 modules, 201.34 kB JavaScript/64.02 kB gzip, 133 ms.
 
-Fresh QA applies 120 migrations; replay applies none/skips all 120. Final local CI has zero organizations/120 migration entries. Browser/production/unsigned-package evidence is separate and recorded in [Releases](RELEASES.md). Exact-source cloud feature/main jobs and audits are pending for this candidate. Prior documentation-only ac3e086 runs 36944607195/36944607171 pass but do not verify 1.35 runtime.
+Fresh QA applies 120 migrations; replay applies none/skips all 120. Final local CI has zero organizations/120 migration entries. Browser/production/unsigned-package/final Google evidence is separate and recorded in [Releases](RELEASES.md).
+
+Exact runtime `48dfce4077129e940aa18f33fc6a340ce94d5ee6` passes [feature run 36946006898](https://github.com/GDS-G/Market-Me/actions/runs/36946006898) in 4:35 and [main run 36946495808](https://github.com/GDS-G/Market-Me/actions/runs/36946495808) in 3:33. Main is a non-forced fast-forward of the reviewed commit. Both clean Linux jobs install 609 packages/audit 622, apply all 120 migrations, reproduce the complete 2,892-test/156-file split, pass static/frontend/native-dependency checks and cleanup, and report zero vulnerabilities in both production/full audits. Next compile is 15.6/11.5 seconds, with 104/104 generation in 559/429 ms. No dependency upgrade, test skip or audit suppression is introduced. Logs are ignored qa-release-135-cloud-feature.log and qa-release-135-cloud-main.log. Subsequent pool-lifecycle tests are excluded from these totals; prior documentation-only ac3e086 runs 36944607195/36944607171 do not verify this runtime.
 
 ## Verified Release 1.34 checkpoint
 

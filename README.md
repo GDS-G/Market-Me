@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.35 candidate: Package-specific Related work
+## Release 1.35: Package-specific Related work
 
 Each Content Package now links to its recorded preparations, captured/current draft versions, exact finalization and recent runs of that finalized plan. The page is read-only, workspace-scoped and explicit about historical revisions and missing records. It does not approve, activate, retry or send. [Design and variable reference](docs/PACKAGE_WORK_JOURNEY.md) documents the complete contract.
 
-Final local acceptance passes 2,892 tests/156 files, static/build/native checks, unsigned Windows packaging, synthetic desktop/mobile/keyboard/navigation/refresh and production authentication. No migration is added; all 120 remain unchanged. Cloud verification, publication and Google documentation synchronization are pending for this candidate. This is not production deployment or whole-product completion; see [Releases](docs/RELEASES.md).
+Reviewed runtime `48dfce4077129e940aa18f33fc6a340ce94d5ee6` is public on main. Exact [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36946006898) and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36946495808) pass 2,892 tests/156 files, 120 migrations, static/build checks and both clean audits. Local native/package, synthetic desktop/mobile/keyboard/navigation/refresh, production authentication and final Google development-tab verification pass separately. This is not production deployment or whole-product completion. The [production pool lifecycle correction](docs/DATABASE_POOL_LIFECYCLE_PLAN.md) is the next independent increment; see [Releases](docs/RELEASES.md).
 
 ## Previous release 1.34: Start here workflow guide
 
