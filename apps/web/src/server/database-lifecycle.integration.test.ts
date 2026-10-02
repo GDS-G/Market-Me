@@ -61,5 +61,6 @@ describe.skipIf(!url)("live production database pool reuse", () => {
     vi.resetModules(); const reimported = await import("./database");
     expect(reimported.getRepository()).toBe(databaseModule.getRepository());
     expect(reimported.getPackageWorkRepository()).toBe(databaseModule.getPackageWorkRepository());
+    expect(reimported.getWorkspaceAnalyticsRepository()).toBe(databaseModule.getWorkspaceAnalyticsRepository());
   });
 });

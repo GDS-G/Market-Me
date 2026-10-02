@@ -2,7 +2,13 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.44: Preview campaigns and draft copy before saving
+## Release 1.45: Workspace Analytics
+
+Analytics now shows recorded campaign activity, source/currency-separated events and current provider totals in a read-only workspace view. Campaign filtering, exact decimal strings, report observation times and honest missing-data states keep operational activity distinct from business outcomes. [Programmer reference](docs/WORKSPACE_ANALYTICS.md) covers every field, helper, query and reporting limit.
+
+Local acceptance passes 3,563 tests/189 files, 44 quality cases, twelve typechecks, lint, frontend/native checks, unsigned packaging and isolated browser/mobile/production inspection. All 141 measured tables and both reporting projections remain unchanged. Independent cloud/publication and Google synchronization are pending; [Releases](docs/RELEASES.md) records exact evidence. This does not complete all analytics requirements or the broader application.
+
+## Previous release 1.44: Preview campaigns and draft copy before saving
 
 The preparation form now offers a read-only preview of the planning step, actual ordered audience drafts and approved evidence citations. It uses the same generation path as saving but creates no records or spending, and later preparation still rechecks current approval and profiles. [Programmer reference](docs/CAMPAIGN_PREPARATION_PREVIEW.md) documents the full contract.
 

@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.45 Analytics development
+
+Read [Workspace Analytics](WORKSPACE_ANALYTICS.md) before changing grouping, numeric formatting, provenance or query scope. Never reuse the workflow-success summary or cast SQL amounts/counts to Number. Metadata1.45.0/schema121; no new dependency/environment key. Use the isolated one-time145 seed and post-login read-only141-table comparisons; existing MARKET_ME-prefixed development account settings are required. The shared server bundle now has23 getters and shared navigation18entries. User pnpm files remain excluded. [Releases](RELEASES.md) separates local/cloud/native/browser verification.
+
 ## Release 1.44 preparation-preview development
 
 Read [Preparation preview](CAMPAIGN_PREPARATION_PREVIEW.md) before editing the shared evidence/variant path, display DTO or form cancellation. Preserve generator1.1.0/promptgrounded-draft-v2 parity and separate durable recovery. Metadata1.44.0/schema121; no new dependency/environment key. The ignored loopback market_me_qa_144_preview_v1 helper initializes once, then captures141-table read-only snapshots. Never repeat --init or click save/approval/activation during preview-only browser acceptance. User pnpm files remain excluded; [Releases](RELEASES.md) is the verification authority.

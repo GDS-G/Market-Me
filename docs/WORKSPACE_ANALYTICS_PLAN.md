@@ -1,6 +1,6 @@
 # Workspace analytics: measured activity and outcomes
 
-Status: next independent product increment after the1.44 preparation preview. Specification sections01 and17 call for an Analytics destination that distinguishes activity from business outcomes, identifies metric sources/availability and avoids unnecessary personal tracking. Existing measurements and correction-aware provider totals are visible only inside individual Campaign runs; no workspace Analytics page exists.
+Status: 1.45.0 candidate implemented; full acceptance is in progress. [Programmer reference](WORKSPACE_ANALYTICS.md) inventories contracts, variables and limits. Specification sections01 and17 call for an Analytics destination that distinguishes activity from business outcomes, identifies metric sources/availability and avoids unnecessary personal tracking. Before this increment, measurements and correction-aware provider totals were visible only inside individual Campaign runs.
 
 ## First usable slice
 

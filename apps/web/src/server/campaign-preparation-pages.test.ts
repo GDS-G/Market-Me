@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({ user: vi.fn(), workspace: vi.fn(), packages: v
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error("redirect:" + path); }, notFound: () => { throw new Error("not-found"); } }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/server/preparation-preset-pages", () => import("./preparation-preset-pages"));
+vi.mock("@/server/workspace-analytics-view", () => import("./workspace-analytics-view"));
 vi.mock("./auth", () => ({ getAuthenticatedUser: mocks.user }));
 vi.mock("./active-workspace", () => ({ getActiveWorkspace: mocks.workspace }));
 vi.mock("./database", () => ({ getCampaignRepository: () => ({ listDestinations: mocks.destinations }), getProfileRepository: () => ({ listBrandProfiles: mocks.brands, listAudienceProfiles: mocks.audiences }) }));
@@ -96,6 +97,8 @@ describe("preparation entry authorization", () => {
     const html = renderToStaticMarkup(await CampaignsPage());
     expect(html).toContain(`href="/campaigns/preparations/${receiptId}?workspaceId=${workspaceId}"`);
     expect(html).toContain("Original preparation receipt"); expect(html).toContain("Draft-only plan"); expect(html).not.toContain("idempotencyKey");
+    expect(html).toContain(`href="/analytics?workspaceId=${workspaceId}&amp;campaignId=${campaignId}"`);
+    expect(html).toContain("Campaign analytics");
     expect(mocks.receipts).toHaveBeenCalledWith(workspaceId, userId);
   });
 });

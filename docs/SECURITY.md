@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.45 read-only reporting
+
+Analytics requires current workspace membership and optional Campaign ownership in the same SQL snapshot as its aggregates. All current roles may read; filters grant no authority. Cross-workspace/inconsistent provider lineage is excluded. Output omits event keys/identities/properties and raw provider credentials/payloads; collector source labels remain unverified escaped text. Bounded detail lists and a1MiB exact-response ceiling fail safely without silent value truncation. No writes, provider synchronization or inferred permission occurs. [Boundary reference](WORKSPACE_ANALYTICS.md) explains point-in-time revocation semantics and privacy/coverage limits.
+
 ## Release 1.44 preview authority
 
 Read-only preview requires current writer membership, exact current package approval and eligible scoped profiles/destination under existing locks. Strict same-origin bounded JSON excludes actor/key/activation authority; minimized responses exclude raw profiles/private asset fields. Hash correlation is not a signed permission or lease. No provider/spending/persistence occurs, and later preparation revalidates. Stale client generations are canceled/fenced. [Full boundary](CAMPAIGN_PREPARATION_PREVIEW.md) separates approved citations from independent source verification.

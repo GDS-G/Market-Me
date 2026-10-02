@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.45 Analytics projection
+
+WorkspaceAnalyticsSnapshot/schemaVersion1 carries current workspace/optional Campaign, observedAt, exact-string headline/status counts, bounded event groups and recent runs, and current provider totals with per-metric publication coverage/observation ranges. Frozen limits are200 groups/20runs/1MiB. Strict UUID/query helpers, decimal-string rendering, outcome/engagement/feedback/custom tuples/sets and provider/status dictionary are inventoried in [the full reference](WORKSPACE_ANALYTICS.md). No schema change, currency conversion, inferred attribution, cached authorization or mutable reporting global is added.
+
 ## Release 1.44 preparation-preview fields
 
 CampaignPreparationPreview/PreparationPreview carry normalized configuration, exact package approval, optional Brand/Destination, ordered General/Audience variants, fixed draft-only manual step, generator identity, approved evidence and literal-false effects. requestDigest correlates exact request bytes but grants no authority. approvedDraftEvidence and generateGroundedDraftVariants share deterministic output with durable generation. Frozen byte/time limits, request-local maps, preview identity/state/AbortController/generation fence and all DTO fields are inventoried in [the programmer reference](CAMPAIGN_PREPARATION_PREVIEW.md). No persistence/global configuration changes.

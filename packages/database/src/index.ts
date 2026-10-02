@@ -38,3 +38,5 @@ export * from "./workspace-start-models";
 export * from "./workspace-start-repository";
 export * from "./package-work-models";
 export * from "./package-work-repository";
+export * from "./workspace-analytics-models";
+export * from "./workspace-analytics-repository";

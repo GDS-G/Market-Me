@@ -15,7 +15,7 @@ import { WorkspaceNavigation } from "../components/workspace-navigation";
 import { WorkspaceSwitcher } from "../components/workspace-switcher";
 const userId = "11111111-1111-4111-8111-111111111111", workspaceId = "22222222-2222-4222-8222-222222222222";
 const paths = ["/", "/getting-started", "/smart-sources", "/context-packs", "/content-packages", "/drafts", "/campaigns", "/approvals", "/calendar",
-  "/conversations", "/ai-settings", "/audience", "/destinations", "/integrations", "/companion", "/team", "/settings"];
+  "/conversations", "/analytics", "/ai-settings", "/audience", "/destinations", "/integrations", "/companion", "/team", "/settings"];
 const selection = () => ({ workspace: { workspaceId, workspaceName: "Current synthetic workspace", role: "viewer" }, workspaces: [
   { workspaceId, workspaceName: "Current synthetic workspace", role: "viewer", organizationId: "private-organization" },
   { workspaceId: "33333333-3333-4333-8333-333333333333", workspaceName: "Another synthetic workspace", role: "owner", organizationId: "other-organization" },
@@ -32,11 +32,11 @@ beforeEach(() => { vi.resetAllMocks(); mocks.user.mockResolvedValue({ id: userId
 describe("shared responsive workspace navigation", () => {
   it.each(paths)("marks only the exact %s section current without speculative prefetch", path => {
     const html = renderToStaticMarkup(createElement(WorkspaceNavigation, { activePath: path }));
-    expect(html.match(/<a /g)).toHaveLength(17); expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(html.match(/<a /g)).toHaveLength(18); expect(html.match(/aria-current="page"/g)).toHaveLength(1);
     expect(html).toContain(`href="${path}"`);
     const current = html.match(/<a [^>]*aria-current="page"[^>]*>/)?.[0]; expect(current).toContain(`href="${path}"`);
-    expect(html.match(/data-prefetch="false"/g)).toHaveLength(17);
-    expect(html.match(/aria-hidden="true"/g)).toHaveLength(17);
+    expect(html.match(/data-prefetch="false"/g)).toHaveLength(18);
+    expect(html.match(/aria-hidden="true"/g)).toHaveLength(18);
     for (const expected of paths) expect(html.match(new RegExp(`href="${expected}"`, "g"))).toHaveLength(1);
     expect(mocks.selection).not.toHaveBeenCalled(); expect(mocks.switchAction).not.toHaveBeenCalled();
   });

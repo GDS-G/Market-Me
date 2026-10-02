@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.45 workspace Analytics
+
+A server-only current-membership SELECT creates one coherent snapshot of run/publication activity, source/currency-separated events and correction-aware provider aggregates. Exact SQL numeric strings, bounded detail coverage and explicit provenance prevent rounded values or mixed measurement semantics. No mutation/provider path is invoked. The shared server bundle retains one new repository, never user/report data. [Complete design](WORKSPACE_ANALYTICS.md) documents every CTE, field, helper, clock and authorization boundary.
+
 ## Release 1.44 read-only preparation preview
 
 The existing preparation compiler, exact approval/reference locks, communication-policy validation and pure evidence/variant generator now serve a no-write preview. Saving independently revalidates and uses the same output path. A bounded same-origin authenticated POST returns minimized context/copy/citations plus request-byte correlation, never execution authority. [Detailed design](CAMPAIGN_PREPARATION_PREVIEW.md) covers locks, lifetimes, normalization and rollout. No new provider, migration, cache or durable identifier.

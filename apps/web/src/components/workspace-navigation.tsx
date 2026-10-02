@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, BookOpenCheck, BrainCircuit, CalendarDays, Compass, FilePenLine, FileStack,
+import { ArrowUpRight, BarChart3, BookOpenCheck, BrainCircuit, CalendarDays, Compass, FilePenLine, FileStack,
   FolderKanban, LayoutDashboard, Megaphone, MessageSquareText, MonitorSmartphone, PlugZap, Settings,
   ShieldCheck, Users, UsersRound } from "lucide-react";
 
@@ -14,6 +14,7 @@ const navigation = [
   { href: "/approvals", label: "Approvals", icon: ShieldCheck },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/conversations", label: "Conversations", icon: MessageSquareText },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ] as const;
 const manageNavigation = [
   { href: "/ai-settings", label: "AI & Cost", icon: BrainCircuit },

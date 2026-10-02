@@ -18,7 +18,7 @@ export function selectActiveWorkspace(
 
 const WORKSPACE_SECTION_PATHS = new Set([
   "/", "/getting-started", "/smart-sources", "/context-packs", "/content-packages", "/drafts",
-  "/campaigns", "/approvals", "/calendar", "/conversations", "/ai-settings",
+  "/campaigns", "/approvals", "/calendar", "/conversations", "/analytics", "/ai-settings",
   "/audience", "/destinations", "/integrations", "/companion", "/team", "/settings",
 ]);
 
