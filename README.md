@@ -2,11 +2,11 @@
 
 Market Me is a universal content-to-campaign operating system. It monitors customer-selected content locations, builds evidence-backed Content Packages, and coordinates approval-aware marketing campaigns across connector capabilities.
 
-## Release 1.43 candidate: Explicit budget money units
+## Release 1.43: Explicit budget money units
 
 Quotes and reservations now have an explicit compatibility boundary: the existing budget ledger uses hundredths, and a different quote scale cannot authorize spending. Historical incompatible quote-linked amounts remain intact and inspectable but block new spending and monetary settlement; the UI labels those totals unverified. [Programmer reference](docs/AI_BUDGET_UNIT_BOUNDARY.md) documents every new contract, helper, field and rollout limit.
 
-The final local gate passes 3,392 tests/181 files and 44/44 quality cases. Native packaging, isolated development/final production and Google candidate readback pass; cloud/publication acceptance remains pending. All 141 measured domain tables stay unchanged during browser inspection. [Releases](docs/RELEASES.md) separates the evidence. No conversion, historical reconciliation, real provider acceptance or whole-product completion is claimed.
+Reviewed runtime `de3c71ab9ecfcce04cada74ff8faeb0e5fcd4a14` is public on main. Final local and independent exact-source feature/main cloud gates pass 3,392 tests/181 files and 44/44 quality cases; both cloud audits are clean. Native packaging, isolated browser/mobile/production and final Google readback pass separately. All 141 measured domain tables stay unchanged during browser inspection. [Releases](docs/RELEASES.md) separates the evidence. The next [campaign/draft preview](docs/CAMPAIGN_PREPARATION_PREVIEW_PLAN.md) is underway independently. No conversion, historical reconciliation, real provider acceptance or whole-product completion is claimed.
 
 ## Previous release 1.42: Recoverable budget actions
 

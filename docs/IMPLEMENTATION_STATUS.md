@@ -1,10 +1,10 @@
 # Market Me implementation status
 
-## Release 1.43 money-unit boundary: acceptance in progress
+## Release 1.43 money-unit boundary: verified and published
 
 Four reproduced quote-scale defects are corrected by explicit hundredths compatibility, all-history quote-lineage checks, guarded exceptions and provider prepare/claim/complete/settlement boundaries. Historical integers and receipts are unchanged; release/rejection/inspection remain available. [Implementation reference](AI_BUDGET_UNIT_BOUNDARY.md) records the semantics and deliberately excluded automatic conversion/reconciliation.
 
-Final local gate passes 3,392 tests/181 files and 44 quality cases, static/frontend/native checks and unsigned packaging. Read-only development and final production acceptance preserve all 141 domain-table fingerprints across three synthetic workspaces. Final warning/mobile inspection and Google candidate readback pass; exact-source cloud publication remains pending. No user input is needed to continue.
+Reviewed runtime `de3c71ab9ecfcce04cada74ff8faeb0e5fcd4a14` is public on main. Final local and independent exact-source feature/main cloud gates pass 3,392 tests/181 files and 44 quality cases; both cloud audits are clean. Static/frontend/native checks, unsigned packaging and browser/mobile/production pass separately, preserving all 141 domain-table fingerprints across three synthetic workspaces. Final Google readback verifies44 authored paragraphs and preserves all30 tabs and prior content/styles. [Campaign/draft preview](CAMPAIGN_PREPARATION_PREVIEW_PLAN.md) is underway independently; its tests are excluded from these totals. The product remains incomplete; no user input is needed merely to continue.
 
 ## Release 1.42 budget-action recovery: verified and published
 

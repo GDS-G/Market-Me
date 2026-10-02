@@ -1,10 +1,12 @@
 # Cloud continuous integration
 
-## Release 1.43 candidate gate
+## Release 1.43 verified checkpoint
 
-Corrected full local gate passes **3,392 tests/181 files without skips**, 44/44 standalone quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web1341/74; workflow-worker68/5; companion protocol4/1; connectors166/10; database1398/64; domain157/7; generation112/7; ingestion79/8; media24/2; workflows43/3. First corrected build: Next compile4.2s, TypeScript11.2s,106/106 generation422ms; companion201.34kB/64.02kB gzip137ms; cargo check2.74s and Rust test build15.27s. A final rerun follows warning-legibility and truthful next-action improvements; cloud results are pending.
+Corrected full local gate passes **3,392 tests/181 files without skips**, 44/44 standalone quality cases, twelve typechecks, lint, both frontends, cargo check and three Rust tests. Split: web1341/74; workflow-worker68/5; companion protocol4/1; connectors166/10; database1398/64; domain157/7; generation112/7; ingestion79/8; media24/2; workflows43/3. First corrected build: Next compile4.2s, TypeScript11.2s,106/106 generation422ms; companion201.34kB/64.02kB gzip137ms; cargo check2.74s and Rust test build15.27s.
 
 The final presentation rerun also passes the complete gate: Next compile3.0s, TypeScript3.9s,106/106 generation416ms; companion131ms, cargo check0.77s and Rust test build4.80s. New coverage adds29 domain,26 web and14 live database cases. Provider boundary scenarios are expanded within one existing test rather than counted separately. The first full gate caught an exact usage assertion missing the new required unitIntegrity metadata; the assertion now verifies the metadata explicitly. No new migration/dependency: schema121. Native packaging and browser/database preservation are separate gates. [Releases](RELEASES.md) records evidence and acceptance status.
+
+Exact runtime `de3c71ab9ecfcce04cada74ff8faeb0e5fcd4a14` passes [feature CI](https://github.com/GDS-G/Market-Me/actions/runs/36964395711) in3:49 and [main CI](https://github.com/GDS-G/Market-Me/actions/runs/36964778913) in3:03. Each locked install adds609 packages/audits622, applies121 migrations with no skips, reproduces the full test/quality split, passes static/frontend/native-dependency smoke/cleanup and both zero-vulnerability audits. Next compile12.1/10.4s;106-page generation454/353ms respectively. Final Google readback passes. Independent preview development is excluded from this checkpoint.
 
 ## Release 1.42 verified checkpoint
 
