@@ -17,6 +17,7 @@ vi.mock("@/server/database", () => ({
 }));
 vi.mock("@/components/workspace-shell", () => ({ WorkspaceShell: ({ children }: { children: ReactNode }) => createElement("main", {}, children) }));
 vi.mock("@/components/campaign-preparation-request", () => import("../components/campaign-preparation-request"));
+vi.mock("@/components/campaign-inspection-path", () => import("../components/campaign-inspection-path"));
 vi.mock("@/components/campaign-finalization-request", () => import("../components/campaign-finalization-request"));
 vi.mock("@/components/content-package-review-request", () => import("../components/content-package-review-request"));
 vi.mock("@/components/campaign-finalization-form", () => ({ CampaignFinalizationForm: (props: Record<string, unknown>) => createElement("form", { "data-finalizer": true }, JSON.stringify(props)) }));
@@ -104,8 +105,8 @@ describe("protected campaign editor handoff", () => {
   });
   it("does not expose protected action controls to a reader", async () => {
     mocks.forCampaign.mockResolvedValue(receipt); mocks.workspace.mockResolvedValue({ workspaceId, workspaceName: "QA", role: "viewer" });
-    const html = renderToStaticMarkup(await EditPage({ params: Promise.resolve({ id: campaignId }) }));
-    expect(html).toContain('data-can-write="false"'); expect(html).not.toContain("data-advanced");
+    await expect(EditPage({ params: Promise.resolve({ id: campaignId }) })).rejects.toThrow(`redirect:/campaigns/${campaignId}?workspaceId=${workspaceId}`);
+    expect(mocks.forCampaign).not.toHaveBeenCalled(); expect(mocks.packages).not.toHaveBeenCalled();
   });
   it("retains the existing editor only for campaigns without protected provenance", async () => {
     const html = renderToStaticMarkup(await EditPage({ params: Promise.resolve({ id: campaignId }) }));

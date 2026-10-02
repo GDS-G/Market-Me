@@ -26,6 +26,7 @@ vi.mock("@/server/database", () => ({
 }));
 vi.mock("@/components/workspace-shell", () => ({ WorkspaceShell: ({ children }: { children: ReactNode }) => createElement("main", {}, children) }));
 vi.mock("@/components/campaign-preparation-request", () => import("../components/campaign-preparation-request"));
+vi.mock("@/components/campaign-inspection-path", () => import("../components/campaign-inspection-path"));
 vi.mock("@/components/campaign-preparation-form", () => ({ CampaignPreparationForm: (props: { userId: string; workspaceId: string; packages: { id: string }[]; brands: { id: string }[]; audiences: { id: string }[]; destinations: { id: string }[] }) => createElement("form", { "data-user": props.userId, "data-workspace": props.workspaceId }, JSON.stringify(props)) }));
 vi.mock("@/components/campaign-preparation-result", () => ({ CampaignPreparationResult: (props: { canWrite: boolean; availableDraftIds: string[] }) => createElement("section", { "data-can-write": props.canWrite }, props.availableDraftIds.join(",")) }));
 vi.mock("@/components/draft-generation-form", () => ({ DraftGenerationForm: () => createElement("form", {}, "Existing plan generator") }));

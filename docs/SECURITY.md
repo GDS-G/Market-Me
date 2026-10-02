@@ -1,5 +1,9 @@
 # Security and Integration Controls
 
+## Release 1.55 Campaign inspection boundary
+
+Authentication, active workspace, validated route/query hints and returned Campaign/provenance identity precede rendering. Readers receive no mutation form or advanced picker loads; arbitrary context, inputs, outputs and conditions are omitted. Protected and archived plans cannot gain alternate action links through inspection. These display controls do not replace independent endpoint authorization or fix legacy create/save/publish concurrency limitations. [Full reference](CAMPAIGN_INSPECTION.md) distinguishes saved policy settings from verified execution authority and identifies the remaining write-boundary audit.
+
 ## Release 1.54 activation uncertainty boundary
 
 New activation requires current workspace writer membership plus exact version/grant hints; own-history lookup/closure requires current membership but may recover after downgrade. Revocation, foreign actors, cross-tenant identity and conflicting reused keys fail closed. Bounded strict JSON/exact origin, private response headers and fixed error messages protect both POSTs. An absent GET result never permits a replacement: a separately confirmed closure must serialize against in-flight acceptance. [Full reference](CAMPAIGN_ACTIVATION_RECOVERY.md) documents SQL exclusion/immutability, trusted legacy-call limits, tab storage and why closing a request cannot cancel an accepted run. Release verification remains distinct from these implemented boundaries.

@@ -1,5 +1,9 @@
 # Architecture
 
+## Release 1.55 read-only Campaign inspection
+
+The new server-rendered `/campaigns/[id]` observation separates published and draft versions, validates current-workspace hints and returned lineage, and retains protected finalization routing. Campaign list entries now lead to inspection; reader edit/new routes avoid advanced candidate loading. Writer action links remain separate from the read-only page and confer no authority. [Complete design](CAMPAIGN_INSPECTION.md) documents observational consistency, display caps versus fetch limits, role routing and omitted private payloads. Schema 131 and the 31 shared-pool repository getters are unchanged; release acceptance is recorded separately.
+
 ## Release 1.54 verified activation recovery
 
 One exact user request now reaches `CampaignActivationRepository`, not the trusted legacy activation wrapper. Current membership, request advisory serialization, execution admission and the existing campaign/proof locks protect one atomic instance/steps/start-command/receipt/audit commit. An explicit closure competes on the same key and either returns original acceptance or prevents future acceptance of that request. Shared guided/advanced review retains tab-local correlation before submission; reload only restores, never resends. The shared pool has31 repository getters. [Complete design](CAMPAIGN_ACTIVATION_RECOVERY.md) separates observations, authority, terminal history, transaction timestamps, UI state and rollout from separately verified release evidence.

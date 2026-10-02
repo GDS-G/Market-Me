@@ -1,5 +1,9 @@
 # Developer Guide
 
+## Release 1.55 inspection verification
+
+See [the programmer reference](CAMPAIGN_INSPECTION.md) and [plan](CAMPAIGN_INSPECTION_PLAN.md). No migration or environment change is required; schema 131 and pool size 31 remain. The isolated `market_me_qa_155_inspection_v1` fixture contains four synthetic Campaigns with separate owner/viewer workspaces and published/draft versions. Never reinitialize the retained fixture. Browser checks use loopback 3134/3135 without providers or workers; compare all 149 measured table fingerprints around reads, allowing only session bookkeeping. The scoped CSS fixes a browser-observed action-link sizing issue; production ordering is checked separately. The NSIS artifact is unsigned and must not be described as installed or distributed. [Releases](RELEASES.md) tracks distinct local, browser, native, cloud and Google evidence.
+
 ## Release 1.54 activation-recovery development
 
 Read [Activation recovery](CAMPAIGN_ACTIVATION_RECOVERY.md) and [its plan](CAMPAIGN_ACTIVATION_RECOVERY_PLAN.md) before changing the request tuple, shared lock bytes, terminal outcome, retention/closure, HTTP mapping or UI focus lifecycle. Own metadata1.54.0/schema131; no dependency/environment addition. Preserve frozen0130/0131 checksums and coordinate schema/web rollout. Existing native/worker protocols and workflow markers are unchanged. The shared repository bundle has31 getters; the stable CampaignValidationError brand prevents older retained repository instances from being misclassified after route hot reload.

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { CampaignForm } from "@/components/campaign-form";
+import { campaignInspectionPath } from "@/components/campaign-inspection-path";
 import { CampaignFinalizationResult } from "@/components/campaign-finalization-result";
 import { canPrepareCampaign, preparationUuid } from "@/components/campaign-preparation-request";
 import { finalizationResultPath } from "@/components/campaign-finalization-request";
@@ -20,6 +21,7 @@ export default async function EditCampaignPage({ params }: { params: Promise<{ i
   const parsedId = preparationUuid.safeParse((await params).id);
   if (!parsedId.success) notFound();
   const campaignId = parsedId.data.toLowerCase();
+  if (!canPrepareCampaign(workspace.role)) redirect(campaignInspectionPath(workspace.workspaceId, campaignId));
   const campaigns = getCampaignRepository();
   const [protectedReceipt, protectedCampaign] = await Promise.all([
     getCampaignFinalizationRepository().getForCampaign(workspace.workspaceId, campaignId, user.id),

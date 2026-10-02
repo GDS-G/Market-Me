@@ -1,5 +1,9 @@
 # Domain Model and Important Variables
 
+## Release 1.55 inspection presentation
+
+`CAMPAIGN_PLAN_SECTIONS` is the readonly published/draft tuple; `CAMPAIGN_INSPECTION_LIMITS` freezes 100 steps, 20 dependencies per step and 20 goals. The eight-entry autonomy dictionary, timing formatter, scoped-path helper, insertion-compatible defaults and render-local navigation variables are inventoried in [Campaign inspection](CAMPAIGN_INSPECTION.md). Success targets remain source-model numbers with explicit currencies, not measurements. No persisted field, client editor state, storage key or mutable global result is introduced.
+
 ## Release 1.54 exact activation intent and terminal history
 
 The five-field canonical `CampaignActivationRequest`, immutable accepted receipt/closure union, bounded member preview, fixed limits/status tuple and branded errors are documented in [Activation recovery](CAMPAIGN_ACTIVATION_RECOVERY.md). Migrations0130/0131 add typed immutable history and exact request-key serialization; ordinary run progress is separate. Browser scope is user/workspace/campaign; schemaVersion1 storage contains only exact intent, not authority. Hydration, restored storage, review/confirmation, synchronous retained intent, operation gate and post-commit focus restoration have explicit lifetimes. No process-global actor/result/permission cache is added.
